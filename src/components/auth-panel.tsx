@@ -4,6 +4,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, UserRound } from "lucide-react";
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ApiError, type ApiUser, useApi } from "@/lib/api";
 
@@ -22,7 +23,10 @@ export function AuthPanel() {
   async function signIn(signUp = false) {
     setActionError(undefined);
     try {
-      await loginWithRedirect(signUp ? { authorizationParams: { screen_hint: "signup" } } : undefined);
+      await loginWithRedirect({
+        appState: { returnTo: window.location.pathname },
+        ...(signUp ? { authorizationParams: { screen_hint: "signup" } } : {}),
+      });
     } catch {
       setActionError("Unable to sign in. Please try again.");
     }
@@ -49,7 +53,9 @@ export function AuthPanel() {
   const name = user.data?.display_name.trim() || user.data?.email || "Traveler";
 
   return (
-    <details className="group relative">
+    <div className="flex flex-wrap items-center gap-2">
+      <Button variant="ghost" className="min-h-11" render={<Link href="/trips" />} nativeButton={false}>Trips</Button>
+      <details className="group relative">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-4 [&::-webkit-details-marker]:hidden">
         <UserRound aria-hidden="true" className="size-4" />
         My account
@@ -83,6 +89,7 @@ export function AuthPanel() {
           }
         }}>Log out</Button>
       </div>
-    </details>
+      </details>
+    </div>
   );
 }

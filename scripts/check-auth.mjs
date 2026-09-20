@@ -22,14 +22,14 @@ const mocks = {
     useQuery: () => profile,
     useQueryClient: () => ({ clear: () => calls.push("clear") }),
   },
-  "@/components/ui/button": { Button: (props) => React.createElement("button", { ...props, variant: undefined }) },
+  "@/components/ui/button": { Button: ({ children, onClick, disabled }) => React.createElement("button", { onClick, disabled }, children) },
   "@/lib/api": { ApiError, useApi: () => () => {} },
   react: { ...React, useState: () => [undefined, () => {}] },
 };
 const compiled = ts.transpileModule(fs.readFileSync("src/components/auth-panel.tsx", "utf8"), {
   compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS },
 }).outputText;
-const context = { exports: {}, require: (id) => mocks[id] || loadModule(id), window: { location: { origin: "http://localhost:3000" } } };
+const context = { exports: {}, require: (id) => mocks[id] || loadModule(id), window: { location: { origin: "http://localhost:3000", pathname: "/trips" } } };
 vm.runInNewContext(compiled, context);
 const panel = () => context.exports.AuthPanel();
 const html = () => renderToStaticMarkup(panel());
@@ -47,7 +47,8 @@ function buttons(node) {
   const loginButtons = buttons(panel());
   await loginButtons[0].props.onClick();
   await loginButtons[1].props.onClick();
-  assert.equal(calls[0], undefined);
+  assert.equal(calls[0].authorizationParams, undefined);
+  assert.equal(calls[0].appState.returnTo, "/trips");
   assert.equal(calls[1].authorizationParams.screen_hint, "signup");
   auth = { isAuthenticated: true };
   profile = { isPending: true };

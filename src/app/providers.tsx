@@ -3,6 +3,7 @@
 import { Auth0Provider } from "@auth0/auth0-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 
 const domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN;
 const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
@@ -10,6 +11,7 @@ const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE;
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
+  const router = useRouter();
 
   if (!domain || !clientId || !audience) {
     return (
@@ -27,6 +29,10 @@ export function Providers({ children }: { children: ReactNode }) {
       domain={domain}
       clientId={clientId}
       cacheLocation="memory"
+      onRedirectCallback={(appState) => {
+        const path = appState?.returnTo;
+        router.replace(typeof path === "string" && path.startsWith("/") && !path.startsWith("//") && !path.includes("\\") ? path : "/");
+      }}
       authorizationParams={{
         audience,
         redirect_uri: globalThis.location?.origin,

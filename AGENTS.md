@@ -16,6 +16,10 @@ the task.
 
 - Use App Router, TypeScript, Tailwind, and existing shadcn/Base UI code.
   Prefer Server Components; use `"use client"` only when required.
+- Design mobile-first: start with small-screen layouts and use Tailwind's
+  responsive breakpoints to enhance them for larger screens. Keep navigation,
+  forms, and controls touch-friendly; prevent horizontal overflow and verify
+  mobile and desktop layouts before shipping UI changes.
 - The Go API owns data and authorization. Use its OpenAPI client/types; do not
   duplicate domain logic or expose provider secrets in the browser.
 - Use TanStack Query for remote state and local React state for UI state.
