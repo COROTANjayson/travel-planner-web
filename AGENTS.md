@@ -7,3 +7,24 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# Travel Planner web
+
+This is the Next.js client. The canonical architecture brief is
+`../travel-planner-api/travel-planner.md`; read only the sections relevant to
+the task.
+
+- Use App Router, TypeScript, Tailwind, and existing shadcn/Base UI code.
+  Prefer Server Components; use `"use client"` only when required.
+- The Go API owns data and authorization. Use its OpenAPI client/types; do not
+  duplicate domain logic or expose provider secrets in the browser.
+- Use TanStack Query for remote state and local React state for UI state.
+- Server-render public template/destination pages with useful metadata.
+- Treat AI and optimization as asynchronous jobs. Scheduling constraints and
+  verified place/route data belong to backend services, not client logic.
+- Keep scheduled instants in UTC with IANA time zones. Keep money as integer
+  minor units with an ISO currency code.
+- Build only the requested web slice; do not prebuild mobile, infrastructure,
+  microservices, CRDTs, or speculative abstractions.
+- Preserve accessible loading, empty, error, unauthorized, and mobile states.
+- Run `npm run lint` and `npm run build` after behavioral or compilation changes.

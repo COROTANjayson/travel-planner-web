@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Travel Planner web
 
-## Getting Started
+Next.js frontend for Travel Planner.
 
-First, run the development server:
+## Run locally
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Create `.env.local`:
+
+```dotenv
+NEXT_PUBLIC_AUTH0_DOMAIN=your-tenant.us.auth0.com
+NEXT_PUBLIC_AUTH0_CLIENT_ID=your-spa-client-id
+NEXT_PUBLIC_AUTH0_AUDIENCE=your-api-identifier
+API_BASE_URL=http://127.0.0.1:8080
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create an Auth0 **Single Page Application** and add `http://localhost:3000`
+to its Allowed Callback URLs, Allowed Logout URLs, and Allowed Web Origins.
+The audience must exactly match the Go API's `AUTH0_AUDIENCE`. No client secret
+belongs in this application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The browser calls relative `/api/*` URLs. Next.js proxies them to
+`API_BASE_URL`, avoiding local CORS requests.
 
-## Learn More
+## Frontend UI guide
 
-To learn more about Next.js, take a look at the following resources:
+Use **shadcn/ui first** for application UI. The project is already configured
+with the `base-nova` style, Base UI primitives, Tailwind CSS variables, and
+Lucide icons in [`components.json`](./components.json).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Add a component
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Check the [shadcn component list](https://ui.shadcn.com/docs/components), then
+add only what the current feature needs:
 
-## Deploy on Vercel
+```bash
+npx shadcn add card dialog input
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Generated components live in `src/components/ui` and are owned by this repo.
+Import them through the configured alias:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```tsx
+import { Button } from "@/components/ui/button"
+
+export function SaveButton() {
+  return <Button>Save trip</Button>
+}
+```
+
+### Conventions
+
+- Reuse a component from `src/components/ui` before creating a new primitive.
+- Compose feature-specific UI outside `components/ui`; keep that directory for
+  shadcn primitives and small project-wide adjustments.
+- Use existing semantic classes such as `bg-background`, `text-foreground`,
+  `text-muted-foreground`, and `border-border`. Change theme tokens in
+  `src/app/globals.css` instead of scattering raw colors.
+- Use component variants and `cn()` for conditional classes. Avoid copying a
+  shadcn component into another file just to restyle it.
+- Use Lucide for icons. Give icon-only controls an accessible label.
+- Keep Server Components by default. Add `"use client"` only when interaction,
+  browser APIs, or client-side state require it.
+- Preserve keyboard focus, labels, validation messages, loading/empty/error
+  states, and responsive behavior when composing components.
+- Do not add another component library unless the team explicitly changes this
+  rule.
+
+Before opening a PR, run:
+
+```bash
+npm run lint
+npm run build
+```
+
+The broader architecture is documented in
+`../travel-planner-api/travel-planner.md`.
