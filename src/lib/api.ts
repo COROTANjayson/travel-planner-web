@@ -7,6 +7,7 @@ import { useCallback } from "react";
 export interface ApiUser {
   id: number;
   email: string | null;
+  email_verified: boolean;
   display_name: string;
   created_at: string;
   updated_at: string;
@@ -63,11 +64,11 @@ export function useApi() {
       if (!response.ok) {
         let message = messages[response.status];
 
-        if (!message && response.status < 500) {
+        if ((!message || response.status === 409) && response.status < 500) {
           const body = (await response.json().catch(() => null)) as
             | { error?: string }
             | null;
-          message = body?.error;
+          if (typeof body?.error === "string") message = body.error;
         }
 
         throw new ApiError(

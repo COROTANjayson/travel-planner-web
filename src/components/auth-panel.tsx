@@ -55,6 +55,7 @@ export function AuthPanel() {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button variant="ghost" className="min-h-11" render={<Link href="/trips" />} nativeButton={false}>Trips</Button>
+      <Button variant="ghost" className="min-h-11" render={<Link href="/invitations/accept" />} nativeButton={false}>Accept invitation</Button>
       <details className="group relative">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-4 [&::-webkit-details-marker]:hidden">
         <UserRound aria-hidden="true" className="size-4" />

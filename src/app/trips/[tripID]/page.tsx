@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiError } from "@/lib/api";
+import { ApiError, type ApiUser, useApi } from "@/lib/api";
+import { permissions, useMembershipsApi } from "@/lib/memberships";
+import { Invitations, Participants } from "@/components/trips/memberships";
 import { type TripInput, useTripsApi, validTripID } from "@/lib/trips";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +28,25 @@ function TripDetail({ id }: { id: number }) {
   const api = useTripsApi();
   const queryClient = useQueryClient();
   const router = useRouter();
+  const request = useApi();
+  const memberships = useMembershipsApi(id);
+  const me = useQuery({ queryKey: ["me"], queryFn: () => request<ApiUser>("/api/v1/me"), retry: false });
+  const members = useQuery({ queryKey: ["trip", id, "members"], queryFn: ({ signal }) => memberships.members(signal), retry: false });
+  const [permissionBlocked, setPermissionBlocked] = useState(false);
+  const [accessError, setAccessError] = useState<Error | null>(null);
+  const current = me.isSuccess && members.isSuccess && !permissionBlocked ? members.data.find((person) => person.user_id === me.data?.id) : undefined;
+  const allowed = permissions(current?.role);
+  const handleFailure = useCallback((error: Error) => {
+    if (!(error instanceof ApiError)) return;
+    if (error.status === 404) setAccessError(error);
+    if (error.status === 403 || error.status === 409) {
+      setAccessError(error);
+      setPermissionBlocked(true);
+      return queryClient.refetchQueries({ queryKey: ["trip", id, "members"] }).then(() => {
+        if (queryClient.getQueryState(["trip", id, "members"])?.status === "success") setPermissionBlocked(false);
+      });
+    }
+  }, [id, queryClient]);
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const trip = useQuery({
@@ -34,6 +55,7 @@ function TripDetail({ id }: { id: number }) {
     retry: false,
   });
   const update = useMutation({
+    onError: handleFailure,
     mutationFn: (input: TripInput) => api.update(id, input),
     onSuccess: async (saved) => {
       queryClient.setQueryData(["trip", id], saved);
@@ -45,16 +67,17 @@ function TripDetail({ id }: { id: number }) {
     },
   });
   const remove = useMutation({
+    onError: handleFailure,
     mutationFn: () => api.remove(id),
     onSuccess: async () => {
-      await queryClient.cancelQueries({ queryKey: ["trip", id], exact: true });
-      queryClient.removeQueries({ queryKey: ["trip", id], exact: true });
+      await queryClient.cancelQueries({ queryKey: ["trip", id] });
+      queryClient.removeQueries({ queryKey: ["trip", id] });
       await queryClient.invalidateQueries({ queryKey: ["trips"] });
       router.replace("/trips");
     },
   });
 
-  if ([trip.error, update.error, remove.error].some((error) => error instanceof ApiError && error.status === 404)) {
+  if ([trip.error, members.error, accessError, update.error, remove.error].some((error) => error instanceof ApiError && error.status === 404)) {
     return <TripNotFound />;
   }
   if (trip.isPending) return <TripLoading />;
@@ -63,7 +86,8 @@ function TripDetail({ id }: { id: number }) {
   return (
     <>
       <Button className="min-h-11" variant="outline" render={<Link href="/trips" />} nativeButton={false}>Back to trips</Button>
-      {editing ? (
+      {accessError && <TripError error={accessError} />}
+      {editing && allowed.edit ? (
         <>
           <h1 className="text-2xl font-semibold">Edit trip</h1>
           <TripForm initialValue={trip.data} onSubmit={(input) => update.mutate(input)}
@@ -84,8 +108,8 @@ function TripDetail({ id }: { id: number }) {
             </CardContent>
           </Card>
           <div className="flex flex-wrap gap-3">
-            <Button className="min-h-11" onClick={() => { update.reset(); setEditing(true); }}>Edit trip</Button>
-            <AlertDialog open={confirming} onOpenChange={(open) => {
+            {allowed.edit && <Button className="min-h-11" onClick={() => { update.reset(); setEditing(true); }}>Edit trip</Button>}
+            {allowed.manage && <AlertDialog open={confirming} onOpenChange={(open) => {
               if (!remove.isPending) { setConfirming(open); remove.reset(); }
             }}>
               <AlertDialogTrigger render={<Button className="min-h-11" variant="destructive" />}>Delete trip</AlertDialogTrigger>
@@ -105,11 +129,15 @@ function TripDetail({ id }: { id: number }) {
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
-            </AlertDialog>
+            </AlertDialog>}
           </div>
         </>
       )}
+      {me.isError && <TripError error={me.error} retry={() => void me.refetch()} pending={me.isFetching} />}
+      {members.isPending ? <p role="status">Loading participants…</p> : members.isError ?
+        <TripError error={members.error} retry={() => void members.refetch().then((result) => { if (result.isSuccess) setPermissionBlocked(false); })} pending={members.isFetching} /> :
+        <Participants id={id} participants={members.data} current={current} onFailure={handleFailure} />}
+      {allowed.manage && <Invitations id={id} onFailure={handleFailure} />}
     </>
   );
 }
-
