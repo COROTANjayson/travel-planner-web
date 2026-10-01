@@ -26,6 +26,34 @@ npm run dev
 The browser calls relative `/api/*` URLs. Next.js proxies them to
 `API_BASE_URL`, avoiding local CORS requests.
 
+## Itinerary
+
+Trip details include paginated activities and advisory schedule conflicts.
+All participants can read both lists; owners and editors can add, replace,
+and delete activities. Activity times display in their saved IANA zones,
+and overlap times display in the trip zone. Overlaps do not block saving.
+
+Forms accept local dates/times and an IANA zone, then send UTC timestamps.
+Nonexistent daylight-saving times are rejected; repeated hours require an
+earlier/later occurrence choice with its UTC offset. Editing preserves saved
+precision, and changing zones preserves instants. The API validates activity
+dates against the current trip dates. Trip edits do not revalidate existing
+activities.
+
+Apply backend migration `00005_itinerary_creators.sql` before using the updated
+API. Activity responses include creator metadata; the frontend never sends
+creator or audit fields in POST/PUT requests.
+
+Run the focused frontend checks with:
+
+```bash
+node scripts/check-auth.mjs
+node scripts/check-memberships.mjs
+node scripts/check-itinerary.mjs
+npm run lint
+npm run build
+```
+
 ## Frontend UI guide
 
 Use **shadcn/ui first** for application UI. The project is already configured

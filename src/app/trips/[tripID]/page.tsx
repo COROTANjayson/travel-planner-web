@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, type ApiUser, useApi } from "@/lib/api";
 import { permissions, useMembershipsApi } from "@/lib/memberships";
 import { Invitations, Participants } from "@/components/trips/memberships";
+import { Itinerary } from "@/components/trips/itinerary";
 import { type TripInput, useTripsApi, validTripID } from "@/lib/trips";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -134,6 +135,7 @@ function TripDetail({ id }: { id: number }) {
         </>
       )}
       {me.isError && <TripError error={me.error} retry={() => void me.refetch()} pending={me.isFetching} />}
+      <Itinerary trip={trip.data} participants={members.data} canEdit={allowed.edit} onFailure={handleFailure} />
       {members.isPending ? <p role="status">Loading participants…</p> : members.isError ?
         <TripError error={members.error} retry={() => void members.refetch().then((result) => { if (result.isSuccess) setPermissionBlocked(false); })} pending={members.isFetching} /> :
         <Participants id={id} participants={members.data} current={current} onFailure={handleFailure} />}
