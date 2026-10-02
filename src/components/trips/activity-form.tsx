@@ -1,7 +1,9 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
+import { ApiError, useApi } from "@/lib/api";
 import { type ActivityInput } from "@/lib/itinerary";
+import { type Place, type PlaceCandidate } from "@/lib/places";
 import { dateTimeInputValue, instantToLocal, inspectLocalTime, localToInstant, type Occurrence } from "@/lib/activity-time";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -10,11 +12,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TripError } from "./trip-states";
 
-export function ActivityForm({ initialValue, tripZone, onSubmit, onCancel, pending, error }: {
-  initialValue?: ActivityInput; tripZone: string; onSubmit: (input: ActivityInput) => void;
+export function ActivityForm({ initialValue, initialPlace, tripZone, onSubmit, onCancel, pending, error }: {
+  initialValue?: ActivityInput; initialPlace?: Place | null; tripZone: string; onSubmit: (input: ActivityInput) => void;
   onCancel: () => void; pending: boolean; error: unknown;
 }) {
   const prefix = useId();
+  const api = useApi();
   const [title, setTitle] = useState(initialValue?.title ?? "");
   const [notes, setNotes] = useState(initialValue?.notes ?? "");
   const [zone, setZone] = useState(initialValue?.time_zone ?? tripZone);
@@ -24,6 +27,11 @@ export function ActivityForm({ initialValue, tripZone, onSubmit, onCancel, pendi
     end: initialValue ? instantToLocal(initialValue.ends_at, initialValue.time_zone) : { value: "", occurrence: "" as Occurrence },
   }));
   const [validationError, setValidationError] = useState<string>();
+  const [place, setPlace] = useState<Place | null>(initialPlace ?? null);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<PlaceCandidate[] | null>(null);
+  const [placeError, setPlaceError] = useState<unknown>(null);
+  const [placePending, setPlacePending] = useState(false);
   const [zones] = useState(() => typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : null);
   const options = zones && Array.from(new Set([zone, tripZone, "UTC", ...zones])).sort();
 
@@ -42,11 +50,11 @@ export function ActivityForm({ initialValue, tripZone, onSubmit, onCancel, pendi
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pending) return;
+    if (pending || placePending) return;
     try {
       if (zoneDraft !== zone) throw new Error("Apply the selected time zone before saving.");
       const input: ActivityInput = {
-        title, notes, time_zone: zone,
+        title, notes, time_zone: zone, place_id: place?.id ?? null,
         starts_at: localToInstant(times.start.value, zone, times.start.occurrence),
         ends_at: localToInstant(times.end.value, zone, times.end.occurrence),
       };
@@ -57,10 +65,61 @@ export function ActivityForm({ initialValue, tripZone, onSubmit, onCancel, pendi
     }
   }
 
+  async function search() {
+    const term = query.trim();
+    if (placePending || new TextEncoder().encode(term).length < 2 || new TextEncoder().encode(term).length > 200) {
+      setPlaceError(new Error("Enter 2–200 bytes to search places."));
+      return;
+    }
+    setPlacePending(true); setPlaceError(null); setResults(null);
+    try {
+      const found = await api<PlaceCandidate[]>(`/api/v1/places/search?q=${encodeURIComponent(term)}`);
+      setResults(found ?? []);
+    } catch (cause) { setPlaceError(cause); }
+    finally { setPlacePending(false); }
+  }
+
+  async function choose(candidate: PlaceCandidate) {
+    if (placePending) return;
+    setPlacePending(true); setPlaceError(null);
+    try {
+      const selected = await api<Place>("/api/v1/places/resolve", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider_place_id: candidate.provider_place_id }),
+      });
+      if (!selected) throw new ApiError(500, "Unable to save the place. Please try again.");
+      setPlace(selected); setResults(null);
+    } catch (cause) { setPlaceError(cause); }
+    finally { setPlacePending(false); }
+  }
+
   return <form onSubmit={submit} className="space-y-5">
-    <fieldset disabled={pending} className="min-w-0 space-y-5">
+    <fieldset disabled={pending || placePending} className="min-w-0 space-y-5">
       <div className="space-y-2"><Label htmlFor={`${prefix}-title`}>Activity title</Label>
         <Input id={`${prefix}-title`} className="min-h-11" required value={title} onChange={(event) => setTitle(event.target.value)} />
+      </div>
+      <div className="space-y-3">
+        <Label htmlFor={`${prefix}-place-search`}>Place (optional)</Label>
+        {place && <div className="rounded-lg border p-3 text-sm">
+          <p className="font-medium">{place.name}</p>
+          <p className="break-words text-muted-foreground">{place.address}</p>
+          <p className="text-muted-foreground">Place time zone: {place.time_zone}</p>
+          <Button type="button" variant="outline" className="mt-2 min-h-11" disabled={pending || placePending} onClick={() => setPlace(null)}>Clear place</Button>
+        </div>}
+        <div className="flex flex-wrap gap-2">
+          <Input id={`${prefix}-place-search`} className="min-h-11 min-w-0 flex-1" value={query} onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); void search(); } }} placeholder="Search for a place" />
+          <Button type="button" variant="outline" className="min-h-11" disabled={pending || placePending} onClick={() => void search()}>{placePending ? "Loading…" : "Search"}</Button>
+        </div>
+        {results && <div aria-live="polite">
+          {results.length === 0 ? <p className="text-sm text-muted-foreground">No places found.</p> :
+            <ul className="space-y-2">{results.map((candidate) => <li key={candidate.provider_place_id}>
+              <Button type="button" variant="outline" className="h-auto min-h-11 w-full justify-start whitespace-normal text-left" disabled={placePending}
+                onClick={() => void choose(candidate)}><span><strong>{candidate.name}</strong><br /><span className="text-muted-foreground">{candidate.address}</span></span></Button>
+            </li>)}</ul>}
+        </div>}
+        {!!placeError && <TripError error={placeError} />}
+        <p className="text-xs text-muted-foreground">Searches run only when you press Search. Place data © <a className="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>.</p>
       </div>
       <div className="space-y-2"><Label htmlFor={`${prefix}-zone`}>Activity time zone</Label>
         {options ? <Select value={zone} disabled={pending} onValueChange={(value) => { if (value) changeZone(value); }}>
@@ -112,7 +171,7 @@ export function ActivityForm({ initialValue, tripZone, onSubmit, onCancel, pendi
     {validationError && <Alert variant="destructive"><AlertDescription>{validationError}</AlertDescription></Alert>}
     {!!error && <TripError error={error} />}
     <div className="flex flex-wrap gap-3">
-      <Button type="submit" className="min-h-11" disabled={pending}>{pending ? "Saving…" : initialValue ? "Save activity" : "Create activity"}</Button>
+      <Button type="submit" className="min-h-11" disabled={pending || placePending}>{pending ? "Saving…" : initialValue ? "Save activity" : "Create activity"}</Button>
       <Button type="button" variant="outline" className="min-h-11" disabled={pending} onClick={onCancel}>Cancel</Button>
     </div>
   </form>;

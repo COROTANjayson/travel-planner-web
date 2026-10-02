@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
 import { activityPageSize, type Activity, type ActivityConflict, useItineraryApi } from "@/lib/itinerary";
@@ -12,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ActivityForm } from "./activity-form";
 import { TripError } from "./trip-states";
+
+const TripMap = dynamic(() => import("./trip-map"), { ssr: false, loading: () => <p role="status">Loading map…</p> });
 
 function Pagination({ label, offset, count, fetching, onChange }: {
   label: string; offset: number; count: number; fetching: boolean; onChange: (offset: number) => void;
@@ -48,7 +51,7 @@ export function Itinerary({ trip, participants, canEdit, onFailure }: {
     {api.error && !editing && !deleting && <TripError error={api.error} />}
     {editing && <Card hidden={!canEdit}><CardHeader><CardTitle>{editing === "new" ? "New activity" : "Edit activity"}</CardTitle></CardHeader><CardContent>
       <ActivityForm key={editing === "new" ? "new" : editing.id} initialValue={editing === "new" ? undefined : editing}
-        tripZone={trip.time_zone} pending={api.pending || !canEdit} error={api.error} onCancel={() => { api.reset(); setEditing(null); }}
+        initialPlace={editing === "new" ? null : editing.place} tripZone={trip.time_zone} pending={api.pending || !canEdit} error={api.error} onCancel={() => { api.reset(); setEditing(null); }}
         onSubmit={async (input) => {
           if (!canEdit || api.pending) return;
           try { if (await api.save(input, editing === "new" ? undefined : editing.id)) setEditing(null); }
@@ -65,6 +68,7 @@ export function Itinerary({ trip, participants, canEdit, onFailure }: {
               <p className="text-sm"><time dateTime={activity.starts_at}>{formatActivityTime(activity.starts_at, activity.time_zone)}</time> – <time dateTime={activity.ends_at}>{formatActivityTime(activity.ends_at, activity.time_zone)}</time></p>
               <p className="break-words text-sm text-muted-foreground">{activity.time_zone}</p>
               {activity.notes && <p className="whitespace-pre-wrap break-words text-sm">{activity.notes}</p>}
+              {activity.place && <p className="break-words text-sm"><strong>Place:</strong> {activity.place.name}, {activity.place.address}</p>}
               <p className="break-words text-sm text-muted-foreground">{participants ? `Created by ${creator ? participantName(creator) : "Former participant"}` : "Creator unavailable"}</p>
               {canEdit && <div className="flex flex-wrap gap-3">
                 <Button className="min-h-11" variant="outline" disabled={api.pending || editing !== null} aria-label={`Edit ${activity.title}`} onClick={() => { api.reset(); setEditing(activity); }}>Edit</Button>
@@ -72,6 +76,7 @@ export function Itinerary({ trip, participants, canEdit, onFailure }: {
               </div>}
             </CardContent></Card></li>;
           })}</ul>}
+        <Card><CardHeader><CardTitle>Places on this page</CardTitle></CardHeader><CardContent><TripMap activities={activities.data} /></CardContent></Card>
         <Pagination label="Activities" offset={offset} count={activities.data.length} fetching={activities.isFetching || api.pending} onChange={setOffset} />
       </>)}
     {!unavailable && <Card><CardHeader><CardTitle>Schedule conflicts</CardTitle></CardHeader><CardContent className="space-y-4">

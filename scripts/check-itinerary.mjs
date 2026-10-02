@@ -62,8 +62,8 @@ const itinerary = load("src/lib/itinerary.ts", {
   react: { useCallback: (callback) => callback, useRef: (value) => ({ current: value }), useState: (value) => [value, () => {}] },
   "@/lib/api": apiMock, "@tanstack/react-query": { useQueryClient: () => client },
 });
-const activity = { id: 1, trip_id: 7, created_by_user_id: 11, title: "  Breakfast  ", starts_at: "2026-10-01T01:00:00Z", ends_at: "2026-10-01T02:00:00Z", time_zone: "Asia/Manila", notes: "Notes", created_at: precise, updated_at: precise };
-assert.deepEqual(Object.keys(itinerary.activityInput(activity)).sort(), ["ends_at", "notes", "starts_at", "time_zone", "title"]);
+const activity = { id: 1, trip_id: 7, created_by_user_id: 11, title: "  Breakfast  ", starts_at: "2026-10-01T01:00:00Z", ends_at: "2026-10-01T02:00:00Z", time_zone: "Asia/Manila", notes: "Notes", place_id: null, place: null, created_at: precise, updated_at: precise };
+assert.deepEqual(Object.keys(itinerary.activityInput(activity)).sort(), ["ends_at", "notes", "place_id", "starts_at", "time_zone", "title"]);
 const denied = [];
 const api = itinerary.useItineraryApi(7, (error) => denied.push(error.status));
 const signal = new AbortController().signal;
@@ -125,6 +125,7 @@ const primitiveMocks = {
 };
 const formModule = load("src/components/trips/activity-form.tsx", {
   ...primitiveMocks,
+  "@/lib/api": apiMock,
   react: { useId: () => "activity", useState: (value) => [typeof value === "function" ? value() : value, () => {}] },
   "@/lib/activity-time": time,
   "@/components/ui/alert": { Alert: wrap("div"), AlertDescription: wrap("p") },
@@ -145,6 +146,7 @@ let queryMode = "success";
 const components = load("src/components/trips/itinerary.tsx", {
   ...primitiveMocks, "@/lib/api": apiMock, "@/lib/activity-time": time, "@/lib/memberships": membership,
   "@/lib/itinerary": { ...itinerary, useItineraryApi: () => ({ pending: false }) },
+  "next/dynamic": { __esModule: true, default: () => () => React.createElement("div", null, "Map") },
   react: { ...React, useEffect: () => {} },
   "@tanstack/react-query": { useQueryClient: () => client, useQuery: ({ queryKey }) => ({
     isPending: queryMode === "pending", isError: queryMode === "error", isFetching: false,

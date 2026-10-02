@@ -3,12 +3,14 @@
 import { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, useApi } from "@/lib/api";
+import { type Place } from "@/lib/places";
 
 export interface ActivityInput {
-  title: string; starts_at: string; ends_at: string; time_zone: string; notes: string;
+  title: string; starts_at: string; ends_at: string; time_zone: string; notes: string; place_id: number | null;
 }
 export interface Activity extends ActivityInput {
   id: number; trip_id: number; created_by_user_id: number; created_at: string; updated_at: string;
+  place: Place | null;
 }
 export interface ActivityConflict {
   activity_ids: [number, number]; overlap_starts_at: string; overlap_ends_at: string;
@@ -16,7 +18,7 @@ export interface ActivityConflict {
 export const activityPageSize = 10;
 export function activityInput(input: ActivityInput): ActivityInput {
   return { title: input.title.trim(), starts_at: input.starts_at, ends_at: input.ends_at,
-    time_zone: input.time_zone.trim(), notes: input.notes };
+    time_zone: input.time_zone.trim(), notes: input.notes, place_id: input.place_id ?? null };
 }
 
 export function useItineraryApi(tripID: number, onFailure: (error: Error) => void | Promise<void>) {
