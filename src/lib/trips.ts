@@ -1,17 +1,27 @@
 "use client";
 
+import { Temporal } from "@js-temporal/polyfill";
 import { ApiError, useApi } from "@/lib/api";
 
 export interface TripInput {
   name: string;
+  destination_place_id: number;
+  start_date?: string;
+  end_date?: string;
+  starts_at?: string | null;
+  ends_at?: string | null;
+}
+
+export interface Trip {
+  id: number;
+  name: string;
+  destination_place_id: number | null;
+  starts_at: string | null;
+  ends_at: string | null;
   destination: string;
   start_date: string;
   end_date: string;
   time_zone: string;
-}
-
-export interface Trip extends TripInput {
-  id: number;
   created_at: string;
   updated_at: string;
 }
@@ -27,20 +37,24 @@ export function validTripID(value: string): number | null {
 export function tripInput(input: TripInput): TripInput {
   return {
     name: input.name.trim(),
-    destination: input.destination.trim(),
+    destination_place_id: input.destination_place_id,
     start_date: input.start_date,
     end_date: input.end_date,
-    time_zone: input.time_zone.trim(),
+    starts_at: input.starts_at,
+    ends_at: input.ends_at,
   };
 }
 
 export function validateTrip(input: TripInput): string | undefined {
-  if (Object.values(input).some((value) => !value.trim())) {
-    return "All fields are required.";
-  }
-  if (input.end_date < input.start_date) {
-    return "End date must be on or after the start date.";
-  }
+  if (!input.name.trim() || !Number.isSafeInteger(input.destination_place_id) || input.destination_place_id < 1) return "Name and destination are required.";
+  if (!!input.starts_at !== !!input.ends_at) return "Enter both exact times or turn off exact times.";
+  try {
+    if (input.start_date || input.end_date || !input.starts_at) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(input.start_date ?? "") || !/^\d{4}-\d{2}-\d{2}$/.test(input.end_date ?? "")) return "Choose both trip dates.";
+      if (Temporal.PlainDate.compare(input.end_date!, input.start_date!) < 0) return "End date must be on or after start date.";
+    }
+    if (input.starts_at && input.ends_at && Temporal.Instant.compare(input.ends_at, input.starts_at) <= 0) return "Trip end must be after trip start.";
+  } catch { return "Enter valid trip dates and times."; }
 }
 
 export function useTripsApi() {
@@ -73,4 +87,3 @@ export function useTripsApi() {
     remove: (id: number) => api<void>(`/api/v1/trips/${id}`, { method: "DELETE" }),
   };
 }
-

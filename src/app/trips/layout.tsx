@@ -9,17 +9,17 @@ export default function TripsLayout({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth0();
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="app-shell min-h-dvh bg-background text-foreground">
       <a href="#trips-main" className="sr-only focus:not-sr-only focus:absolute focus:bg-background focus:p-3">
         Skip to content
       </a>
-      <header className="border-b">
-        <nav aria-label="Main navigation" className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+      <header className="app-topbar sticky top-0 z-40 border-b bg-background md:static">
+        <nav aria-label="Main navigation" className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 md:py-4 md:px-6">
           <Link href="/" className="inline-flex min-h-11 items-center font-semibold">Travel Planner</Link>
-          <AuthPanel />
+          <div className={isAuthenticated ? "hidden md:block" : ""}><AuthPanel /></div>
         </nav>
       </header>
-      <main id="trips-main" className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+      <main id="trips-main" className="mx-auto w-full max-w-6xl min-w-0 space-y-5 px-4 pt-4 pb-6 md:space-y-6 md:px-6 md:py-8">
         {isLoading ? (
           <p role="status" className="text-muted-foreground">Checking session…</p>
         ) : isAuthenticated ? children : (
@@ -29,7 +29,7 @@ export default function TripsLayout({ children }: { children: ReactNode }) {
           </div>
         )}
       </main>
+      <AuthPanel mobile />
     </div>
   );
 }
-

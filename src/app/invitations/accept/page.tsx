@@ -30,12 +30,12 @@ export default function AcceptInvitationPage() {
     <p className="text-muted-foreground">Paste the invitation token shared with you by the trip owner.</p>
     {me.isPending ? <p role="status">Checking your email…</p> : me.isError ? <TripError error={me.error} retry={() => void me.refetch()} pending={me.isFetching} /> : !verified &&
       <p role="alert">Verify the matching email address in Auth0, then sign out and sign in again before accepting an invitation.</p>}
-    <form onSubmit={(event) => void submit(event)} className="space-y-4">
+    <form onSubmit={(event) => void submit(event)} className="max-w-2xl space-y-4">
       <div className="space-y-2"><Label htmlFor="invitation-token">Invitation token</Label>
         <Input id="invitation-token" type="password" className="min-h-11" required autoComplete="off" autoCapitalize="none" spellCheck={false} value={token} disabled={api.pending} onChange={(event) => setToken(event.target.value)} />
       </div>
       {api.error && <TripError error={api.error} />}
-      <Button type="submit" className="min-h-11" disabled={!verified || !token.trim() || api.pending}>{api.pending ? "Accepting…" : "Accept invitation"}</Button>
+      <Button type="submit" className="min-h-12 w-full md:w-auto" disabled={!verified || !token.trim() || api.pending}>{api.pending ? "Accepting…" : "Accept invitation"}</Button>
     </form>
   </>;
 }

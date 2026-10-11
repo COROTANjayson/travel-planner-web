@@ -76,6 +76,15 @@ export function useItineraryApi(tripID: number, onFailure: (error: Error) => voi
   return {
     pending, error, reset: () => setError(null), refresh,
     list: (offset: number, signal?: AbortSignal) => read<Activity[]>(`${base}?limit=${activityPageSize}&offset=${offset}`, signal),
+    listRange: async (from: string, before: string, signal?: AbortSignal) => {
+      const items: Activity[] = [];
+      const size = 100;
+      for (let offset = 0;; offset += size) {
+        const page = await read<Activity[]>(`${base}?limit=${size}&offset=${offset}&start_from=${encodeURIComponent(from)}&start_before=${encodeURIComponent(before)}`, signal);
+        items.push(...page);
+        if (page.length < size) return items;
+      }
+    },
     get: (id: number, signal?: AbortSignal) => read<Activity>(`${base}/${id}`, signal),
     conflicts: (offset: number, signal?: AbortSignal) => read<ActivityConflict[]>(`${base}/conflicts?limit=${activityPageSize}&offset=${offset}`, signal),
     save: (input: ActivityInput, id?: number) => mutate(id === undefined ? "POST" : "PUT", id, input),

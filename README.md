@@ -28,7 +28,9 @@ The browser calls relative `/api/*` URLs. Next.js proxies them to
 
 ## Itinerary
 
-Trip details include paginated activities and advisory schedule conflicts.
+Trip details show a date-based activity board and advisory schedule conflicts.
+The board requests activities by a paginated UTC start-time range; activities
+appear under their local start date in the trip time zone.
 All participants can read both lists; owners and editors can add, replace,
 and delete activities. Activity times display in their saved IANA zones,
 and overlap times display in the trip zone. Overlaps do not block saving.

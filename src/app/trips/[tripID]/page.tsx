@@ -9,8 +9,10 @@ import { permissions, useMembershipsApi } from "@/lib/memberships";
 import { Invitations, Participants } from "@/components/trips/memberships";
 import { Itinerary } from "@/components/trips/itinerary";
 import { type TripInput, useTripsApi, validTripID } from "@/lib/trips";
+import { formatActivityTime } from "@/lib/activity-time";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Settings2, Users, ArrowLeft, MoreHorizontal } from "lucide-react";
+import { TripDialog } from "@/components/trips/trip-dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -49,6 +51,9 @@ function TripDetail({ id }: { id: number }) {
     }
   }, [id, queryClient]);
   const [editing, setEditing] = useState(false);
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
   const [confirming, setConfirming] = useState(false);
   const trip = useQuery({
     queryKey: ["trip", id],
@@ -56,15 +61,17 @@ function TripDetail({ id }: { id: number }) {
     retry: false,
   });
   const update = useMutation({
-    onError: handleFailure,
+    onError: (error: Error) => { if (!(error instanceof ApiError && error.status === 409)) handleFailure(error); },
     mutationFn: (input: TripInput) => api.update(id, input),
     onSuccess: async (saved) => {
       queryClient.setQueryData(["trip", id], saved);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["trips"] }),
         queryClient.invalidateQueries({ queryKey: ["trip", id], exact: true }),
+        queryClient.invalidateQueries({ queryKey: ["trip", id, "activities"] }),
       ]);
       setEditing(false);
+      setSaveMessage("Trip settings saved.");
     },
   });
   const remove = useMutation({
@@ -84,33 +91,53 @@ function TripDetail({ id }: { id: number }) {
   if (trip.isPending) return <TripLoading />;
   if (trip.isError) return <TripError error={trip.error} retry={() => void trip.refetch()} pending={trip.isFetching} />;
 
-  return (
-    <>
-      <Button className="min-h-11" variant="outline" render={<Link href="/trips" />} nativeButton={false}>Back to trips</Button>
-      {accessError && <TripError error={accessError} />}
-      {editing && allowed.edit ? (
-        <>
-          <h1 className="text-2xl font-semibold">Edit trip</h1>
-          <TripForm initialValue={trip.data} onSubmit={(input) => update.mutate(input)}
-            pending={update.isPending} error={update.error} submitLabel="Save changes"
-            cancel={<Button type="button" className="min-h-11" variant="outline" disabled={update.isPending}
-              onClick={() => { update.reset(); setEditing(false); }}>Cancel</Button>} />
-        </>
-      ) : (
-        <>
-          <h1 className="break-words text-2xl font-semibold">{trip.data.name}</h1>
-          <Card>
-            <CardContent>
-              <dl className="space-y-4">
-                <div><dt className="text-muted-foreground">Destination</dt><dd className="break-words">{trip.data.destination}</dd></div>
-                <div><dt className="text-muted-foreground">Dates</dt><dd><time dateTime={trip.data.start_date}>{trip.data.start_date}</time> – <time dateTime={trip.data.end_date}>{trip.data.end_date}</time></dd></div>
-                <div><dt className="text-muted-foreground">Time zone</dt><dd className="break-words">{trip.data.time_zone}</dd></div>
-              </dl>
-            </CardContent>
-          </Card>
-          <div className="flex flex-wrap gap-3">
-            {allowed.edit && <Button className="min-h-11" onClick={() => { update.reset(); setEditing(true); }}>Edit trip</Button>}
-            {allowed.manage && <AlertDialog open={confirming} onOpenChange={(open) => {
+  return <>
+    <div className="mobile-trip-header fixed inset-x-0 top-0 z-40 flex items-center gap-2 border-b bg-background px-3 md:hidden">
+      <Button variant="ghost" className="size-12 shrink-0" aria-label="Back to trips" render={<Link href="/trips" />} nativeButton={false}><ArrowLeft aria-hidden="true" /></Button>
+      <span className="min-w-0 flex-1 truncate font-semibold">{trip.data.name}</span>
+      <TripDialog title="Trip options" description={trip.data.name} mobilePresentation="sheet" open={menuOpen} onOpenChange={setMenuOpen} finalFocus={() => peopleOpen || editing ? false : document.querySelector<HTMLButtonElement>("[aria-label=\"Trip options\"]")}
+        trigger={<Button variant="ghost" className="size-12 shrink-0" aria-label="Trip options"><MoreHorizontal aria-hidden="true" /></Button>}>
+        <div className="space-y-2">
+          <Button variant="ghost" className="w-full justify-start" onClick={() => { setMenuOpen(false); setPeopleOpen(true); }}><Users aria-hidden="true" />People {members.data?.length ?? ""}</Button>
+          {allowed.edit && <Button variant="ghost" className="w-full justify-start" onClick={() => { setMenuOpen(false); setEditing(true); }}><Settings2 aria-hidden="true" />Settings</Button>}
+        </div>
+      </TripDialog>
+    </div>
+    <Button className="hidden min-h-11 -ml-3 md:inline-flex" variant="ghost" render={<Link href="/trips" />} nativeButton={false}><ArrowLeft aria-hidden="true" />Back to trips</Button>
+    <p role="status" aria-live="polite" className="sr-only">{saveMessage}</p>
+    {accessError && <TripError error={accessError} />}
+    {me.isError && <TripError error={me.error} retry={() => void me.refetch()} pending={me.isFetching} />}
+    <Itinerary trip={trip.data} participants={members.data} canEdit={allowed.edit} onFailure={handleFailure}
+      header={<div className="space-y-2">
+        <h1 className="sr-only break-words text-2xl font-semibold md:not-sr-only">{trip.data.name}</h1>
+        <p className="break-words text-sm text-muted-foreground">{trip.data.destination}</p>
+        <p className="text-sm font-medium">{new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${trip.data.start_date}T12:00:00Z`))} – {new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${trip.data.end_date}T12:00:00Z`))}</p>
+        <details className="text-sm text-muted-foreground md:hidden">
+          <summary className="flex min-h-11 cursor-pointer items-center">Trip details</summary>
+          <div className="space-y-2 pb-2">        <p className="text-sm text-muted-foreground">{trip.data.starts_at && trip.data.ends_at ? <><time dateTime={trip.data.starts_at}>{formatActivityTime(trip.data.starts_at, trip.data.time_zone)}</time> – <time dateTime={trip.data.ends_at}>{formatActivityTime(trip.data.ends_at, trip.data.time_zone)}</time></> : <><time dateTime={trip.data.start_date}>{trip.data.start_date}</time> – <time dateTime={trip.data.end_date}>{trip.data.end_date}</time></>}</p><p>Time zone: {trip.data.time_zone}</p></div>
+        </details>
+        <div className="hidden space-y-2 text-sm text-muted-foreground md:block">
+          {trip.data.starts_at && trip.data.ends_at && <p><time dateTime={trip.data.starts_at}>{formatActivityTime(trip.data.starts_at, trip.data.time_zone)}</time> – <time dateTime={trip.data.ends_at}>{formatActivityTime(trip.data.ends_at, trip.data.time_zone)}</time></p>}
+          <p>Time zone: {trip.data.time_zone}</p>
+        </div>
+      </div>}
+      tools={<>
+        <TripDialog title="People & invitations" description="See who is joining and manage access to this trip." keepMounted open={peopleOpen} onOpenChange={setPeopleOpen}
+          trigger={<Button variant="outline" className="min-h-11"><Users aria-hidden="true" />People{members.data && <span className="text-muted-foreground">{members.data.length}</span>}</Button>}>
+          <div className="space-y-6">
+            {members.isPending ? <p role="status">Loading participants...</p> : members.isError ?
+              <TripError error={members.error} retry={() => void members.refetch().then((result) => { if (result.isSuccess) setPermissionBlocked(false); })} pending={members.isFetching} /> :
+              <Participants id={id} participants={members.data} current={current} onFailure={handleFailure} />}
+            {allowed.manage && <Invitations id={id} onFailure={handleFailure} />}
+          </div>
+        </TripDialog>
+        {allowed.edit && <TripDialog title="Trip settings" description="Update your destination, dates, and time zone." open={editing}
+          onOpenChange={(open) => { if (!update.isPending && !remove.isPending) { update.reset(); setEditing(open); } }}
+          trigger={<Button variant="outline" className="min-h-11"><Settings2 aria-hidden="true" />Settings</Button>}>
+          <TripForm initialValue={trip.data} onSubmit={(input) => update.mutate(input)} pending={update.isPending} error={update.error} submitLabel="Save changes"
+            cancel={<Button type="button" className="min-h-11" variant="outline" disabled={update.isPending} onClick={() => { update.reset(); setEditing(false); }}>Cancel</Button>} />
+          {allowed.manage && <div className="mt-6 border-t pt-5">
+            <AlertDialog open={confirming} onOpenChange={(open) => {
               if (!remove.isPending) { setConfirming(open); remove.reset(); }
             }}>
               <AlertDialogTrigger render={<Button className="min-h-11" variant="destructive" />}>Delete trip</AlertDialogTrigger>
@@ -130,16 +157,9 @@ function TripDetail({ id }: { id: number }) {
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
-            </AlertDialog>}
-          </div>
-        </>
-      )}
-      {me.isError && <TripError error={me.error} retry={() => void me.refetch()} pending={me.isFetching} />}
-      <Itinerary trip={trip.data} participants={members.data} canEdit={allowed.edit} onFailure={handleFailure} />
-      {members.isPending ? <p role="status">Loading participants…</p> : members.isError ?
-        <TripError error={members.error} retry={() => void members.refetch().then((result) => { if (result.isSuccess) setPermissionBlocked(false); })} pending={members.isFetching} /> :
-        <Participants id={id} participants={members.data} current={current} onFailure={handleFailure} />}
-      {allowed.manage && <Invitations id={id} onFailure={handleFailure} />}
-    </>
-  );
+            </AlertDialog>
+          </div>}
+        </TripDialog>}
+      </>} />
+  </>;
 }

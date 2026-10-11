@@ -7,11 +7,12 @@ import ts from "typescript";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 const require = createRequire(import.meta.url);
+let confirmDiscard = false;
 function load(file, mocks = {}) {
   const compiled = ts.transpileModule(fs.readFileSync(file, "utf8"), {
     compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS },
   }).outputText;
-  const context = { exports: {}, require: (id) => mocks[id] || require(id), Date, Intl, Error };
+  const context = { exports: {}, require: (id) => mocks[id] || require(id), Date, Intl, Error, window: { confirm: () => confirmDiscard } };
   vm.runInNewContext(compiled, context);
   return context.exports;
 }
@@ -32,6 +33,8 @@ assert.equal(time.localToInstant("2026-03-08T01:30", "America/New_York"), "2026-
 assert.equal(time.localToInstant("2026-03-08T03:30", "America/New_York"), "2026-03-08T07:30:00Z");
 assert.equal(time.localToInstant("2026-11-01T01:30", "America/New_York", "earlier"), "2026-11-01T05:30:00Z");
 assert.equal(time.localToInstant("2026-11-01T01:30", "America/New_York", "later"), "2026-11-01T06:30:00Z");
+assert.equal(time.endAfterMinutes("2026-03-08T06:30:00Z", 60), "2026-03-08T07:30:00Z", "A one-hour duration crosses the spring DST jump as elapsed time");
+assert.equal(time.endAfterMinutes("2026-11-01T05:30:00Z", 60), "2026-11-01T06:30:00Z", "A one-hour duration crosses the repeated hour as elapsed time");
 for (const occurrence of ["earlier", "later"]) {
   const instant = time.localToInstant("2026-11-01T01:30:00.123456", "America/New_York", occurrence);
   const edited = time.instantToLocal(instant, "America/New_York");
@@ -56,8 +59,34 @@ const client = Object.fromEntries(["invalidateQueries", "cancelQueries", "remove
 const apiMock = { ApiError, useApi: () => async (path, init) => {
   calls.push([path, init]);
   if (failure) throw failure;
-  return response;
+  return typeof response === "function" ? response(path, init) : response;
 } };
+const trips = load("src/lib/trips.ts", { "@/lib/api": apiMock });
+const tripPage = load("src/app/trips/page.tsx", {
+  "next/link": () => null,
+  "@tanstack/react-query": { useQuery() {} },
+  "@/lib/trips": trips,
+  "@/components/ui/button": { Button: () => null },
+  "@/components/ui/card": Object.fromEntries(["Card", "CardContent", "CardDescription", "CardHeader", "CardTitle"].map((key) => [key, () => null])),
+  "@/components/trips/trip-states": { TripError() {}, TripLoading() {} },
+});
+const today = require("@js-temporal/polyfill").Temporal.Now.plainDateISO("UTC");
+const tripFor = (id, start, end) => ({ id, start_date: start.toString(), end_date: end.toString(), time_zone: "UTC" });
+assert.equal(tripPage.orderTrips([
+  tripFor(1, today.subtract({ days: 4 }), today.subtract({ days: 2 })),
+  tripFor(2, today.add({ days: 2 }), today.add({ days: 4 })),
+  tripFor(3, today.subtract({ days: 1 }), today.add({ days: 1 })),
+]).map((trip) => trip.id).join(","), "3,2,1", "Ongoing and upcoming trips precede past trips");
+const tripDraft = { name: " Manila ", destination_place_id: 7, starts_at: "2026-10-01T01:00:00Z", ends_at: "2026-10-01T01:00:00.001Z" };
+assert.equal(trips.tripInput(tripDraft).name, "Manila");
+assert.equal(trips.validateTrip(tripDraft), undefined, "Subsecond end time must compare as an instant");
+assert.match(trips.validateTrip({ ...tripDraft, starts_at: tripDraft.ends_at, ends_at: tripDraft.starts_at }), /after/);
+const datesOnly = { name: "Dates only", destination_place_id: 7, start_date: "2026-10-01", end_date: "2026-10-01", starts_at: null, ends_at: null };
+assert.equal(trips.validateTrip(datesOnly), undefined);
+assert.equal(trips.tripInput(datesOnly).starts_at, null);
+assert.match(trips.validateTrip({ ...datesOnly, end_date: "2026-09-30" }), /after/);
+assert.match(trips.validateTrip({ ...datesOnly, start_date: "2026-02-30" }), /valid/);
+assert.match(trips.validateTrip({ ...datesOnly, starts_at: tripDraft.starts_at }), /both/);
 const itinerary = load("src/lib/itinerary.ts", {
   react: { useCallback: (callback) => callback, useRef: (value) => ({ current: value }), useState: (value) => [value, () => {}] },
   "@/lib/api": apiMock, "@tanstack/react-query": { useQueryClient: () => client },
@@ -72,6 +101,14 @@ await api.list(10, signal);
 assert.equal(calls[0][0], "/api/v1/trips/7/activities?limit=10&offset=10");
 assert.equal(calls[0][1].signal, signal);
 calls = [];
+response = (path) => path.includes("offset=0") ? Array.from({ length: 100 }, () => activity) : [activity];
+assert.equal((await api.listRange("2026-10-01T00:00:00Z", "2026-10-04T00:00:00Z", signal)).length, 101);
+assert.equal(calls.length, 2, "The board must load every page in its date window");
+assert.match(calls[0][0], /start_from=2026-10-01T00%3A00%3A00Z/);
+assert.match(calls[1][0], /offset=100/);
+assert.equal(calls[1][1].signal, signal);
+calls = [];
+response = [activity];
 await api.conflicts(20, signal);
 assert.equal(calls[0][0], "/api/v1/trips/7/activities/conflicts?limit=10&offset=20");
 calls = [];
@@ -121,50 +158,202 @@ const primitiveMocks = {
   "@/components/ui/button": { Button: wrap("button") },
   "@/components/ui/card": Object.fromEntries(["Card", "CardContent", "CardHeader", "CardTitle"].map((key) => [key, wrap("div")])),
   "@/components/ui/alert-dialog": {},
+  "./trip-dialog": { TripDialog: ({ children, open }) => open === false ? null : React.createElement("section", null, children) },
   "./activity-form": {}, "./trip-states": { TripError: () => React.createElement("p", null, "Error") },
 };
 const formModule = load("src/components/trips/activity-form.tsx", {
   ...primitiveMocks,
   "@/lib/api": apiMock,
+  "@tanstack/react-query": { useQuery: () => ({ data: [], isPending: false, isError: false }) },
   react: { useId: () => "activity", useState: (value) => [typeof value === "function" ? value() : value, () => {}] },
   "@/lib/activity-time": time,
+  "./date-time-field": { DateTimeField: ({ draft }) => React.createElement("input", { value: draft.value, readOnly: true }) },
   "@/components/ui/alert": { Alert: wrap("div"), AlertDescription: wrap("p") },
   "@/components/ui/input": { Input: (props) => React.createElement("input", props) },
   "@/components/ui/label": { Label: wrap("label") },
   "@/components/ui/select": Object.fromEntries(["Select", "SelectContent", "SelectItem", "SelectTrigger", "SelectValue"].map((key) => [key, wrap("div")])),
 });
+const tripFormModule = load("src/components/trips/trip-form.tsx", {
+  ...primitiveMocks, "@/lib/api": apiMock, "@/lib/activity-time": time, "@/lib/trips": trips,
+  react: { useState: (value) => [typeof value === "function" ? value() : value, () => {}] },
+  "./date-time-field": { DateTimeField: () => null },
+  "@/components/ui/alert": { Alert: wrap("div"), AlertDescription: wrap("p") },
+  "@/components/ui/input": { Input: (props) => React.createElement("input", props) },
+  "@/components/ui/label": { Label: wrap("label") },
+});
+let submittedTrip;
+const dateOnlyForm = tripFormModule.TripForm({ initialValue: { ...datesOnly, destination: "Cebu", time_zone: "Asia/Manila" }, onSubmit: (input) => { submittedTrip = input; }, pending: false, submitLabel: "Save changes" });
+assert.match(renderToStaticMarkup(dateOnlyForm), /type="date"/);
+assert.match(renderToStaticMarkup(dateOnlyForm), /Add exact start and end times/);
+dateOnlyForm.props.onSubmit({ preventDefault() {} });
+assert.equal(submittedTrip.start_date, datesOnly.start_date);
+assert.equal(submittedTrip.ends_at, null, "Date-only form does not invent exact times");
+const exactTripForm = tripFormModule.TripForm({ initialValue: { ...datesOnly, ...tripDraft, destination: "Cebu", time_zone: "Asia/Manila" }, onSubmit: (input) => { submittedTrip = input; }, pending: false, submitLabel: "Save changes" });
+exactTripForm.props.onSubmit({ preventDefault() {} });
+assert.equal(submittedTrip.ends_at, tripDraft.ends_at, "Editing an exact-time trip preserves timestamp precision");
 let submitted;
-const form = formModule.ActivityForm({ initialValue: { ...activity, starts_at: precise }, tripZone: "Asia/Manila", onSubmit: (input) => { submitted = input; }, onCancel: () => {}, pending: false });
+const form = formModule.ActivityForm({ initialValue: { ...activity, starts_at: precise }, tripID: 7, tripStart: "2026-10-01", tripEnd: "2026-10-03", tripStartsAt: null, tripEndsAt: null, tripZone: "Asia/Manila", onSubmit: (input) => { submitted = input; }, onCancel: () => {}, pending: false });
 const formHtml = renderToStaticMarkup(form);
-assert.match(formHtml, /value="2026-10-01T09:23:45\.123"/);
-assert.doesNotMatch(formHtml, /value="2026-10-01T09:23:45\.123456"/);
+assert.match(formHtml, /value="2026-10-01T09:23:45\.123456"/);
+assert.doesNotMatch(formHtml, /Activity time zone/);
+assert.match(formHtml, /What are you doing/);
+assert.match(formHtml, /e.g. Dinner at the waterfront/);
+assert.match(formHtml, /Save changes/);
+const newFormHtml = renderToStaticMarkup(formModule.ActivityForm({ tripID: 7, initialDate: "2026-10-02", tripStart: "2026-10-01", tripEnd: "2026-10-03", tripStartsAt: null, tripEndsAt: null, tripZone: "Asia/Manila", onSubmit: () => {}, onCancel: () => {}, pending: false }));
+assert.match(newFormHtml, /value="2026-10-02T"/);
+assert.match(newFormHtml, /1 hour/);
+assert.doesNotMatch(newFormHtml, />60</);
+assert.match(newFormHtml, /Add activity/);
 form.props.onSubmit({ preventDefault() {} });
 assert.equal(submitted.starts_at, precise, "Title-only edits must preserve precision despite the native input display");
 const membership = load("src/lib/memberships.ts", { react: {}, "@/lib/api": apiMock, "@tanstack/react-query": {} });
 const trip = { id: 7, start_date: "2026-10-01", end_date: "2026-10-03", time_zone: "Asia/Manila" };
+const overnight = { ...activity, id: 2, title: "Late visit", starts_at: "2026-10-01T15:30:00Z", ends_at: "2026-10-01T16:30:00Z" };
 let queryMode = "success";
+let boardActivities = [activity, overnight];
+let boardConflicts = [];
+let uiState = null, hookIndex = 0, uiRefs = [], refIndex = 0;
+const uiApi = { pending: false, reset() {}, async save() { return true; } };
 const components = load("src/components/trips/itinerary.tsx", {
   ...primitiveMocks, "@/lib/api": apiMock, "@/lib/activity-time": time, "@/lib/memberships": membership,
-  "@/lib/itinerary": { ...itinerary, useItineraryApi: () => ({ pending: false }) },
+  "@/components/ui/calendar": { Calendar: wrap("div") },
+  "@/components/ui/popover": Object.fromEntries(["Popover", "PopoverContent", "PopoverTrigger"].map((key) => [key, wrap("div")])),
+  "@/lib/itinerary": { ...itinerary, useItineraryApi: () => uiApi },
   "next/dynamic": { __esModule: true, default: () => () => React.createElement("div", null, "Map") },
-  react: { ...React, useEffect: () => {} },
-  "@tanstack/react-query": { useQueryClient: () => client, useQuery: ({ queryKey }) => ({
-    isPending: queryMode === "pending", isError: queryMode === "error", isFetching: false,
-    data: queryKey[2] === "activities" ? queryMode === "empty" ? [] : [activity] : [], error: new ApiError(500, "Failure"),
+  react: { ...React, useEffect: () => {},
+    useState: (initial) => {
+      // eslint-disable-next-line react-hooks/rules-of-hooks -- Test harness switches between SSR and direct handler checks.
+      if (!uiState) return React.useState(initial);
+      const index = hookIndex++;
+      if (!(index in uiState)) uiState[index] = typeof initial === "function" ? initial() : initial;
+      return [uiState[index], (value) => { uiState[index] = value; }];
+    },
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- Same test-only hook adapter as above.
+    useRef: (initial) => uiState ? (uiRefs[refIndex++] ??= { current: initial }) : React.useRef(initial),
+  },
+  "@tanstack/react-query": { useQueryClient: () => client, useQueries: () => [], useQuery: ({ queryKey }) => ({
+    isPending: queryMode === "pending", isSuccess: queryMode === "success" || queryMode === "empty", isError: queryMode === "error", isFetching: false,
+    data: queryKey[2] === "activities" ? queryMode === "empty" ? [] : boardActivities : boardConflicts, error: new ApiError(500, "Failure"),
   }) },
 });
 for (const role of ["owner", "editor", "member", "viewer", undefined]) {
   const html = renderToStaticMarkup(React.createElement(components.Itinerary, { trip, participants: [], canEdit: membership.permissions(role).edit, onFailure: () => {} }));
-  assert.equal(html.includes("Add activity"), role === "owner" || role === "editor");
-  assert.equal(html.includes(">Delete<"), role === "owner" || role === "editor");
+  assert.equal(html.includes("+ Add activity"), role === "owner" || role === "editor");
+  assert.equal(html.includes("Activity options"), role === "owner" || role === "editor");
   assert.match(html, /Former participant/);
-  assert.match(html, /Activities pagination/);
-  assert.match(html, /Conflicts pagination/);
-  assert.match(html, /Parallel activities are allowed/);
+  assert.match(html, /Trip dates/);
+  assert.match(html, /dateTime="2026-10-01"/);
+  assert.match(html, /aria-pressed="true"/);
+  assert.match(html, /itinerary-board/);
+  assert.match(html, /ends next day/);
+  assert.doesNotMatch(html, /No schedule conflicts/, "Closed conflict dialog stays hidden");
+  assert.match(html, /Day [123] of 3/);
 }
-for (const [mode, text] of [["pending", "Loading activities"], ["empty", "No activities yet"], ["error", "Error"]]) {
+for (const [mode, text] of [["pending", "Loading activities"], ["empty", "Nothing planned yet"], ["error", "Error"]]) {
   queryMode = mode;
   const html = renderToStaticMarkup(React.createElement(components.Itinerary, { trip, canEdit: false, onFailure: () => {} }));
   assert.ok(html.includes(text));
 }
-console.log("Itinerary timezone/DST/precision, payloads, requests, permissions, states, pagination and cache updates passed.");
+console.log("Itinerary timezone/DST/precision, board pagination, payloads, permissions, states and cache updates passed.");
+
+
+// Exercise the board's actual event handlers without a browser or extra test dependencies.
+function nodes(node) {
+  if (Array.isArray(node)) return node.flatMap(nodes);
+  return React.isValidElement(node) ? [node, ...nodes(node.props.children)] : [];
+}
+queryMode = "success";
+uiState = [];
+function board() {
+  hookIndex = refIndex = 0;
+  return nodes(components.Itinerary({ trip, participants: [], canEdit: true, onFailure() {} }));
+}
+const dialog = () => board().find((node) => node.props.disablePointerDismissal);
+const trigger = { isConnected: true, disabled: false, getClientRects: () => [1] };
+const dayToggle = (date) => board().find((node) => node.props.id === `day-${date}-heading`);
+const dayPanel = (date) => board().find((node) => node.props.id === `day-${date}-details`);
+boardConflicts = [
+  { activity_ids: [1, 2], overlap_starts_at: "2026-10-01T15:30:00Z", overlap_ends_at: "2026-10-01T16:30:00Z" },
+  { activity_ids: [3, 4], overlap_starts_at: "2026-10-01T15:00:00Z", overlap_ends_at: "2026-10-01T16:00:00Z" },
+];
+dayToggle("2026-10-01").props.onClick();
+assert.ok(!dayPanel("2026-10-01").props.hidden);
+assert.ok(!dayPanel("2026-10-02").props.hidden);
+dayToggle("2026-10-02").props.onClick();
+assert.ok(!dayPanel("2026-10-01").props.hidden, "Selecting another day keeps all board columns visible");
+assert.ok(!dayPanel("2026-10-02").props.hidden);
+assert.equal(board().find((node) => node.props.conflicts).props.conflicts.length, 1, "The second day includes a crossing overlap but excludes one ending at midnight");
+assert.ok(board().some((node) => node.props["aria-label"] === "Tools for Fri, Oct 2"));
+dayToggle("2026-10-02").props.onClick();
+assert.ok(!dayPanel("2026-10-02").props.hidden, "Selecting a day again keeps its activity cards visible");
+dayToggle("2026-10-01").props.onClick();
+boardConflicts = [];
+for (const [index, button] of board().filter((node) => node.props.children === "+ Add activity").entries()) {
+  button.props.onClick({ currentTarget: trigger });
+  assert.equal(dialog().props.open, true);
+  assert.equal(dialog().props.children.props.initialDate, `2026-10-0${index + 1}`);
+  assert.equal(dialog().props.initialFocus, dialog().props.children.props.titleRef);
+  assert.equal(dialog().props.finalFocus(), trigger);
+  dialog().props.children.props.onCancel();
+  assert.equal(dialog().props.open, false);
+}
+board().find((node) => node.props["aria-label"] === `Actions for ${activity.title}`).props.onClick({ currentTarget: trigger });
+board().find((node) => node.props["aria-label"] === `Edit ${activity.title}`).props.onClick();
+assert.equal(dialog().props.children.props.initialValue, activity);
+dialog().props.children.props.onDirty();
+dialog().props.children.props.onCancel();
+assert.equal(dialog().props.open, true, "Unsaved edits require discard confirmation");
+confirmDiscard = true;
+dialog().props.children.props.onCancel();
+assert.equal(dialog().props.open, false, "Confirmed discard closes the editor");
+board().find((node) => node.props["aria-label"] === `Actions for ${activity.title}`).props.onClick({ currentTarget: trigger });
+board().find((node) => node.props["aria-label"] === `Edit ${activity.title}`).props.onClick();
+uiApi.pending = true;
+dialog().props.onOpenChange(false);
+assert.equal(dialog().props.open, true, "Saving blocks dismissal");
+uiApi.pending = false;
+uiApi.save = async () => { throw new Error("Save failed"); };
+await dialog().props.children.props.onSubmit(activity);
+assert.equal(dialog().props.open, true, "Failed save retains the editor");
+assert.equal(dialog().props.children.props.initialValue, activity);
+uiApi.save = async () => true;
+await dialog().props.children.props.onSubmit({ ...activity, starts_at: "2026-10-02T01:00:00Z" });
+assert.equal(dialog().props.open, false);
+assert.equal(uiState[0], "2026-10-02", "Save selects the destination day");
+trigger.isConnected = false;
+const heading = {};
+uiRefs[2].current = heading;
+assert.equal(dialog().props.finalFocus(), heading, "Removed trigger falls back to selected day");
+const dialogParts = Object.fromEntries(["Root", "Trigger", "Portal", "Backdrop", "Popup", "Title", "Description", "Close"].map((key) => [key, wrap("div")]));
+const { TripDialog } = load("src/components/trips/trip-dialog.tsx", {
+  "@base-ui/react/dialog": { Dialog: dialogParts },
+  "lucide-react": { X: wrap("span") },
+  "@/components/ui/button": { Button: wrap("button") },
+});
+let cancelled = false, changed = false;
+const busyDialog = TripDialog({ title: "Activity", description: "Times", busy: true, disablePointerDismissal: true, onOpenChange: () => { changed = true; } });
+busyDialog.props.onOpenChange(false, { cancel() { cancelled = true; } });
+assert.equal(cancelled, true);
+assert.equal(changed, false);
+assert.equal(busyDialog.props.disablePointerDismissal, true);
+assert.equal(nodes(busyDialog).find((node) => node.type === dialogParts.Close).props.disabled, true);
+console.log("Activity dialog date selection, edit/save/cancel, failed saves, dismissal and focus targets passed.");
+
+boardActivities = [
+  { ...activity, ends_at: "2026-10-01T13:50:00Z" },
+  { ...activity, id: 3, ends_at: "2026-10-01T02:00:00Z" },
+];
+board().find((node) => node.props.children === "+ Add activity").props.onClick({ currentTarget: trigger });
+const addProps = dialog().props.children.props;
+assert.equal(addProps.initialStartsAt, "2026-10-01T13:50:00Z", "Use latest scheduled end regardless of list order");
+assert.match(dialog().props.description, /Thu, Oct 1/);
+const prefilled = formModule.ActivityForm(addProps);
+const startField = nodes(prefilled).find((node) => node.props.label === "Start");
+assert.equal(startField.props.hideDate, true);
+assert.equal(startField.props.draft.value, "2026-10-01T21:50:00");
+assert.equal(nodes(form).find((node) => node.props.label === "Start").props.hideDate, false, "Editing still allows moving to another date");
+dialog().props.children.props.onCancel();
+boardActivities = [overnight];
+board().find((node) => node.props.children === "+ Add activity").props.onClick({ currentTarget: trigger });
+assert.equal(dialog().props.children.props.initialStartsAt, undefined, "Do not silently move an addition to the next day");
+console.log("Selected-day additions hide the date picker and start at the latest same-day end.");

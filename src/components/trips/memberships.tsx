@@ -7,7 +7,6 @@ import { type AssignableRole, type Participant, invitationStatus, participantNam
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TripError } from "@/components/trips/trip-states";
@@ -53,7 +52,8 @@ export function Participants({ id, participants, current, onFailure }: {
     } catch { /* The hook exposes a safe error below. */ }
     setConfirm(null);
   }
-  return <Card><CardHeader><CardTitle>Participants</CardTitle></CardHeader><CardContent className="space-y-4">
+  return <section className="space-y-4" aria-label="Participants">
+    <h3 className="font-semibold">Participants ({participants.length})</h3>
     <ul className="space-y-4">{participants.map((person) => <li key={person.user_id} className="space-y-3 border-b pb-4 last:border-0 last:pb-0">
       <div className="break-words"><p className="font-medium">{participantName(person)}{person.user_id === current?.user_id && " (you)"}</p><p className="text-sm text-muted-foreground">{person.role}</p></div>
       {allowed.manage && person.role !== "owner" && <div className="flex flex-wrap items-end gap-3">
@@ -70,7 +70,7 @@ export function Participants({ id, participants, current, onFailure }: {
     {confirm && (confirm.action === "leave" ? allowed.leave : allowed.manage) && <Confirmation pending={api.pending} title={confirm.action === "transfer" ? "Transfer ownership?" : confirm.action === "leave" ? "Leave this trip?" : "Remove participant?"}
       description={confirm.action === "transfer" ? `Make ${participantName(confirm.person)} the owner? You will become an editor.` : confirm.action === "leave" ? "You will lose access to this trip." : `Remove ${participantName(confirm.person)} from this trip? They will lose access.`}
       onCancel={() => setConfirm(null)} onConfirm={() => void submit()} />}
-  </CardContent></Card>;
+  </section>;
 }
 
 export function Invitations({ id, onFailure }: { id: number; onFailure: (error: Error) => void | Promise<void> }) {
@@ -95,11 +95,12 @@ export function Invitations({ id, onFailure }: { id: number; onFailure: (error: 
       if (invitation) { setToken(invitation.token); setEmail(""); }
     } catch { /* The hook exposes a safe error below. */ }
   }
-  return <Card><CardHeader><CardTitle>Invitations</CardTitle></CardHeader><CardContent className="space-y-6">
+  return <section className="space-y-6 border-t pt-6" aria-label="Invitations">
+    <h3 className="font-semibold">Invite someone</h3>
     <form onSubmit={(event) => void create(event)} className="space-y-4">
       <div className="space-y-2"><Label htmlFor="invite-email">Email address</Label><Input className="min-h-11" id="invite-email" type="email" required maxLength={320} disabled={api.pending} value={email} onChange={(event) => setEmail(event.target.value)} /></div>
       <div className="space-y-2"><Label htmlFor="invite-role">Invitation role</Label><RoleSelect id="invite-role" value={role} disabled={api.pending} onChange={setRole} /></div>
-      <Button className="min-h-11" type="submit" disabled={api.pending}>{api.pending ? "Saving…" : "Create invitation"}</Button>
+      <Button className="min-h-12 w-full md:w-auto" type="submit" disabled={api.pending}>{api.pending ? "Saving…" : "Create invitation"}</Button>
     </form>
     {token && <div className="space-y-3 rounded-lg border p-4">
       <Label htmlFor="created-token">Invitation token</Label><Input className="min-h-11 font-mono" id="created-token" readOnly value={token} autoComplete="off" />
@@ -122,5 +123,5 @@ export function Invitations({ id, onFailure }: { id: number; onFailure: (error: 
       try { await api.revoke(revoke.id); setToken(""); } catch { /* Safe error is shown above. */ }
       setRevoke(null);
     }} />}
-  </CardContent></Card>;
+  </section>;
 }

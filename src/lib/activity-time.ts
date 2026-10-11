@@ -43,6 +43,8 @@ export function instantToLocal(instant: string, zone: string): { value: string; 
     ? choices.find((choice) => Temporal.Instant.compare(choice.instant, exact) === 0)!.occurrence : "" };
 }
 
+export const endAfterMinutes = (start: string, minutes: number) => Temporal.Instant.from(start).add({ minutes }).toString();
+
 export function formatActivityTime(instant: string, zone: string) {
   return new Intl.DateTimeFormat(undefined, {
     timeZone: zone, dateStyle: "medium", timeStyle: "short",

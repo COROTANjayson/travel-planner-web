@@ -2,13 +2,16 @@
 
 import { useAuth0 } from "@auth0/auth0-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, UserRound } from "lucide-react";
+import { ChevronDown, UserRound, Briefcase, Mail } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { TripDialog } from "@/components/trips/trip-dialog";
 import { Button } from "@/components/ui/button";
 import { ApiError, type ApiUser, useApi } from "@/lib/api";
 
-export function AuthPanel() {
+export function AuthPanel({ mobile = false }: { mobile?: boolean }) {
+  const pathname = usePathname();
   const { error: authError, isAuthenticated, isLoading, loginWithRedirect, logout } = useAuth0();
   const [actionError, setActionError] = useState<string>();
   const queryClient = useQueryClient();
@@ -32,6 +35,8 @@ export function AuthPanel() {
     }
   }
 
+  if (mobile && (isLoading || !isAuthenticated)) return null;
+
   if (isLoading) {
     return <p role="status" className="text-sm text-muted-foreground">Checking session…</p>;
   }
@@ -52,17 +57,7 @@ export function AuthPanel() {
 
   const name = user.data?.display_name.trim() || user.data?.email || "Traveler";
 
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Button variant="ghost" className="min-h-11" render={<Link href="/trips" />} nativeButton={false}>Trips</Button>
-      <Button variant="ghost" className="min-h-11" render={<Link href="/invitations/accept" />} nativeButton={false}>Accept invitation</Button>
-      <details className="group relative">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-4 [&::-webkit-details-marker]:hidden">
-        <UserRound aria-hidden="true" className="size-4" />
-        My account
-        <ChevronDown aria-hidden="true" className="size-4 group-open:rotate-180" />
-      </summary>
-      <div className="absolute right-0 z-20 mt-3 w-72 max-w-[calc(100vw-2rem)] space-y-4 rounded-xl border bg-card p-5 shadow-lg">
+  const accountContent = <>
         {user.isPending ? (
           <p role="status" className="text-sm text-muted-foreground">Loading your profile…</p>
         ) : user.isError ? (
@@ -89,6 +84,29 @@ export function AuthPanel() {
             setActionError("Unable to log out. Please try again.");
           }
         }}>Log out</Button>
+  </>;
+
+  if (mobile) return <nav aria-label="Mobile navigation" className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t bg-background/95 px-2 backdrop-blur md:hidden">
+    <Link href="/trips" aria-current={pathname.startsWith("/trips") ? "page" : undefined} className="mobile-nav-item"><Briefcase aria-hidden="true" className="size-5" />Trips</Link>
+    <Link href="/invitations/accept" aria-current={pathname.startsWith("/invitations") ? "page" : undefined} className="mobile-nav-item"><Mail aria-hidden="true" className="size-5" />Invitations</Link>
+    <TripDialog title="My account" description="Your traveler profile and session." mobilePresentation="sheet"
+      trigger={<button type="button" className="mobile-nav-item"><UserRound aria-hidden="true" className="size-5" />Account</button>}>
+      <div className="space-y-5">{accountContent}</div>
+    </TripDialog>
+  </nav>;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button variant="ghost" className="min-h-11" render={<Link href="/trips" />} nativeButton={false}>Trips</Button>
+      <Button variant="ghost" className="min-h-11" render={<Link href="/invitations/accept" />} nativeButton={false}>Accept invitation</Button>
+      <details className="group relative">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-4 [&::-webkit-details-marker]:hidden">
+        <UserRound aria-hidden="true" className="size-4" />
+        My account
+        <ChevronDown aria-hidden="true" className="size-4 group-open:rotate-180" />
+      </summary>
+      <div className="absolute right-0 z-20 mt-3 w-72 max-w-[calc(100vw-2rem)] space-y-4 rounded-xl border bg-card p-5 shadow-lg">
+        {accountContent}
       </div>
       </details>
     </div>

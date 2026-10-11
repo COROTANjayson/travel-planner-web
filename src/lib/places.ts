@@ -1,5 +1,6 @@
 export interface PlaceCandidate {
   provider_place_id: string;
+  kind: "city" | "country" | "other";
   name: string;
   address: string;
   latitude: number;
