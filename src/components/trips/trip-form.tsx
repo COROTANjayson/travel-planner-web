@@ -86,7 +86,7 @@ export function TripForm({ initialValue, onSubmit, pending, error, submitLabel, 
     } catch (cause) { setValidationError(cause instanceof Error ? cause.message : "Check the trip dates and times."); }
   }
 
-  return <form onSubmit={submit} className="max-w-2xl space-y-6">
+  return <form onSubmit={submit} className="max-w-[40rem] space-y-6">
     <fieldset disabled={pending || searchPending} className="min-w-0 space-y-5">
       <div className="space-y-2"><Label htmlFor="trip-name">Trip name</Label>
         <Input id="trip-name" className="min-h-11" required value={name} onChange={(event) => setName(event.target.value)} />

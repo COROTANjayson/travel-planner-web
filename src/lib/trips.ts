@@ -28,6 +28,32 @@ export interface Trip {
 
 export const tripPageSize = 10;
 
+export function formatTripDates(start: string, end: string, locale?: string) {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+    .formatRange(new Date(`${start}T12:00:00Z`), new Date(`${end}T12:00:00Z`));
+}
+
+export type TripStatus = "Ongoing" | "Upcoming" | "Past";
+
+export function tripStatus(start: string, end: string, zone: string): TripStatus {
+  const today = Temporal.Now.zonedDateTimeISO(zone).toPlainDate().toString();
+  return today < start ? "Upcoming" : today > end ? "Past" : "Ongoing";
+}
+
+const statusOrder: Record<TripStatus, number> = { Ongoing: 0, Upcoming: 1, Past: 2 };
+
+export function orderTrips(items: Trip[]) {
+  return [...items].sort((a, b) => {
+    const aStatus = tripStatus(a.start_date, a.end_date, a.time_zone);
+    const bStatus = tripStatus(b.start_date, b.end_date, b.time_zone);
+    const group = statusOrder[aStatus] - statusOrder[bStatus];
+    if (group) return group;
+    const dateOrder = aStatus === "Past" ? b.end_date.localeCompare(a.end_date) :
+      aStatus === "Upcoming" ? a.start_date.localeCompare(b.start_date) : a.end_date.localeCompare(b.end_date);
+    return dateOrder || b.id - a.id;
+  });
+}
+
 export function validTripID(value: string): number | null {
   if (!/^[0-9]+$/.test(value)) return null;
   const id = Number(value);

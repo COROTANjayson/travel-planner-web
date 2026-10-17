@@ -24,6 +24,8 @@ const mocks = {
   },
   "@/components/ui/button": { Button: ({ children, onClick, disabled }) => React.createElement("button", { onClick, disabled }, children) },
   "@/lib/api": { ApiError, useApi: () => () => {} },
+  "@/components/trips/trip-dialog": { TripDialog: ({ children }) => React.createElement("section", null, children) },
+  "next/navigation": { usePathname: () => "/trips" },
   react: { ...React, useState: () => [undefined, () => {}] },
 };
 const compiled = ts.transpileModule(fs.readFileSync("src/components/auth-panel.tsx", "utf8"), {
@@ -31,7 +33,7 @@ const compiled = ts.transpileModule(fs.readFileSync("src/components/auth-panel.t
 }).outputText;
 const context = { exports: {}, require: (id) => mocks[id] || loadModule(id), window: { location: { origin: "http://localhost:3000", pathname: "/trips" } } };
 vm.runInNewContext(compiled, context);
-const panel = () => context.exports.AuthPanel();
+const panel = () => context.exports.AuthPanel({});
 const html = () => renderToStaticMarkup(panel());
 function buttons(node) {
   if (!node || typeof node !== "object") return [];

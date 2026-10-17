@@ -62,21 +62,42 @@ const apiMock = { ApiError, useApi: () => async (path, init) => {
   return typeof response === "function" ? response(path, init) : response;
 } };
 const trips = load("src/lib/trips.ts", { "@/lib/api": apiMock });
+const range = (start, end) => trips.formatTripDates(start, end, "en-GB").replace(/\s+/g, " ").replace(/\s*–\s*/g, "–");
+assert.equal(range("2026-10-08", "2026-10-10"), "8–10 Oct 2026");
+assert.equal(range("2026-10-08", "2026-10-08"), "8 Oct 2026");
+assert.match(range("2026-10-30", "2026-11-02"), /30 Oct.*2 Nov 2026/);
+assert.match(range("2026-12-31", "2027-01-02"), /31 Dec 2026.*2 Jan 2027/);
+assert.match(trips.formatTripDates("2026-10-08", "2026-10-10", "en-US"), /Oct.*8.*10.*2026/);
+let tripQuery = { data: [] };
 const tripPage = load("src/app/trips/page.tsx", {
-  "next/link": () => null,
-  "@tanstack/react-query": { useQuery() {} },
+  react: { ...React, useState: (initial) => [initial, () => {}] },
+  "next/link": { default: ({ children, href }) => React.createElement("a", { href }, children) },
+  "@tanstack/react-query": { useQuery: () => tripQuery },
   "@/lib/trips": trips,
-  "@/components/ui/button": { Button: () => null },
-  "@/components/ui/card": Object.fromEntries(["Card", "CardContent", "CardDescription", "CardHeader", "CardTitle"].map((key) => [key, () => null])),
+  "@/components/ui/button": { Button: ({ children, disabled }) => React.createElement("button", { disabled }, children) },
+  "@/components/ui/card": Object.fromEntries(["Card", "CardContent", "CardDescription", "CardHeader", "CardTitle"].map((key) => [key, ({ children }) => React.createElement("div", null, children)])),
   "@/components/trips/trip-states": { TripError() {}, TripLoading() {} },
 });
 const today = require("@js-temporal/polyfill").Temporal.Now.plainDateISO("UTC");
 const tripFor = (id, start, end) => ({ id, start_date: start.toString(), end_date: end.toString(), time_zone: "UTC" });
-assert.equal(tripPage.orderTrips([
+assert.equal(trips.orderTrips([
   tripFor(1, today.subtract({ days: 4 }), today.subtract({ days: 2 })),
   tripFor(2, today.add({ days: 2 }), today.add({ days: 4 })),
   tripFor(3, today.subtract({ days: 1 }), today.add({ days: 1 })),
 ]).map((trip) => trip.id).join(","), "3,2,1", "Ongoing and upcoming trips precede past trips");
+const tripListHtml = () => renderToStaticMarkup(tripPage.default());
+assert.match(tripListHtml(), /No trips yet/);
+assert.doesNotMatch(tripListHtml(), /aria-label="Trip pages"/, "Empty lists have no pagination controls");
+tripQuery = { data: [{ ...tripFor(1, today, today), name: "Cebu", destination: "Cebu City" }] };
+assert.match(tripListHtml(), /Open itinerary/);
+assert.doesNotMatch(tripListHtml(), /lg:grid-cols-3/, "Sparse lists use wider cards on desktop");
+tripQuery = { data: Array.from({ length: trips.tripPageSize }, (_, index) => ({
+  ...tripFor(index + 1, today, today), name: `Trip ${index + 1}`, destination: "Cebu",
+})) };
+assert.doesNotMatch(tripListHtml(), /aria-label="Trip pages"/, "One page needs no pagination");
+assert.match(tripListHtml(), /journey-cover/, "Trip cards retain their illustrated covers");
+tripQuery.data.push({ ...tripFor(99, today, today), name: "Extra trip", destination: "Cebu" });
+assert.match(tripListHtml(), /aria-label="Trip pages"/, "Multiple pages retain navigation");
 const tripDraft = { name: " Manila ", destination_place_id: 7, starts_at: "2026-10-01T01:00:00Z", ends_at: "2026-10-01T01:00:00.001Z" };
 assert.equal(trips.tripInput(tripDraft).name, "Manila");
 assert.equal(trips.validateTrip(tripDraft), undefined, "Subsecond end time must compare as an instant");
@@ -278,15 +299,15 @@ boardConflicts = [
 ];
 dayToggle("2026-10-01").props.onClick();
 assert.ok(!dayPanel("2026-10-01").props.hidden);
-assert.ok(!dayPanel("2026-10-02").props.hidden);
-dayToggle("2026-10-02").props.onClick();
-assert.ok(!dayPanel("2026-10-01").props.hidden, "Selecting another day keeps all board columns visible");
+assert.equal(dayPanel("2026-10-02"), undefined);
+board().find((node) => node.props.children === "Fri, Oct 2").props.onClick();
+board().find((node) => node.props.children === "Fri, Oct 2").props.onClick();
 assert.ok(!dayPanel("2026-10-02").props.hidden);
 assert.equal(board().find((node) => node.props.conflicts).props.conflicts.length, 1, "The second day includes a crossing overlap but excludes one ending at midnight");
 assert.ok(board().some((node) => node.props["aria-label"] === "Tools for Fri, Oct 2"));
-dayToggle("2026-10-02").props.onClick();
+board().find((node) => node.props.children === "Fri, Oct 2").props.onClick();
 assert.ok(!dayPanel("2026-10-02").props.hidden, "Selecting a day again keeps its activity cards visible");
-dayToggle("2026-10-01").props.onClick();
+board().find((node) => node.props.children === "Thu, Oct 1").props.onClick();
 boardConflicts = [];
 for (const [index, button] of board().filter((node) => node.props.children === "+ Add activity").entries()) {
   button.props.onClick({ currentTarget: trigger });
@@ -339,6 +360,7 @@ assert.equal(busyDialog.props.disablePointerDismissal, true);
 assert.equal(nodes(busyDialog).find((node) => node.type === dialogParts.Close).props.disabled, true);
 console.log("Activity dialog date selection, edit/save/cancel, failed saves, dismissal and focus targets passed.");
 
+board().find((node) => node.props.children === "Thu, Oct 1").props.onClick();
 boardActivities = [
   { ...activity, ends_at: "2026-10-01T13:50:00Z" },
   { ...activity, id: 3, ends_at: "2026-10-01T02:00:00Z" },

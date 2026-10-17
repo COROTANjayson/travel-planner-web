@@ -14,6 +14,12 @@ This is the Next.js client. The canonical architecture brief is
 `../travel-planner-api/travel-planner.md`; read only the sections relevant to
 the task.
 
+- Before frontend UI/UX changes, read `UI-UX.md` and follow its navigation,
+  accessibility, responsive-layout, reuse, and verification rules. Visual values
+  marked proposed are design defaults, not authorization to restyle existing UI.
+  Keep approved design decisions in that guide aligned with shared tokens and
+  components; report any relevant UI verification that could not be completed.
+
 - Use App Router, TypeScript, Tailwind, and existing shadcn/Base UI code.
   Prefer Server Components; use `"use client"` only when required.
 - Design mobile-first: start with small-screen layouts and use Tailwind's
