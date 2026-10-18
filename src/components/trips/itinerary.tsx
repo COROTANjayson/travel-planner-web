@@ -8,7 +8,7 @@ import { TZDate } from "react-day-picker";
 import { MapPin, CalendarCheck, CalendarDays, MoreHorizontal, Plus } from "lucide-react";
 import { TripDialog } from "./trip-dialog";
 import { ApiError } from "@/lib/api";
-import { activityPageSize, type Activity, type ActivityConflict, useItineraryApi } from "@/lib/itinerary";
+import { type Activity, type ActivityConflict, useItineraryApi } from "@/lib/itinerary";
 import { formatActivityTime } from "@/lib/activity-time";
 import { participantName, type Participant } from "@/lib/memberships";
 import { type Trip } from "@/lib/trips";
@@ -63,15 +63,7 @@ export function Itinerary({ trip, participants, canEdit, onFailure, header, tool
   const from = boundary(dates[0], trip.time_zone);
   const before = boundary(moveDate(dates[dates.length - 1], 1), trip.time_zone);
   const activities = useQuery({ queryKey: ["trip", trip.id, "activities", "board", from, before], queryFn: ({ signal }) => api.listRange(from, before, signal), retry: false });
-  const conflicts = useQuery({ queryKey: ["trip", trip.id, "conflicts", "all"], queryFn: async ({ signal }) => {
-    // ponytail: read every conflict page before filtering by day; add API date filtering if large trips make this slow.
-    const all: ActivityConflict[] = [];
-    for (let offset = 0;; offset += activityPageSize) {
-      const page = await api.conflicts(offset, signal);
-      all.push(...page);
-      if (page.length < activityPageSize) return all;
-    }
-  }, retry: false });
+  const conflicts = useQuery({ queryKey: ["trip", trip.id, "conflicts", "all"], queryFn: ({ signal }) => api.conflicts(signal), retry: false });
   const dayStart = boundary(selected, trip.time_zone);
   const dayEnd = boundary(moveDate(selected, 1), trip.time_zone);
   const dayConflicts = conflicts.data?.filter((conflict) => Temporal.Instant.compare(conflict.overlap_starts_at, dayEnd) < 0 && Temporal.Instant.compare(conflict.overlap_ends_at, dayStart) > 0) ?? [];

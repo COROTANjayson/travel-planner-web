@@ -129,9 +129,43 @@ assert.match(calls[0][0], /start_from=2026-10-01T00%3A00%3A00Z/);
 assert.match(calls[1][0], /offset=100/);
 assert.equal(calls[1][1].signal, signal);
 calls = [];
-response = [activity];
-await api.conflicts(20, signal);
-assert.equal(calls[0][0], "/api/v1/trips/7/activities/conflicts?limit=10&offset=20");
+const conflictPage = Array.from({ length: 10 }, (_, index) => ({
+  activity_ids: [index + 1, index + 2], overlap_starts_at: activity.starts_at, overlap_ends_at: activity.ends_at,
+}));
+const lastConflict = { ...conflictPage[0], activity_ids: [11, 12] };
+response = (path) => path.includes("offset=0") ? conflictPage : [lastConflict];
+assert.deepEqual(Array.from(await api.conflicts(signal)), [...conflictPage, lastConflict], "Conflicts must include every page in order");
+assert.deepEqual(calls.map(([path]) => path), [
+  "/api/v1/trips/7/activities/conflicts?limit=10&offset=0",
+  "/api/v1/trips/7/activities/conflicts?limit=10&offset=10",
+]);
+assert.ok(calls.every(([, init]) => init.signal === signal), "Every conflict request keeps the query's cancellation signal");
+for (const { firstPage, requestCount } of [{ firstPage: [], requestCount: 1 }, { firstPage: conflictPage, requestCount: 2 }]) {
+  calls = [];
+  response = (path) => path.includes("offset=0") ? firstPage : [];
+  assert.deepEqual(Array.from(await api.conflicts(signal)), firstPage);
+  assert.equal(calls.length, requestCount, "An empty page ends conflict loading, including after a full page");
+}
+calls = [];
+const conflictFailure = new ApiError(503, "Conflicts unavailable");
+response = (path) => {
+  if (path.includes("offset=0")) return conflictPage;
+  throw conflictFailure;
+};
+await assert.rejects(api.conflicts(signal), (error) => error === conflictFailure, "A later page failure must reject rather than return partial conflicts");
+assert.equal(calls.length, 2);
+response = (path) => path.includes("offset=0") ? conflictPage : undefined;
+await assert.rejects(api.conflicts(signal), (error) => error.status === 500, "Missing page data must not look like a complete result");
+calls = [];
+const conflictController = new AbortController();
+response = (path, init) => {
+  init.signal.throwIfAborted();
+  if (path.includes("offset=0")) conflictController.abort();
+  return conflictPage;
+};
+await assert.rejects(api.conflicts(conflictController.signal), { name: "AbortError" });
+assert.equal(calls.length, 2, "Cancellation stops loading without returning partial conflicts");
+assert.ok(calls.every(([, init]) => init.signal === conflictController.signal));
 calls = [];
 response = activity;
 await api.get(1);

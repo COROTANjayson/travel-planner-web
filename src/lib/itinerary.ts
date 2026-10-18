@@ -86,7 +86,15 @@ export function useItineraryApi(tripID: number, onFailure: (error: Error) => voi
       }
     },
     get: (id: number, signal?: AbortSignal) => read<Activity>(`${base}/${id}`, signal),
-    conflicts: (offset: number, signal?: AbortSignal) => read<ActivityConflict[]>(`${base}/conflicts?limit=${activityPageSize}&offset=${offset}`, signal),
+    conflicts: async (signal?: AbortSignal) => {
+      // shortcut: read all conflicts before day filtering; add server date filtering if large trips make this slow.
+      const all: ActivityConflict[] = [];
+      for (let offset = 0;; offset += activityPageSize) {
+        const page = await read<ActivityConflict[]>(`${base}/conflicts?limit=${activityPageSize}&offset=${offset}`, signal);
+        all.push(...page);
+        if (page.length < activityPageSize) return all;
+      }
+    },
     save: (input: ActivityInput, id?: number) => mutate(id === undefined ? "POST" : "PUT", id, input),
     remove: (id: number) => mutate("DELETE", id),
   };

@@ -10,31 +10,48 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Travel Planner web
 
-This is the Next.js client. The canonical architecture brief is
-`../travel-planner-api/travel-planner.md`; read only the sections relevant to
-the task.
+## Start here
 
-- Before frontend UI/UX changes, read `UI-UX.md` and follow its navigation,
-  accessibility, responsive-layout, reuse, and verification rules. Visual values
-  marked proposed are design defaults, not authorization to restyle existing UI.
-  Keep approved design decisions in that guide aligned with shared tokens and
-  components; report any relevant UI verification that could not be completed.
+- [README](README.md): setup, project map, API conventions, and commands.
+- [UI/UX guide](docs/ui-ux.md): read before screen or shared-component changes.
+- [travel-web-change](.agents/skills/travel-web-change/SKILL.md): reusable workflow
+  for interactive screen/form changes and their regression/browser checks.
+- Inspect the affected code and existing checks before editing. This repository
+  is independent of the API repository; no sibling checkout is required.
 
-- Use App Router, TypeScript, Tailwind, and existing shadcn/Base UI code.
-  Prefer Server Components; use `"use client"` only when required.
-- Design mobile-first: start with small-screen layouts and use Tailwind's
-  responsive breakpoints to enhance them for larger screens. Keep navigation,
-  forms, and controls touch-friendly; prevent horizontal overflow and verify
-  mobile and desktop layouts before shipping UI changes.
-- The Go API owns data and authorization. Use its OpenAPI client/types; do not
-  duplicate domain logic or expose provider secrets in the browser.
-- Use TanStack Query for remote state and local React state for UI state.
-- Server-render public template/destination pages with useful metadata.
-- Treat AI and optimization as asynchronous jobs. Scheduling constraints and
-  verified place/route data belong to backend services, not client logic.
-- Keep scheduled instants in UTC with IANA time zones. Keep money as integer
-  minor units with an ISO currency code.
-- Build only the requested web slice; do not prebuild mobile, infrastructure,
-  microservices, CRDTs, or speculative abstractions.
-- Preserve accessible loading, empty, error, unauthorized, and mobile states.
-- Run `npm run lint` and `npm run build` after behavioral or compilation changes.
+## Working rules
+
+- Use App Router, TypeScript, Tailwind, and existing shadcn/Base UI primitives.
+  Keep Server Components unless interaction or browser APIs require a client.
+- Put routes in `src/app`, trip UI in `src/components/trips`, shared primitives
+  in `src/components/ui`, and API/types/time helpers in `src/lib`.
+- Use `useApi` and the existing feature API hooks. Types are hand-maintained;
+  there is no generated OpenAPI client. Coordinate API contract changes with
+  the backend when requested; do not invent endpoints or response fields.
+- Use TanStack Query for remote state, existing query keys/invalidation patterns,
+  and local React state for UI state. Keep Auth0 tokens in memory; never log
+  credentials or add browser-persisted token storage.
+- The API owns authorization and durable rules. Client validation and permission
+  controls improve UX but never replace server checks.
+- Preserve UTC instants and explicit IANA zones using the existing Temporal
+  helpers. Trips support inclusive dates and optional paired exact times;
+  activities use the trip zone. Overlaps are advisory. Trip edits that exclude
+  saved activities fail. See the README before changing schedule behavior.
+- Reuse semantic tokens and shared components. Preserve responsive layouts,
+  labels, keyboard/focus behavior, loading/error/empty/permission states,
+  recoverable form values, and duplicate-submission safeguards.
+- Build the requested slice only. Update an existing authoritative document
+  when its rule changes; do not create competing instructions or speculative
+  infrastructure.
+
+## Completion
+
+Run `npm run check` for code, configuration, or script changes. It runs lint,
+route generation/type checking, existing regression/contrast checks, and build.
+Use `npm test` or the individual README commands while iterating. Documentation
+changes require link/accuracy review; they do not alone require a build.
+
+For UI changes, also verify affected views on mobile and desktop, keyboard
+navigation, long text, and relevant error/permission states per the UI/UX guide.
+Report checks that were skipped or blocked. Review the diff for unintended
+changes and secrets; never modify local environment files to make checks pass.
