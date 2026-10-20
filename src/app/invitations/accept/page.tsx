@@ -25,9 +25,9 @@ export default function AcceptInvitationPage() {
       if (participant) { setToken(""); router.replace("/trips"); }
     } catch { /* Only the hook's sanitized message is rendered. */ }
   }
-  return <>
-    <h1 className="page-title">Join a trip</h1>
-    <p className="text-muted-foreground">Paste the invitation token shared with you by the trip owner.</p>
+  return <section className="form-surface space-y-6">
+    <div className="space-y-3"><p className="eyebrow">Better together</p><h1 className="page-title">Join a trip</h1>
+    <p className="text-sm leading-6 text-muted-foreground">Paste the invitation token shared with you by the trip owner.</p></div>
     {me.isPending ? <p role="status">Checking your email…</p> : me.isError ? <TripError error={me.error} retry={() => void me.refetch()} pending={me.isFetching} /> : !verified &&
       <p role="alert">Verify the matching email address in Auth0, then sign out and sign in again before accepting an invitation.</p>}
     <form onSubmit={(event) => void submit(event)} className="max-w-[40rem] space-y-6">
@@ -37,5 +37,5 @@ export default function AcceptInvitationPage() {
       {api.error && <TripError error={api.error} />}
       <Button type="submit" className="min-h-12 w-full md:w-auto" disabled={!verified || !token.trim() || api.pending}>{api.pending ? "Accepting…" : "Accept invitation"}</Button>
     </form>
-  </>;
+  </section>;
 }

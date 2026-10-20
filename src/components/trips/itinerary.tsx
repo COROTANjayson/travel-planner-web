@@ -141,7 +141,7 @@ export function Itinerary({ trip, participants, canEdit, onFailure, header, tool
     <div className="planning-workspace"><section aria-labelledby="itinerary-heading" className="min-w-0 space-y-3">
     <div className="itinerary-toolbar sticky z-30 -mx-4 space-y-2 border-b bg-background/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:border-0 md:px-0">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <h2 id="itinerary-heading" className="sr-only text-xl font-semibold md:not-sr-only">Itinerary</h2>
+      <h2 id="itinerary-heading" className="sr-only font-heading text-2xl tracking-tight md:not-sr-only">Itinerary</h2>
       <div className="flex w-full min-w-0 items-center gap-2 md:w-auto">
 
         <Button type="button" variant="outline" className="size-12 shrink-0 md:size-11" disabled={selected <= trip.start_date} onClick={() => setSelected(moveDate(selected, -1))} aria-label="Previous date">←</Button>
@@ -206,9 +206,9 @@ export function Itinerary({ trip, participants, canEdit, onFailure, header, tool
               {dayActivities.length === 0 ? <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Nothing planned yet. {canEdit ? "Add an activity to start this day." : "Activities will appear here when an editor adds them."}</p> :
                 <ul className="space-y-3">{dayActivities.map((activity) => {
                   const creator = participants?.find((person) => person.user_id === activity.created_by_user_id);
-                  return <li key={activity.id} className="timeline-entry"><p className="timeline-time"><time dateTime={activity.starts_at}>{timeLabel(activity.starts_at, trip.time_zone)}</time></p><Card className="gap-3"><CardContent className="relative space-y-2 px-3">
+                  return <li key={activity.id} className="timeline-entry"><p className="timeline-time"><time dateTime={activity.starts_at}>{timeLabel(activity.starts_at, trip.time_zone)}</time></p><Card className="min-w-0 gap-3"><CardContent className="relative space-y-2 px-4">
                     <div className="flex items-start gap-2">
-                    <p className="min-w-0 flex-1 py-2 text-sm font-semibold text-primary"><time dateTime={activity.starts_at}>{timeLabel(activity.starts_at, trip.time_zone)}</time> – <time dateTime={activity.ends_at}>{timeLabel(activity.ends_at, trip.time_zone)}</time>{localDate(activity.ends_at, trip.time_zone) > date && <span className="text-muted-foreground"> · ends next day</span>}</p>
+                    <p className="min-w-0 flex-1 py-2 text-xs font-medium tabular-nums text-muted-foreground"><time dateTime={activity.starts_at}>{timeLabel(activity.starts_at, trip.time_zone)}</time> – <time dateTime={activity.ends_at}>{timeLabel(activity.ends_at, trip.time_zone)}</time>{localDate(activity.ends_at, trip.time_zone) > date && <span className="text-muted-foreground"> · ends next day</span>}</p>
                     {canEdit && <Button className="size-12 shrink-0 md:size-11" variant="ghost" disabled={api.pending || editing !== null} aria-label={`Actions for ${activity.title}`}
                       onClick={(event) => { actionTrigger.current = event.currentTarget; setActions(activity); }}><MoreHorizontal aria-hidden="true" /><span className="sr-only">Activity options</span></Button>}
                     </div>
@@ -246,7 +246,7 @@ export function Itinerary({ trip, participants, canEdit, onFailure, header, tool
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>}
-  </section><aside className="planning-map" aria-label="Selected day map"><h2 className="mb-4 text-xl font-bold">Your day, on the map</h2>{activities.isPending ? <p role="status">Loading places...</p> : activities.isError ? <TripError error={activities.error} retry={() => void activities.refetch()} /> : <TripMap activities={activities.data.filter((activity) => localDate(activity.starts_at, trip.time_zone) === selected)} />}</aside></div></>;
+  </section><aside className="planning-map" aria-label="Selected day map"><p className="eyebrow mb-2">A sense of place</p><h2 className="mb-5 font-heading text-2xl tracking-tight">Your day, on the map</h2>{activities.isPending ? <p role="status">Loading places...</p> : activities.isError ? <TripError error={activities.error} retry={() => void activities.refetch()} /> : <TripMap activities={activities.data.filter((activity) => localDate(activity.starts_at, trip.time_zone) === selected)} />}</aside></div></>;
 }
 
 function ConflictList({ trip, conflicts, loaded, onUnavailable, onViewDay, onEdit }: {

@@ -10,13 +10,17 @@ guide are relative to the repository root.
 
 Approved 2026-10-11; reference: https://www.figma.com/design/ZreGSmwJEIhzQEwu6toBci
 
-- Cream background, plum text/primary actions, coral add/create actions with
+- Light cool background, plum text/primary actions, coral add/create actions with
   plum text, lavender accents, white reading surfaces, and readable muted text.
   Do not reintroduce green/teal branding. Verify actual token contrast rather
   than copying reference colors without checking their pairings.
 - Lora for display headings and DM Sans for controls/reading. Use rem units,
   wrapping, and the shared type scale. Primary controls are at least 48px;
   other product touch targets are at least 44px.
+- The October 18 visual pass uses fluid page headings (2–2.75rem), journal
+  headings (2–3.25rem), and a larger landing-page heading. Use the shared
+  `eyebrow` style for small section labels. Keep plum/coral contrast and soften
+  cool neutral/lavender supporting surfaces through the central tokens.
 - Mobile gutters are 24px; large-screen gutters are 64px with a 1440px shell.
   Keep forms bounded rather than stretching them to fill desktop width.
 - Controls use 12px radii, activity cards 16px, dialogs 24px. Illustrated trip
@@ -39,6 +43,10 @@ Approved 2026-10-11; reference: https://www.figma.com/design/ZreGSmwJEIhzQEwu6to
   and Open itinerary. Preserve status filters, ongoing/upcoming ordering before
   past trips across pagination, useful filtered empty states, and wider cards
   for sparse desktop lists. Status must not rely on color alone.
+- Keep the leading trip card full width on desktop, with following cards in a
+  two-column grid. Use separated status badges and bounded, proportionally
+  cropped artwork. Activity cards use white bordered surfaces beside a time
+  rail; keep time and title readable when controls wrap.
 - Trip creation asks for dates before optional exact times. Changing a
   destination must explain/confirm clearing entered dates and times.
 - Planning uses a compact illustrated header, selected-day navigation, and a
@@ -64,6 +72,9 @@ Approved 2026-10-11; reference: https://www.figma.com/design/ZreGSmwJEIhzQEwu6to
 - Start mobile-first; avoid fixed text heights and page-level horizontal
   overflow. Long names and enlarged text must wrap. Ordinary content reflows
   at 320 CSS pixels; surrounding map controls must also fit.
+- Standalone creation and invitation forms use bounded white surfaces on
+  desktop and the page surface on mobile. Sticky action backgrounds follow
+  their containing surface. Keep dialog gutters at 24px.
 - Keep mobile headers/navigation compact. Reserve sticky action/navigation
   space and safe-area insets. Use full-screen mobile editors for long forms,
   sheets for short interactions, and bounded desktop dialogs where appropriate.
@@ -76,6 +87,9 @@ Approved 2026-10-11; reference: https://www.figma.com/design/ZreGSmwJEIhzQEwu6to
   useful recovery that does not reveal private data.
 - Preserve visible focus, logical tab order, dialog focus trapping/return,
   Escape behavior, and reduced motion. Essential actions cannot require hover.
+- Keep control transitions specific and short (150ms). Press feedback should
+  not animate keyboard focus; reduced motion applies to the landing page and
+  portaled controls as well as the application shell.
 - Normal text needs 4.5:1 contrast; qualifying large text needs 3:1. Applicable
   control boundaries and state indicators need 3:1. Check text on each actual
   background/image; use an overlay or separate surface where necessary.

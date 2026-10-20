@@ -10,7 +10,7 @@ import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 
-import { ChevronRight, Plus } from "lucide-react";
+import { CalendarDays, ChevronRight, Compass, MapPin, Plus } from "lucide-react";
 
 import { formatTripDates, orderTrips, tripStatus, tripPageSize, useTripsApi, type Trip, type TripStatus } from "@/lib/trips";
 
@@ -72,15 +72,15 @@ export default function TripsPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-4">
 
-        <div className="space-y-2"><p className="text-xs tracking-widest text-muted-foreground">YOUR TRAVEL JOURNAL</p><h1 className="journal-title">Somewhere worth going.</h1><p className="text-muted-foreground">A few days away. A collection of good memories.</p></div>
+        <div className="min-w-0 space-y-3"><p className="eyebrow">Your travel journal</p><h1 className="journal-title text-balance">Somewhere worth going.</h1><p className="text-muted-foreground">A few days away. A collection of good memories.</p></div>
 
         <Button className="journey-accent min-h-12" render={<Link href="/trips/new" />} nativeButton={false}><Plus aria-hidden="true" />New trip</Button>
 
       </div>
 
-      <nav aria-label="Filter trips" className="flex gap-2 overflow-x-auto">
+      <nav aria-label="Filter trips" className="flex gap-1 overflow-x-auto border-b pb-3">
 
-        {(["All", "Ongoing", "Upcoming", "Past"] as const).map((option) => <Button key={option} type="button" className={`min-h-12 shrink-0 rounded-xl border-0 px-5 ${status === option ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"}`} variant="ghost"
+        {(["All", "Ongoing", "Upcoming", "Past"] as const).map((option) => <Button key={option} type="button" className={`min-h-12 shrink-0 rounded-xl border-0 px-5 ${status === option ? "bg-secondary text-secondary-foreground hover:bg-secondary" : "text-muted-foreground"}`} variant="ghost"
 
           aria-pressed={status === option} onClick={() => { setStatus(option); setOffset(0); }}>{option}</Button>)}
 
@@ -92,10 +92,11 @@ export default function TripsPage() {
 
       ) : visible.length === 0 ? (
 
-        <Card>
+        <Card className="items-center py-10 text-center md:py-16">
 
           <CardHeader>
 
+            <Compass aria-hidden="true" className="mx-auto mb-4 size-12 rounded-2xl bg-secondary p-3" />
             <CardTitle>{status === "All" ? "No trips yet" : `No ${status.toLowerCase()} trips`}</CardTitle>
 
             <CardDescription>{status === "All" ? "Create a trip to get started." : "Choose another filter to see your trips."}</CardDescription>
@@ -105,6 +106,7 @@ export default function TripsPage() {
           {status === "All" && <CardContent>
 
             <p className="text-sm text-muted-foreground">Choose a destination and dates. Build your itinerary one day at a time.</p>
+            <Button className="journey-accent mt-6" render={<Link href="/trips/new" />} nativeButton={false}><Plus aria-hidden="true" />Plan your first trip</Button>
 
           </CardContent>}
 
@@ -112,7 +114,7 @@ export default function TripsPage() {
 
       ) : (
 
-        <div className="grid gap-6">
+        <div className="grid gap-6 lg:grid-cols-2">
 
           {visible.map((trip, index) => (
 
@@ -120,17 +122,17 @@ export default function TripsPage() {
 
               <div className="journey-cover"><picture><source media="(max-width: 1023px)" srcSet="/illustrations/journey-cover-mobile.svg" /><Image src="/illustrations/journey-cover.svg" alt="" width={772} height={380} /></picture></div>
 
-              <div className="journey-trip-copy flex min-w-0 flex-col justify-center gap-4">
+              <div className="journey-trip-copy flex min-w-0 flex-1 flex-col justify-center gap-4">
 
-                <p className="text-xs tracking-widest text-muted-foreground">{String(offset + index + 1).padStart(2, "0")} / YOUR JOURNEY</p>
+                <div className="flex flex-wrap items-center justify-between gap-3"><p className="eyebrow">{String(offset + index + 1).padStart(2, "0")} / Your journey</p><span className="trip-status" data-status={tripStatus(trip.start_date, trip.end_date, trip.time_zone)}>{tripStatus(trip.start_date, trip.end_date, trip.time_zone)}</span></div>
 
-                <h2 className="journey-trip-title break-words text-2xl font-bold">{trip.name}</h2>
+                <h2 className="journey-trip-title break-words font-heading text-2xl leading-tight tracking-tight">{trip.name}</h2>
 
-                <p className="break-words text-muted-foreground">{trip.destination}<br />{formatTripDates(trip.start_date, trip.end_date)}</p>
+                <div className="space-y-2 text-sm text-muted-foreground"><p className="flex items-start gap-2"><MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" /><span className="min-w-0 break-words">{trip.destination}</span></p><p className="flex items-start gap-2"><CalendarDays aria-hidden="true" className="mt-0.5 size-4 shrink-0" /><span>{formatTripDates(trip.start_date, trip.end_date)}</span></p></div>
 
-                <p className="text-sm text-muted-foreground">{tripStatus(trip.start_date, trip.end_date, trip.time_zone)} · {trip.time_zone}</p>
+                <p className="break-words text-xs text-muted-foreground">{trip.time_zone}</p>
 
-                <Button className="min-h-12 w-full lg:w-fit lg:min-w-64" render={<Link href={`/trips/${trip.id}`} />} nativeButton={false}>Open itinerary <ChevronRight aria-hidden="true" /></Button>
+                <Button className="mt-2 min-h-12 w-full justify-between lg:w-fit lg:min-w-48" render={<Link href={`/trips/${trip.id}`} />} nativeButton={false}>Open itinerary <ChevronRight aria-hidden="true" /></Button>
 
               </div>
 
