@@ -41,7 +41,7 @@ export default function TripMap({ activities }: { activities: Activity[] }) {
   return <div className="space-y-3">
     {failed && <p role="status" className="text-sm text-destructive">The map could not load. Place details remain below.</p>}
     <div ref={container} className="h-[55dvh] min-h-64 w-full overflow-hidden rounded-lg border md:h-80" aria-label="Map of places on the selected day" />
-    <ul className="space-y-1 text-sm">{located.map((activity, index) => <li key={activity.id} className="break-words">
+    <ul className="divide-y text-sm">{located.map((activity, index) => <li key={activity.id} className="break-words py-3">
       <strong>{index + 1}. {activity.title}:</strong> {activity.place!.name}, {activity.place!.address}
     </li>)}</ul>
     <p className="text-xs text-muted-foreground">Place data © <a className="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>.</p>

@@ -28,6 +28,12 @@ Open `http://localhost:3000`. Authenticated trip workflows need a running API;
 embedded at build time; restart development or rebuild after changing them.
 Auth0 access tokens use memory storage. Missing Auth0 settings show a setup
 message rather than enabling authenticated features.
+On reload, Auth0 first attempts to restore the session silently. If the SDK's
+previous-login cookie is present but silent restoration fails (for example, when the
+browser blocks third-party cookies), the app makes one top-level login redirect
+and returns to the same path, query, and fragment. An active Auth0 session can
+complete that redirect without asking for credentials. Expired sessions still
+require login; new visitors and failed callbacks do not trigger recovery.
 
 ## Project map and conventions
 
@@ -92,6 +98,18 @@ feature compositions belong outside that directory.
   all participants can read. Overlaps are advisory and do not prevent saves.
 - Send input fields only. IDs, creator identity, and audit fields come from
   the API; retain the existing cancellation and cache invalidation behavior.
+- Activities have a category and an ordered to-do list. Quick-add shortcuts
+  select Rest, Eating, Travel, Activity, or Custom without changing time defaults.
+  Custom labels belong to individual entries; existing Sleeping labels remain editable.
+- Category/item text is trimmed and limited to 100/200 UTF-8 bytes; lists allow
+  at most 50 items. Owners/editors add, rename, or remove items in the activity
+  form. Compact cards open a details dialog with notes, creator, and a plain
+  to-do list for every participant. Entries default to Activity with an empty list.
+- The API still stores items as `{text, done}`. Completion is hidden; existing
+  values survive edits and new items use `done: false`. No migration is needed.
+- The API preserves category/checklist on PUT when omitted or null; explicit
+  `[]` clears saved items. The web form sends both fields. Concurrent form
+  edits retain the existing last-save-wins behavior.
 
 ## Verification
 
@@ -115,8 +133,8 @@ Development/build automatically copy MapLibre workers into ignored
 
 [GitHub Actions](.github/workflows/check.yml) runs `npm ci` and the same check
 command independently on pushes and pull requests. Its Auth0 placeholders
-validate building, not login. Google Fonts are downloaded during builds;
-network failures must be reported, not bypassed by weakening checks.
+validate building, not login. The app uses system fonts without build-time font
+downloads; network failures must be reported, not bypassed by weakening checks.
 
 ## Working with a coding agent
 

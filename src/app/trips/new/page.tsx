@@ -21,7 +21,7 @@ export default function NewTripPage() {
 
   return (
     <section className="form-surface space-y-8">
-      <div className="space-y-3"><p className="eyebrow">A new chapter</p><h1 className="page-title">Create a trip</h1><p className="text-sm leading-6 text-muted-foreground">Start with a destination and dates. You can add activities next.</p></div>
+      <div className="space-y-3"><h1 className="page-title">Create a trip</h1><p className="text-sm leading-6 text-muted-foreground">Start with a destination and dates. You can add activities next.</p></div>
       <TripForm onSubmit={(input) => create.mutate(input)} pending={create.isPending}
         error={create.error} submitLabel="Create trip"
         cancel={<Button className="min-h-11" variant="outline" disabled={create.isPending}

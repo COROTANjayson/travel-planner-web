@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { TripDialog } from "@/components/trips/trip-dialog";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { ApiError, type ApiUser, useApi } from "@/lib/api";
 
 export function AuthPanel({ mobile = false }: { mobile?: boolean }) {
@@ -86,29 +87,30 @@ export function AuthPanel({ mobile = false }: { mobile?: boolean }) {
         }}>Log out</Button>
   </>;
 
-  if (mobile) return <nav aria-label="Mobile navigation" className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t bg-background/95 px-2 backdrop-blur md:hidden">
-    <Link href="/trips" aria-current={pathname.startsWith("/trips") ? "page" : undefined} className="mobile-nav-item"><Briefcase aria-hidden="true" className="size-5" />Trips</Link>
-    <Link href="/invitations/accept" aria-current={pathname.startsWith("/invitations") ? "page" : undefined} className="mobile-nav-item"><Mail aria-hidden="true" className="size-5" />Invitations</Link>
+  if (mobile) return <nav aria-label="Mobile navigation" className="mobile-bottom-nav fixed z-40 grid grid-cols-3 md:hidden">
+    <Link href="/trips" aria-current={pathname.startsWith("/trips") ? "page" : undefined} className="mobile-nav-item"><span className="mobile-nav-icon"><Briefcase aria-hidden="true" className="size-5" /></span><span>Trips</span></Link>
+    <Link href="/invitations/accept" aria-current={pathname.startsWith("/invitations") ? "page" : undefined} className="mobile-nav-item"><span className="mobile-nav-icon"><Mail aria-hidden="true" className="size-5" /></span><span>Invitations</span></Link>
     <TripDialog title="My account" description="Your traveler profile and session." mobilePresentation="sheet"
-      trigger={<button type="button" className="mobile-nav-item"><UserRound aria-hidden="true" className="size-5" />Account</button>}>
+      trigger={<button type="button" className="mobile-nav-item"><span className="mobile-nav-icon"><UserRound aria-hidden="true" className="size-5" /></span><span>Account</span></button>}>
       <div className="space-y-5">{accountContent}</div>
     </TripDialog>
   </nav>;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="hidden flex-wrap items-center gap-1 md:flex">
       <Button variant="ghost" className="min-h-11" aria-current={pathname.startsWith("/trips") ? "page" : undefined} render={<Link href="/trips" />} nativeButton={false}>Trips</Button>
       <Button variant="ghost" className="min-h-11" aria-current={pathname.startsWith("/invitations") ? "page" : undefined} render={<Link href="/invitations/accept" />} nativeButton={false}>Invitations</Button>
-      <details className="group relative">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-4 [&::-webkit-details-marker]:hidden">
+      <Popover>
+      <PopoverTrigger render={<Button variant="ghost" className="min-h-11" />}>
         <UserRound aria-hidden="true" className="size-4" />
         My account
-        <ChevronDown aria-hidden="true" className="size-4 group-open:rotate-180" />
-      </summary>
-      <div className="absolute right-0 z-20 mt-3 w-72 max-w-[calc(100vw-2rem)] space-y-4 rounded-xl border bg-card p-5 shadow-lg">
+        <ChevronDown aria-hidden="true" className="size-4" />
+      </PopoverTrigger>
+      <PopoverContent align="end" sideOffset={8} className="w-72 max-w-[calc(100vw-3rem)] gap-4 border p-5">
+        <PopoverTitle className="sr-only">My account</PopoverTitle>
         {accountContent}
-      </div>
-      </details>
+      </PopoverContent>
+      </Popover>
     </div>
   );
 }

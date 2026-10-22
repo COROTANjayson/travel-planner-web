@@ -6,63 +6,88 @@ Exact implemented theme values live in `src/app/globals.css` and shared UI
 components. Change them centrally within the requested scope. Code paths in this
 guide are relative to the repository root.
 
-## Approved Illustrated Journey design
+## Calm travel workspace design
 
-Approved 2026-10-11; reference: https://www.figma.com/design/ZreGSmwJEIhzQEwu6toBci
+Approved 2026-10-20. This redesign replaces the earlier Illustrated Journey
+visual identity; its Figma file is historical reference only.
 
-- Light cool background, plum text/primary actions, coral add/create actions with
-  plum text, lavender accents, white reading surfaces, and readable muted text.
-  Do not reintroduce green/teal branding. Verify actual token contrast rather
-  than copying reference colors without checking their pairings.
-- Lora for display headings and DM Sans for controls/reading. Use rem units,
-  wrapping, and the shared type scale. Primary controls are at least 48px;
-  other product touch targets are at least 44px.
-- The October 18 visual pass uses fluid page headings (2–2.75rem), journal
-  headings (2–3.25rem), and a larger landing-page heading. Use the shared
-  `eyebrow` style for small section labels. Keep plum/coral contrast and soften
-  cool neutral/lavender supporting surfaces through the central tokens.
-- Mobile gutters are 24px; large-screen gutters are 64px with a 1440px shell.
-  Keep forms bounded rather than stretching them to fill desktop width.
-- Controls use 12px radii, activity cards 16px, dialogs 24px. Illustrated trip
-  cards use mobile outer/inner radii 24/16px and featured desktop 32/24px with
-  8px inset. Preserve shared tokens and concentric outer-radius-minus-inset
-  relationships rather than inventing per-screen overrides.
-- Reuse decorative SVGs in `public/illustrations`, preserve proportions, and
-  clip them within their slots. Artwork never proves a real destination.
-- Use real data and permissions. Do not turn prototype sample dinners, prefilled
-  schedules, automatic rescheduling, or schematic maps into product behavior.
+- Warm ivory background (#F7F7F2), charcoal text (#24272B), white reading
+  surfaces, restrained blue actions (#275BCC), and readable muted text
+  (#59616A). Use central semantic tokens and verify actual color pairings.
+- Use system sans-serif typography for headings, controls, and reading. Page
+  titles scale from 1.75 to 2.5rem; larger display text is reserved for the
+  landing page. Supporting labels use sentence case, without decorative
+  uppercase tracking. Use rem units and let long content wrap.
+- Primary controls are at least 48px high; other product touch targets are at
+  least 44px high. Input text is at least 16px. Calendar columns fit the available
+  width on narrow screens while retaining 48px-high day buttons.
+- The shell is bounded at 1440px. Gutters are 24px below 768px, 32px from
+  768px, and 64px from 1280px. Forms stay bounded at 44rem.
+- Controls use 12px radii, cards 16px, and dialogs 24px. Use subtle borders
+  and shadows rather than nested decorative surfaces or illustrated covers.
+- Reading and form surfaces are opaque. Only navigation chrome uses subtle
+  translucency, with solid fallbacks for reduced transparency/high contrast.
+- The landing page uses one Plan a trip action and a clearly labeled sample
+  itinerary. Examples do not create real schedules or imply saved user data.
+- Keep real data, existing permissions, and domain behavior. Do not introduce
+  automatic rescheduling, new endpoints, or decorative maps as product behavior.
 
 ## Navigation and trip planning
 
 - Core journey: Trips -> Open trip -> Choose day -> View or add activity.
-  Global navigation remains Trips, Invitations, and Account unless the requested
-  feature needs another destination. Keep mobile navigation labels visible.
+  Global navigation remains Trips, Invitations, and Account. Use compact top
+  navigation from 768px and labeled, safe-area-aware bottom navigation below it.
+  The authenticated brand link returns to Trips. Account uses the existing
+  popover on desktop and a short sheet on mobile.
+- Mobile navigation uses an inset, rounded dock with three equal, labeled touch
+  targets. Keep selection on the icon capsule and label rather than filling the
+  whole tab. Offset the dock above the bottom safe area and reserve room for it
+  beneath page content and sticky actions. Use an opaque fallback for its material.
 - Open trips into the itinerary. People and Settings are secondary actions.
   Give each view a clear dominant action and use explicit verb labels.
 - Trip cards show name, destination, compact locale-aware dates, labeled status,
   and Open itinerary. Preserve status filters, ongoing/upcoming ordering before
   past trips across pagination, useful filtered empty states, and wider cards
   for sparse desktop lists. Status must not rely on color alone.
-- Keep the leading trip card full width on desktop, with following cards in a
-  two-column grid. Use separated status badges and bounded, proportionally
-  cropped artwork. Activity cards use white bordered surfaces beside a time
-  rail; keep time and title readable when controls wrap.
-- Trip creation asks for dates before optional exact times. Changing a
-  destination must explain/confirm clearing entered dates and times.
-- Planning uses a compact illustrated header, selected-day navigation, and a
-  chronological timeline with a time rail. Show day position and a Today action
-  for active trips. Previous/next controls and a date picker support long trips;
-  essential navigation must never depend on swiping.
-- Desktop can show the real map alongside the itinerary; mobile keeps View map.
-  Pins and the place list follow the selected day and identify activities.
+- Trip cards use one column below 1024px and two above; a sole card spans the
+  available width. Use consistent cards without decorative covers and preserve
+  visible text status badges. Activity cards use white bordered surfaces beside
+  a time rail; keep time and title readable when controls wrap.
+- Keep activity cards compact: use 12px padding, 16px titles, a muted time range,
+  a small category badge beside the time, and optional place. Badges pair soft
+  colors with a coffee cup for Rest, cutlery for Eating, a plane for Travel, and
+  sparkles for Activity; custom labels use a neutral tag. Keep labels readable
+  and allow long ones to wrap. Reuse the badge in details. The full card opens
+  activity details. Cards have no three-dot menu; align Edit and Delete to the
+  right in details. Preserve keyboard activation,
+  visible focus, and at least 44px control touch targets.
+- Trip creation asks for dates before optional exact times. If a destination
+  change requires clearing entered exact times, explain and confirm the change;
+  preserve the dates as the existing form does.
+- Planning uses a compact text header and chronological timeline with a time
+  rail. Consolidate day navigation into previous/next, a calendar trigger, day
+  position, and Today for active trips. Do not restore the redundant day strip
+  or require swipe gestures for navigation.
+- From 1280px, show the real map alongside the itinerary in a 60/40 layout.
+  Below that width, use View map to open the existing dialog. Pins and the
+  place list follow the selected day and identify activities.
   Keep itinerary/place details usable when the map fails.
 - Show destination, dates, selected day, and trip zone clearly. Render the
   itinerary and conflicts in the trip zone using existing time helpers.
 - Conflicts are advisory: show affected activities, jump to their day, and
   offer permitted editing. Never duplicate backend conflict calculations.
-- Keep activity cards scannable: expandable notes, visible optional place
-  selection, less prominent delete/overflow actions, and plain-language search
-  recovery and save feedback.
+- Keep activity cards scannable: show notes, creator, and a plain bulleted to-do
+  list only in the details dialog. Omit empty optional sections. All participants
+  can read details; owners/editors can edit or delete. Return focus to the card
+  after dismissal, or the day heading if the card disappears. Keep optional place
+  selection and plain-language search and save feedback.
+- Show an icon and text category badge on each activity card. Owner/editor quick-add buttons
+  select Rest, Eating, Travel, Activity, or Custom and retain existing
+  time defaults. Custom labels are per activity; no category management screen.
+- To-dos are simple text items: add, rename, or remove them in the existing
+  activity form, then Save. Do not show checkboxes, completion counts, status
+  labels, or strikethroughs. Preserve historical completion values in storage.
+  Existing Sleeping activities retain their label and edit as a custom category.
 
 ## Components, forms, and accessibility
 
@@ -75,6 +100,9 @@ Approved 2026-10-11; reference: https://www.figma.com/design/ZreGSmwJEIhzQEwu6to
 - Standalone creation and invitation forms use bounded white surfaces on
   desktop and the page surface on mobile. Sticky action backgrounds follow
   their containing surface. Keep dialog gutters at 24px.
+- Activity Add/Save and Cancel buttons float in a sticky, right-aligned footer.
+  Remove bottom scroll padding for activity forms and extend the opaque footer
+  to the dialog edges so no fields peek through beneath it. Keep button padding.
 - Keep mobile headers/navigation compact. Reserve sticky action/navigation
   space and safe-area insets. Use full-screen mobile editors for long forms,
   sheets for short interactions, and bounded desktop dialogs where appropriate.
@@ -87,8 +115,8 @@ Approved 2026-10-11; reference: https://www.figma.com/design/ZreGSmwJEIhzQEwu6to
   useful recovery that does not reveal private data.
 - Preserve visible focus, logical tab order, dialog focus trapping/return,
   Escape behavior, and reduced motion. Essential actions cannot require hover.
-- Keep control transitions specific and short (150ms). Press feedback should
-  not animate keyboard focus; reduced motion applies to the landing page and
+- Keep control transitions specific and short (150ms); overlays use 180-220ms.
+  Press feedback should not animate keyboard focus; reduced motion applies to the landing page and
   portaled controls as well as the application shell.
 - Normal text needs 4.5:1 contrast; qualifying large text needs 3:1. Applicable
   control boundaries and state indicators need 3:1. Check text on each actual

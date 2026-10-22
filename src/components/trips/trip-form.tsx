@@ -91,15 +91,16 @@ export function TripForm({ initialValue, onSubmit, pending, error, submitLabel, 
       <div className="space-y-2"><Label htmlFor="trip-name">Trip name</Label>
         <Input id="trip-name" className="min-h-11" required value={name} onChange={(event) => setName(event.target.value)} />
       </div>
-      <div className="space-y-3">
+      <div className="form-section space-y-3">
         <Label htmlFor="trip-destination-search">Destination</Label>
-        {destination && <div className="rounded-lg border p-3 text-sm">
+        <p id="trip-destination-help" className="text-sm text-muted-foreground">Search for a city or country, such as Tokyo, Japan or Japan. Press Search, then choose a result.</p>
+        {destination && <div className="rounded-xl border bg-secondary/40 p-4 text-sm">
           <p className="font-medium">{destination.name}</p>
           {destination.address && <p className="break-words text-muted-foreground">{destination.address}</p>}
           <p className="text-muted-foreground">Trip time zone: {destination.time_zone}</p>
         </div>}
         <div className="flex flex-wrap gap-2">
-          <Input id="trip-destination-search" className="min-h-11 min-w-0 flex-1" placeholder="Search cities or countries"
+          <Input id="trip-destination-search" aria-describedby="trip-destination-help" className="min-h-11 min-w-0 flex-1" placeholder="e.g. Tokyo, Japan or Japan" enterKeyHint="search"
             value={query} onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); void search(); } }} />
           <Button type="button" variant="outline" className="min-h-11" disabled={searchPending} onClick={() => void search()}>{searchPending ? "Loading…" : "Search"}</Button>
@@ -111,9 +112,9 @@ export function TripForm({ initialValue, onSubmit, pending, error, submitLabel, 
               <span className="text-muted-foreground">{candidate.address} · {candidate.time_zone}</span></span></Button>
           </li>)}</ul>}</div>}
         {!!searchError && <TripError error={searchError} />}
-        <p className="text-xs text-muted-foreground">Searches run only when you press Search. Place data © <a className="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>.</p>
+        <p className="text-xs text-muted-foreground">Place data © <a className="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>.</p>
       </div>
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="form-section grid gap-5 sm:grid-cols-2">
         {(["start", "end"] as const).map((field) => <div key={field} className="min-w-0 space-y-2">
           <Label htmlFor={`trip-${field}-date`}>{field === "start" ? "Start date" : "End date"}</Label>
           <Input id={`trip-${field}-date`} type="date" required className="min-h-11" value={times[field].value.slice(0, 10)}
@@ -121,8 +122,8 @@ export function TripForm({ initialValue, onSubmit, pending, error, submitLabel, 
             onChange={(event) => { const date = event.target.value; setTimes((current) => ({ ...current, [field]: { value: `${date}T${current[field].value.slice(11)}`, occurrence: "" } })); setValidationError(undefined); }} />
         </div>)}
       </div>
-      <Label className="flex min-h-11 cursor-pointer items-center gap-3">
-        <input type="checkbox" className="size-5" checked={exactTimes} onChange={(event) => { setExactTimes(event.target.checked); setValidationError(undefined); }} />
+      <Label className="flex min-h-11 cursor-pointer items-center gap-3 leading-6">
+        <input type="checkbox" className="size-5 shrink-0 accent-primary" checked={exactTimes} onChange={(event) => { setExactTimes(event.target.checked); setValidationError(undefined); }} />
         Add exact start and end times (optional)
       </Label>
       {!exactTimes && <p className="text-sm text-muted-foreground">Plan activities throughout your selected dates. You can add exact times later in trip settings.</p>}

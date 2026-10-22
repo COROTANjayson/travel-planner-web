@@ -6,9 +6,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function TripLoading() {
   return (
-    <div role="status" className="space-y-4">
+    <div role="status" className="surface space-y-4 p-6">
       <span className="sr-only">Loading trips…</span>
-      <Skeleton className="h-6 w-40" />
+      <Skeleton className="h-6 w-40 max-w-full" />
       <Skeleton className="h-32 w-full" />
     </div>
   );
@@ -35,8 +35,8 @@ export function TripError({ error, retry, pending = false }: {
 
 export function TripNotFound() {
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Trip not found</h1>
+    <div className="surface space-y-4 p-6">
+      <h1 className="page-title">Trip not found</h1>
       <p className="text-muted-foreground">This trip is unavailable.</p>
       <Button className="min-h-11" variant="outline" render={<Link href="/trips" />} nativeButton={false}>
         Back to trips

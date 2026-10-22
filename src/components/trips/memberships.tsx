@@ -55,13 +55,13 @@ export function Participants({ id, participants, current, onFailure }: {
   return <section className="space-y-4" aria-label="Participants">
     <h3 className="font-semibold">Participants ({participants.length})</h3>
     <ul className="space-y-4">{participants.map((person) => <li key={person.user_id} className="space-y-3 border-b pb-4 last:border-0 last:pb-0">
-      <div className="break-words"><p className="font-medium">{participantName(person)}{person.user_id === current?.user_id && " (you)"}</p><p className="text-sm text-muted-foreground">{person.role}</p></div>
+      <div className="break-words"><p className="font-medium">{participantName(person)}{person.user_id === current?.user_id && " (you)"}</p><p className="mt-1 inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{person.role}</p></div>
       {allowed.manage && person.role !== "owner" && <div className="flex flex-wrap items-end gap-3">
         <div className="w-full space-y-2 sm:w-auto"><Label htmlFor={`role-${person.user_id}`}>Role for {participantName(person)}</Label>
           <RoleSelect id={`role-${person.user_id}`} value={person.role} disabled={api.pending} onChange={(role) => {
             if (role !== person.role) void api.updateRole(person.user_id, role).catch(() => {});
           }} /></div>
-        <Button className="min-h-11" variant="outline" disabled={api.pending} onClick={() => { api.reset(); setConfirm({ action: "remove", person }); }}>Remove</Button>
+        <Button className="min-h-11" variant="destructive" disabled={api.pending} onClick={() => { api.reset(); setConfirm({ action: "remove", person }); }}>Remove</Button>
         <Button className="min-h-11" variant="outline" disabled={api.pending} onClick={() => { api.reset(); setConfirm({ action: "transfer", person }); }}>Transfer ownership</Button>
       </div>}
     </li>)}</ul>
@@ -102,7 +102,7 @@ export function Invitations({ id, onFailure }: { id: number; onFailure: (error: 
       <div className="space-y-2"><Label htmlFor="invite-role">Invitation role</Label><RoleSelect id="invite-role" value={role} disabled={api.pending} onChange={setRole} /></div>
       <Button className="min-h-12 w-full md:w-auto" type="submit" disabled={api.pending}>{api.pending ? "Saving…" : "Create invitation"}</Button>
     </form>
-    {token && <div className="space-y-3 rounded-lg border p-4">
+    {token && <div className="space-y-3 rounded-xl border bg-secondary/40 p-4">
       <Label htmlFor="created-token">Invitation token</Label><Input className="min-h-11 font-mono" id="created-token" readOnly value={token} autoComplete="off" />
       <p className="text-sm text-muted-foreground">Copy this token now and share it with the invited person. It cannot be retrieved again.</p>
       <div className="flex flex-wrap gap-3"><Button className="min-h-11" variant="outline" onClick={async () => {
@@ -114,7 +114,7 @@ export function Invitations({ id, onFailure }: { id: number; onFailure: (error: 
     {api.error && <TripError error={api.error instanceof ApiError && api.error.status === 404 ? new ApiError(404, "This invitation is unavailable.") : api.error} />}
     {invitations.isPending ? <p role="status">Loading invitations…</p> : invitations.isError ? <TripError error={invitations.error} retry={() => void invitations.refetch()} pending={invitations.isFetching} /> : invitations.data.length === 0 ? <p className="text-muted-foreground">No invitations yet.</p> :
       <ul className="space-y-4">{invitations.data.map((invitation) => <li key={invitation.id} className="space-y-2 border-b pb-4 last:border-0">
-        <p className="break-words font-medium">{invitation.email}</p><p className="text-sm">{invitation.role} · {invitationStatus(invitation)}</p>
+        <p className="break-words font-medium">{invitation.email}</p><p className="text-sm text-muted-foreground">{invitation.role} · {invitationStatus(invitation)}</p>
         <p className="text-sm text-muted-foreground">Expires <time dateTime={invitation.expires_at}>{new Date(invitation.expires_at).toLocaleString()}</time></p>
         {invitationStatus(invitation) === "pending" && <Button className="min-h-11" variant="outline" disabled={api.pending} onClick={() => { api.reset(); setRevoke(invitation); }}>Revoke</Button>}
       </li>)}</ul>}

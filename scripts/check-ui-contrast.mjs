@@ -31,9 +31,21 @@ for (const background of [token("background"), "#ffffff", token("muted"), token(
 }
 check(token("primary-foreground"), token("primary"));
 check(token("secondary-foreground"), token("secondary"));
-check(token("foreground"), token("warmth"));
-check(token("primary"), token("warmth"));
+check(token("accent-foreground"), token("accent"));
+check(token("primary"), token("secondary"));
+// Primary hover darkens toward the foreground rather than fading into the page.
+const mix = (a, b, weight) => "#" + a.slice(1).match(/../g).map((channel, index) =>
+  Math.round(parseInt(channel, 16) * (1 - weight) + parseInt(b.slice(1 + index * 2, 3 + index * 2), 16) * weight).toString(16).padStart(2, "0")).join("");
+check(token("primary-foreground"), mix(token("primary"), token("foreground"), 0.12));
+// The dock's 94% card material must stay readable even over black page content.
+const dockMaterial = mix(token("card"), "#000000", 0.06);
+check(token("muted-foreground"), dockMaterial);
+check(token("primary"), dockMaterial);
+check(token("ring"), dockMaterial, 3);
 const ongoing = css.match(/\.trip-status\[data-status="Ongoing"\]\s*\{\s*background:\s*(#[0-9a-f]{6});\s*color:\s*(#[0-9a-f]{6})/i);
 assert.ok(ongoing, "Expected explicit ongoing status colors");
 check(ongoing[2], ongoing[1]);
+const categoryBadges = [...css.matchAll(/\.activity-category\[data-category="([^"]+)"\]\s*\{\s*background:\s*(#[0-9a-f]{6});\s*color:\s*(#[0-9a-f]{6})/gi)];
+assert.deepEqual(categoryBadges.map((badge) => badge[1]), ["Rest", "Eating", "Travel", "Activity"]);
+for (const badge of categoryBadges) check(badge[3], badge[2]);
 console.log("Light-theme text, input boundaries, and focus color contrast passed.");
