@@ -37,13 +37,13 @@ require login; new visitors and failed callbacks do not trigger recovery.
 
 ## Project map and conventions
 
-| Location | Responsibility |
-| --- | --- |
-| `src/app` | App Router routes, layouts, providers, and shared theme |
-| `src/components/trips` | Trip, itinerary, participant, and invitation UI |
-| `src/components/ui` | Repo-owned shadcn/Base UI primitives |
-| `src/lib` | API hooks, hand-maintained payload types, permissions for UI, and time helpers |
-| `scripts` | Focused regression checks, contrast checks, and MapLibre worker copying |
+| Location               | Responsibility                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------ |
+| `src/app`              | App Router routes, layouts, providers, and shared theme                        |
+| `src/components/trips` | Trip, itinerary, participant, and invitation UI                                |
+| `src/components/ui`    | Repo-owned shadcn/Base UI primitives                                           |
+| `src/lib`              | API hooks, hand-maintained payload types, permissions for UI, and time helpers |
+| `scripts`              | Focused regression checks, contrast checks, and MapLibre worker copying        |
 
 Use TanStack Query for remote state and local React state for UI state. Follow
 existing query keys and mutation invalidation. All authenticated requests go
@@ -98,8 +98,8 @@ feature compositions belong outside that directory.
   all participants can read. Overlaps are advisory and do not prevent saves.
 - Send input fields only. IDs, creator identity, and audit fields come from
   the API; retain the existing cancellation and cache invalidation behavior.
-- Activities have a category and an ordered to-do list. Quick-add shortcuts
-  select Rest, Eating, Travel, Activity, or Custom without changing time defaults.
+- Activities have a category and an ordered to-do list. The activity form
+  offers Rest, Eating, Travel, Activity, or Custom without changing time defaults.
   Custom labels belong to individual entries; existing Sleeping labels remain editable.
 - Category/item text is trimmed and limited to 100/200 UTF-8 bytes; lists allow
   at most 50 items. Owners/editors add, rename, or remove items in the activity
@@ -117,13 +117,20 @@ feature compositions belong outside that directory.
 npm run check
 ```
 
-| Command | Coverage |
-| --- | --- |
-| `npm run lint` | Existing Next.js/TypeScript ESLint rules |
-| `npm run typecheck` | Next route type generation and strict TypeScript |
-| `npm test` | Auth, membership, itinerary/DST, and light-theme contrast scripts |
-| `npm run build` | Production compilation and prerendering |
-| `npm start` | Serve an existing production build |
+| Command                | Coverage                                                          |
+| ---------------------- | ----------------------------------------------------------------- |
+| `npm run format`       | Format source, scripts, configuration, and docs with Prettier     |
+| `npm run format:check` | Check formatting without changing files                           |
+| `npm run lint`         | Existing Next.js/TypeScript ESLint rules                          |
+| `npm run typecheck`    | Next route type generation and strict TypeScript                  |
+| `npm test`             | Auth, membership, itinerary/DST, and light-theme contrast scripts |
+| `npm run build`        | Production compilation and prerendering                           |
+| `npm start`            | Serve an existing production build                                |
+
+Prettier uses its default style from `.prettierrc.json` and skips Git-ignored
+files plus the exclusions in `.prettierignore`. Run `npm run format` before
+committing; `npm run check` and CI also check formatting. Editors with Prettier
+support use the same local version and configuration.
 
 The regression scripts use mocks/static rendering, not an authenticated browser
 or a live API. Run an individual `node scripts/check-*.mjs` file for focused
@@ -165,15 +172,15 @@ The check command, CI workflow, and UI-change skill exist today. The upgrades
 below are optional next steps when their trigger occurs, not installed tools
 or instructions to build more infrastructure.
 
-| Trigger | Small next step |
-| --- | --- |
-| A change spans sessions or requires coordinated decisions | Save a task implementation plan using the format below |
-| Manual UI checks repeatedly miss regressions | Add browser tests for the affected journeys, starting with the actual failures |
-| Web/API payloads frequently drift | Consume a versioned client/types generated from a backend-owned OpenAPI contract |
-| A subtree develops genuinely different conventions | Add concise instructions near that code; keep shared rules at the root |
-| A recurring task needs the same explanation | Refine this skill or add one focused skill with a distinct trigger |
-| Stable architecture boundaries repeatedly get violated | Add targeted ESLint import restrictions for those boundaries |
-| More contributors need consistent review ownership | Configure required CI checks and add ownership rules for the relevant areas |
+| Trigger                                                   | Small next step                                                                  |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| A change spans sessions or requires coordinated decisions | Save a task implementation plan using the format below                           |
+| Manual UI checks repeatedly miss regressions              | Add browser tests for the affected journeys, starting with the actual failures   |
+| Web/API payloads frequently drift                         | Consume a versioned client/types generated from a backend-owned OpenAPI contract |
+| A subtree develops genuinely different conventions        | Add concise instructions near that code; keep shared rules at the root           |
+| A recurring task needs the same explanation               | Refine this skill or add one focused skill with a distinct trigger               |
+| Stable architecture boundaries repeatedly get violated    | Add targeted ESLint import restrictions for those boundaries                     |
+| More contributors need consistent review ownership        | Configure required CI checks and add ownership rules for the relevant areas      |
 
 For a substantial requested task, record a plan in GitHub Issues when needed.
 Local working notes may use ignored `docs/plans/<short-task>.md` files.

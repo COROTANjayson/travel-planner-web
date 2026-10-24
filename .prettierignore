@@ -1,0 +1,7 @@
+# Generated dependency lockfile
+package-lock.json
+
+# Agent guidance managed separately from application code
+AGENTS.md
+CLAUDE.md
+.agents/

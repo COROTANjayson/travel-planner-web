@@ -34,7 +34,7 @@ export function useApi() {
   const queryClient = useQueryClient();
 
   return useCallback(
-    async <T,>(path: string, init: RequestInit = {}): Promise<T | undefined> => {
+    async <T>(path: string, init: RequestInit = {}): Promise<T | undefined> => {
       const reauthenticate = async (): Promise<never> => {
         queryClient.clear();
         await loginWithRedirect();
@@ -65,9 +65,9 @@ export function useApi() {
         let message = messages[response.status];
 
         if ((!message || response.status === 409) && response.status < 500) {
-          const body = (await response.json().catch(() => null)) as
-            | { error?: string }
-            | null;
+          const body = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
           if (typeof body?.error === "string") message = body.error;
         }
 

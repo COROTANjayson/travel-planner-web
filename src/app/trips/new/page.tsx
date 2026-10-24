@@ -20,13 +20,30 @@ export default function NewTripPage() {
   });
 
   return (
-    <section className="form-surface space-y-8">
-      <div className="space-y-3"><h1 className="page-title">Create a trip</h1><p className="text-sm leading-6 text-muted-foreground">Start with a destination and dates. You can add activities next.</p></div>
-      <TripForm onSubmit={(input) => create.mutate(input)} pending={create.isPending}
-        error={create.error} submitLabel="Create trip"
-        cancel={<Button className="min-h-11" variant="outline" disabled={create.isPending}
-          render={<Link href="/trips" />} nativeButton={false}>Cancel</Button>} />
+    <section className="form-surface space-y-6">
+      <div className="form-heading space-y-3">
+        <h1 className="page-title">Where to next?</h1>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Choose a destination and dates. Your daily itinerary comes next.
+        </p>
+      </div>
+      <TripForm
+        onSubmit={(input) => create.mutate(input)}
+        pending={create.isPending}
+        error={create.error}
+        submitLabel="Create trip"
+        cancel={
+          <Button
+            className="min-h-11"
+            variant="outline"
+            disabled={create.isPending}
+            render={<Link href="/trips" />}
+            nativeButton={false}
+          >
+            Cancel
+          </Button>
+        }
+      />
     </section>
   );
 }
-

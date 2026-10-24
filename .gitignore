@@ -48,3 +48,5 @@ next-env.d.ts
 /docs/archive/
 /architecture-review-*.html
 /matt-pocock-setup-draft-*.md
+
+/.impeccable

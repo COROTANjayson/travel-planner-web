@@ -10,25 +10,34 @@ guide are relative to the repository root.
 
 Approved 2026-10-20. This redesign replaces the earlier Illustrated Journey
 visual identity; its Figma file is historical reference only.
+Refined 2026-10-22 to strengthen hierarchy, shorten planning forms, and reduce
+mobile chrome while preserving the existing planning model. Updated 2026-10-23
+with a blue-gray page surface and coordinated blue-tinted hover states.
 
-- Warm ivory background (#F7F7F2), charcoal text (#24272B), white reading
+- Near-white blue-tinted background (#FCFDFF), charcoal text (#24272B), white reading
   surfaces, restrained blue actions (#275BCC), and readable muted text
   (#59616A). Use central semantic tokens and verify actual color pairings.
+- Use cool borders (#DCE2EC), muted surfaces (#E9EDF3), blue-tinted hover
+  backgrounds (#E4EBF7), and selected backgrounds (#E8EEF9). Outline and ghost
+  buttons use the accent surface and blue text for hover and expanded states.
 - Use system sans-serif typography for headings, controls, and reading. Page
-  titles scale from 1.75 to 2.5rem; larger display text is reserved for the
+  titles use 1.875rem below 768px and 2.25rem above; larger display text is reserved for the
   landing page. Supporting labels use sentence case, without decorative
   uppercase tracking. Use rem units and let long content wrap.
 - Primary controls are at least 48px high; other product touch targets are at
   least 44px high. Input text is at least 16px. Calendar columns fit the available
   width on narrow screens while retaining 48px-high day buttons.
 - The shell is bounded at 1440px. Gutters are 24px below 768px, 32px from
-  768px, and 64px from 1280px. Forms stay bounded at 44rem.
-- Controls use 12px radii, cards 16px, and dialogs 24px. Use subtle borders
-  and shadows rather than nested decorative surfaces or illustrated covers.
+  768px, and 64px from 1280px. The trips overview is centered and bounded at
+  64rem within that shell. Forms stay bounded at 44rem.
+- Controls use 12px radii, cards 16px, and dialogs 24px. Reading cards use subtle
+  borders without added shadows; overlays retain elevation. Avoid nested
+  decorative surfaces or illustrated covers.
 - Reading and form surfaces are opaque. Only navigation chrome uses subtle
   translucency, with solid fallbacks for reduced transparency/high contrast.
 - The landing page uses one Plan a trip action and a clearly labeled sample
-  itinerary. Examples do not create real schedules or imply saved user data.
+  itinerary with the planner's category colors. Examples do not create real
+  schedules or imply saved user data.
 - Keep real data, existing permissions, and domain behavior. Do not introduce
   automatic rescheduling, new endpoints, or decorative maps as product behavior.
 
@@ -46,14 +55,23 @@ visual identity; its Figma file is historical reference only.
 - Open trips into the itinerary. People and Settings are secondary actions.
   Give each view a clear dominant action and use explicit verb labels.
 - Trip cards show name, destination, compact locale-aware dates, labeled status,
-  and Open itinerary. Preserve status filters, ongoing/upcoming ordering before
+  inclusive day count, time zone, and a compact View trip cue. The entire card
+  is one native link named by its trip heading, with visible keyboard focus;
+  do not add a separate footer button. Put the name first, destination beneath,
+  then dates and duration. Hover highlights the border and title without filling
+  the card. Filter counts describe all
+  loaded trips. Preserve ongoing/upcoming ordering before
   past trips across pagination, useful filtered empty states, and wider cards
   for sparse desktop lists. Status must not rely on color alone.
-- Trip cards use one column below 1024px and two above; a sole card spans the
-  available width. Use consistent cards without decorative covers and preserve
+- Trip status filters use one horizontal row with count badges and an underline
+  for the selected option. Let the row scroll on narrow screens; keyboard focus
+  stays visible inside it. Empty-state text has a bounded, full-width column.
+- Trip cards use one column below 1024px and two above; a sole card is bounded
+  at 44rem. Use consistent cards without decorative covers and preserve
   visible text status badges. Activity cards use white bordered surfaces beside
   a time rail; keep time and title readable when controls wrap.
-- Keep activity cards compact: use 12px padding, 16px titles, a muted time range,
+- Keep activity cards compact: use 12px horizontal and 14px vertical padding,
+  16px titles, a muted time range,
   a small category badge beside the time, and optional place. Badges pair soft
   colors with a coffee cup for Rest, cutlery for Eating, a plane for Travel, and
   sparkles for Activity; custom labels use a neutral tag. Keep labels readable
@@ -61,16 +79,37 @@ visual identity; its Figma file is historical reference only.
   activity details. Cards have no three-dot menu; align Edit and Delete to the
   right in details. Preserve keyboard activation,
   visible focus, and at least 44px control touch targets.
-- Trip creation asks for dates before optional exact times. If a destination
+- Trip creation asks for destination, dates, then a name. Exact times remain
+  optional in a secondary section. If a destination
   change requires clearing entered exact times, explain and confirm the change;
   preserve the dates as the existing form does.
-- Planning uses a compact text header and chronological timeline with a time
-  rail. Consolidate day navigation into previous/next, a calendar trigger, day
-  position, and Today for active trips. Do not restore the redundant day strip
-  or require swipe gestures for navigation.
-- From 1280px, show the real map alongside the itinerary in a 60/40 layout.
-  Below that width, use View map to open the existing dialog. Pins and the
-  place list follow the selected day and identify activities.
+- Trip details use a centered 64rem workspace with a compact, unboxed header.
+  Desktop back navigation sits beside the title, with People and Settings to
+  the right. Destination, trip dates, and optional exact bounds wrap beneath.
+  Mobile uses one back/title/options bar, with the full name in its options
+  sheet and compact destination/date metadata below. The covered shell top bar
+  is hidden from presentation and keyboard navigation only while the detail bar
+  exists, preserving shell navigation during loading and errors.
+- Planning uses a chronological timeline with a time rail. Keep previous/next,
+  the calendar date trigger, and day position in one row, with Add activity on
+  desktop. The date trigger's accessible name includes the selected date.
+  Only that navigation row stays sticky on mobile. Group the daily summary,
+  time zone, Today, View map, and Overlaps directly below, then show activities
+  without another padded heading row. Keep empty days brief and permission-aware.
+  Do not restore the redundant day strip or require swipe gestures.
+- The selected day's summary shows activity count, earliest start and latest
+  end in the trip zone. If the end crosses into another date, show that date;
+  do not imply this range measures occupied time. Keep the time zone visible.
+  Create/update successes use Sonner toasts rather than inline success banners.
+  Mount one Toaster in the root layout, use top-right placement with mobile
+  safe-area/header clearance, and emit one success per completed mutation from
+  its existing API hook. Keep errors beside their forms and never include
+  invitation tokens or other private data in notifications.
+- The mobile Add activity button is inset above the global navigation dock,
+  without a second full-width toolbar. Reserve room for both controls.
+- Use View map to open the existing dialog at every screen size; do not reserve
+  a permanent map column. Pins and the place list follow the selected day and
+  identify activities.
   Keep itinerary/place details usable when the map fails.
 - Show destination, dates, selected day, and trip zone clearly. Render the
   itinerary and conflicts in the trip zone using existing time helpers.
@@ -81,13 +120,26 @@ visual identity; its Figma file is historical reference only.
   can read details; owners/editors can edit or delete. Return focus to the card
   after dismissal, or the day heading if the card disappears. Keep optional place
   selection and plain-language search and save feedback.
-- Show an icon and text category badge on each activity card. Owner/editor quick-add buttons
-  select Rest, Eating, Travel, Activity, or Custom and retain existing
-  time defaults. Custom labels are per activity; no category management screen.
+- Activity details use a bounded 32rem desktop dialog and a compact mobile
+  sheet. Group category and date/time range beneath the title, showing a shared
+  date once and retaining both dates for overnight activities. Keep the trip
+  zone explicit. Use compact reading sections and a footer outside the scrolling
+  body for creator attribution, outlined Edit, and soft-red Delete with icons.
+  Secondary actions retain 44px touch targets, permissions and confirmation.
+- Show an icon and text category badge on each activity card. Owners/editors use
+  Add activity and select Rest, Eating, Travel, Activity, or Custom in the form.
+  Custom labels are per activity; no category management screen.
+- Activity forms show title, category, start and duration first. Place, To do,
+  and Notes are expandable sections with right-aligned plus/minus indicators
+  and flush-aligned helper text; saved content opens its section initially.
+  Collapsing a section retains its draft. Native validation reveals collapsed
+  invalid fields before focus moves to them.
 - To-dos are simple text items: add, rename, or remove them in the existing
   activity form, then Save. Do not show checkboxes, completion counts, status
   labels, or strikethroughs. Preserve historical completion values in storage.
   Existing Sleeping activities retain their label and edit as a custom category.
+- Explain role capabilities beside role selection. Invitation creation requires
+  manually copying and sharing the one-time token; do not imply email delivery.
 
 ## Components, forms, and accessibility
 
@@ -146,5 +198,7 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
    that a later change was verified.
 
 Physical iOS/Android keyboard and safe-area behavior still needs device testing.
+Mobile styling does not provide PWA installation, offline storage, or syncing;
+those capabilities remain outside this design refinement.
 Recheck dark-theme behavior if enabling/changing it; automated contrast coverage
 is light-theme only. Figma is a reference, not a prerequisite for ordinary UI work.
