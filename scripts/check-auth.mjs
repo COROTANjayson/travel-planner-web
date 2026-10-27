@@ -295,9 +295,23 @@ async function checkSessionRecovery() {
     );
   }
   auth = { isLoading: true };
+  assert.equal(context.exports.AuthPanel({ sidebar: true }), null);
   assert.equal(context.exports.AuthPanel({ mobile: true }), null);
   auth = { isAuthenticated: false };
+  assert.equal(context.exports.AuthPanel({ sidebar: true }), null);
   assert.equal(context.exports.AuthPanel({ mobile: true }), null);
+  auth = { isAuthenticated: true };
+  pathname = "/invitations/accept";
+  const sidebarHtml = renderToStaticMarkup(
+    context.exports.AuthPanel({ sidebar: true }),
+  );
+  assert.match(sidebarHtml, /aria-label="Workspace navigation"/);
+  assert.match(sidebarHtml, /Create a trip/);
+  assert.match(
+    sidebarHtml,
+    /<a(?=[^>]*href="\/invitations\/accept")(?=[^>]*aria-current="page")/,
+  );
+  assert.match(sidebarHtml, /Your account/);
   console.log("Auth states and login/logout actions passed.");
 })().catch((error) => {
   console.error(error);

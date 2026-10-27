@@ -2,13 +2,21 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "sonner";
+import localFont from "next/font/local";
+
+const manrope = localFont({
+  src: "./fonts/Manrope.ttf",
+  variable: "--font-manrope",
+  weight: "200 800",
+  display: "swap",
+});
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
-  themeColor: "#FCFDFF",
+  themeColor: "#FAFCFA",
   colorScheme: "light",
 };
 
@@ -19,7 +27,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`${manrope.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
         <Toaster

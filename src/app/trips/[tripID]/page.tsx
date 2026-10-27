@@ -10,6 +10,8 @@ import { Invitations, Participants } from "@/components/trips/memberships";
 import { Itinerary } from "@/components/trips/itinerary";
 import {
   formatTripDates,
+  tripDayCount,
+  tripStatus,
   type TripInput,
   useTripsApi,
   validTripID,
@@ -23,6 +25,7 @@ import {
   MoreHorizontal,
   MapPin,
   CalendarDays,
+  Clock3,
 } from "lucide-react";
 import { TripDialog } from "@/components/trips/trip-dialog";
 import {
@@ -146,7 +149,7 @@ function TripDetail({ id }: { id: number }) {
     );
 
   return (
-    <div className="trip-detail mx-auto flex w-full max-w-5xl flex-col gap-3">
+    <div className="trip-detail mx-auto flex w-full max-w-6xl flex-col gap-3">
       <div className="mobile-trip-header fixed inset-x-0 top-0 z-40 flex items-center gap-2 border-b bg-background px-3 md:hidden">
         <Button
           variant="ghost"
@@ -157,9 +160,7 @@ function TripDetail({ id }: { id: number }) {
         >
           <ArrowLeft aria-hidden="true" />
         </Button>
-        <h1 className="min-w-0 flex-1 truncate text-base font-semibold">
-          {trip.data.name}
-        </h1>
+        <p className="min-w-0 flex-1 text-sm font-medium">Trip itinerary</p>
         <TripDialog
           title="Trip options"
           description={trip.data.name}
@@ -225,29 +226,32 @@ function TripDetail({ id }: { id: number }) {
         canEdit={allowed.edit}
         onFailure={handleFailure}
         header={
-          <div className="min-w-0 space-y-2">
-            <div className="hidden items-center gap-2 md:flex">
-              <Button
-                className="size-11 shrink-0 -ml-3"
-                variant="ghost"
-                aria-label="Back to trips"
-                render={<Link href="/trips" />}
-                nativeButton={false}
-              >
-                <ArrowLeft aria-hidden="true" />
-              </Button>
-              <h1 className="min-w-0 break-words text-2xl leading-8 font-semibold tracking-tight">
-                {trip.data.name}
-              </h1>
-            </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <p className="flex min-w-0 items-start gap-1.5">
+          <div className="trip-summary">
+            <div className="trip-summary-destination">
+              <p className="flex min-w-0 items-start gap-2 text-sm text-muted-foreground">
                 <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
                 <span className="min-w-0 break-words">
                   {trip.data.destination}
                 </span>
               </p>
-              <p className="flex items-start gap-1.5">
+              <span
+                className="trip-status"
+                data-status={tripStatus(
+                  trip.data.start_date,
+                  trip.data.end_date,
+                  trip.data.time_zone,
+                )}
+              >
+                {tripStatus(
+                  trip.data.start_date,
+                  trip.data.end_date,
+                  trip.data.time_zone,
+                )}
+              </span>
+            </div>
+            <h1 className="trip-summary-title">{trip.data.name}</h1>
+            <div className="trip-summary-meta">
+              <p className="flex items-start gap-2">
                 <CalendarDays
                   aria-hidden="true"
                   className="mt-0.5 size-4 shrink-0"
@@ -255,6 +259,16 @@ function TripDetail({ id }: { id: number }) {
                 <span>
                   {formatTripDates(trip.data.start_date, trip.data.end_date)}
                 </span>
+              </p>
+              <p>
+                {tripDayCount(trip.data.start_date, trip.data.end_date)}{" "}
+                {tripDayCount(trip.data.start_date, trip.data.end_date) === 1
+                  ? "day"
+                  : "days"}
+              </p>
+              <p className="flex min-w-0 items-start gap-2">
+                <Clock3 aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                <span className="break-words">{trip.data.time_zone}</span>
               </p>
               {trip.data.starts_at && trip.data.ends_at && (
                 <p>
@@ -275,6 +289,16 @@ function TripDetail({ id }: { id: number }) {
         }
         tools={
           <>
+            <Button
+              className="trip-back min-h-11"
+              variant="ghost"
+              aria-label="Back to trips"
+              render={<Link href="/trips" />}
+              nativeButton={false}
+            >
+              <ArrowLeft aria-hidden="true" />
+              Back to trips
+            </Button>
             <TripDialog
               title="People & invitations"
               description="See who is joining and manage access to this trip."

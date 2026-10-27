@@ -10,10 +10,14 @@ export default function TripsLayout({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth0();
 
   return (
-    <div className="app-shell flex min-h-dvh flex-col bg-background text-foreground">
+    <div
+      className="app-shell flex min-h-dvh flex-col bg-background text-foreground"
+      data-authenticated={isAuthenticated}
+    >
       <a href="#trips-main" className="skip-link sr-only focus:not-sr-only">
         Skip to content
       </a>
+      {isAuthenticated && <AuthPanel sidebar />}
       <header className="app-topbar sticky top-0 z-40 border-b border-border md:static">
         <nav
           aria-label="Main navigation"

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -9,6 +9,8 @@ import {
   Compass,
   MapPin,
   Plus,
+  Search,
+  Briefcase,
 } from "lucide-react";
 import {
   formatTripDates,
@@ -23,12 +25,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TripError, TripLoading } from "@/components/trips/trip-states";
+import { Input } from "@/components/ui/input";
 
 type Status = "All" | TripStatus;
 
 export default function TripsPage() {
   const [offset, setOffset] = useState(0);
   const [status, setStatus] = useState<Status>("All");
+  const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
   const tripsApi = useTripsApi();
   const trips = useQuery({
     queryKey: ["trips", "all"],
@@ -46,29 +51,64 @@ export default function TripsPage() {
   const filtered = trips.data
     ? orderTrips(trips.data).filter(
         (trip) =>
-          status === "All" ||
-          tripStatus(trip.start_date, trip.end_date, trip.time_zone) === status,
+          (status === "All" ||
+            tripStatus(trip.start_date, trip.end_date, trip.time_zone) ===
+              status) &&
+          `${trip.name} ${trip.destination}`
+            .toLocaleLowerCase()
+            .includes(search.trim().toLocaleLowerCase()),
       )
     : [];
   const visible = filtered.slice(offset, offset + tripPageSize);
+  const featuredID = filtered.find(
+    (trip) =>
+      tripStatus(trip.start_date, trip.end_date, trip.time_zone) === "Ongoing",
+  )?.id;
+  const noTrips = trips.data?.length === 0;
+
+  function resetFilters() {
+    setStatus("All");
+    setSearch("");
+    setOffset(0);
+    searchRef.current?.focus();
+  }
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-5 md:space-y-6">
-      <div className="trips-heading flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="trips-overview">
+      <div className="trips-context">
+        <Briefcase aria-hidden="true" />
+        My trips
+      </div>
+      <div className="trips-heading">
         <div className="min-w-0 space-y-2">
           <h1 className="page-title">Your trips</h1>
           <p className="text-muted-foreground">
-            All your plans, ready when you are.
+            A little planning. A lot to look forward to.
           </p>
         </div>
         <Button
-          className="min-h-12 w-full sm:w-auto"
+          className="trips-create"
+          aria-label="Create a trip"
           render={<Link href="/trips/new" />}
           nativeButton={false}
         >
           <Plus aria-hidden="true" />
-          New trip
+          <span>Create a trip</span>
         </Button>
+        <label className="trips-search">
+          <Search aria-hidden="true" />
+          <Input
+            ref={searchRef}
+            type="search"
+            aria-label="Find a trip or destination"
+            placeholder="Find a trip or destination"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setOffset(0);
+            }}
+          />
+        </label>
       </div>
       <nav aria-label="Filter trips" className="trip-filters">
         {(["All", "Ongoing", "Upcoming", "Past"] as const).map((option) => (
@@ -101,6 +141,10 @@ export default function TripsPage() {
           </Button>
         ))}
       </nav>
+      <p className="trips-order">
+        <CalendarDays aria-hidden="true" />
+        Ongoing first, then upcoming
+      </p>
       <p
         role="status"
         aria-live="polite"
@@ -108,11 +152,11 @@ export default function TripsPage() {
         className="sr-only"
       >
         {trips.isSuccess
-          ? `${filtered.length} ${status === "All" ? "trips" : `${status.toLowerCase()} trips`}`
+          ? `${filtered.length} ${status === "All" ? "" : `${status.toLowerCase()} `}${filtered.length === 1 ? "trip" : "trips"}`
           : ""}
       </p>
       {trips.isPending ? (
-        <TripLoading />
+        <TripLoading overview />
       ) : trips.isError ? (
         <TripError
           error={trips.error}
@@ -127,16 +171,18 @@ export default function TripsPage() {
               className="mb-2 size-14 rounded-full bg-secondary p-4 text-primary"
             />
             <h2 className="text-xl font-semibold">
-              {status === "All"
+              {noTrips
                 ? "No trips yet"
-                : `No ${status.toLowerCase()} trips`}
+                : search.trim()
+                  ? "No trips found"
+                  : `No ${status.toLowerCase()} trips`}
             </h2>
             <p className="text-sm leading-6 text-muted-foreground">
-              {status === "All"
+              {noTrips
                 ? "Choose a destination and dates. Build your itinerary one day at a time."
-                : "Choose another filter to see your trips."}
+                : "Try another search or show all your trips."}
             </p>
-            {status === "All" ? (
+            {noTrips ? (
               <Button
                 className="mt-3 max-w-full whitespace-normal"
                 render={<Link href="/trips/new" />}
@@ -149,10 +195,7 @@ export default function TripsPage() {
               <Button
                 className="mt-3 max-w-full whitespace-normal"
                 variant="outline"
-                onClick={() => {
-                  setStatus("All");
-                  setOffset(0);
-                }}
+                onClick={resetFilters}
               >
                 Show all trips
               </Button>
@@ -160,22 +203,31 @@ export default function TripsPage() {
           </div>
         </Card>
       ) : (
-        <div className="trip-grid grid gap-5 lg:grid-cols-2">
+        <div className="trip-grid">
           {visible.map((trip) => (
             <Link
               key={trip.id}
               href={`/trips/${trip.id}`}
               className="trip-card min-w-0"
+              data-featured={trip.id === featuredID || undefined}
+              data-status={tripStatus(
+                trip.start_date,
+                trip.end_date,
+                trip.time_zone,
+              )}
+              data-tone={
+                tripStatus(trip.start_date, trip.end_date, trip.time_zone) ===
+                "Ongoing"
+                  ? "sea"
+                  : trip.id % 2 === 0
+                    ? "sand"
+                    : "mist"
+              }
               aria-labelledby={`trip-${trip.id}-name`}
             >
-              <div className="space-y-2">
-                <div className="flex items-start justify-between gap-3">
-                  <h2
-                    id={`trip-${trip.id}-name`}
-                    className="trip-card-title min-w-0 break-words"
-                  >
-                    {trip.name}
-                  </h2>
+              <div className="trip-card-content">
+                <div className="trip-card-top">
+                  <MapPin aria-hidden="true" className="size-4" />
                   <span
                     className="trip-status"
                     data-status={tripStatus(
@@ -187,43 +239,65 @@ export default function TripsPage() {
                     {tripStatus(trip.start_date, trip.end_date, trip.time_zone)}
                   </span>
                 </div>
-                <p className="flex min-w-0 items-start gap-2 text-sm text-muted-foreground">
-                  <MapPin
-                    aria-hidden="true"
-                    className="mt-0.5 size-4 shrink-0"
-                  />
-                  <span className="min-w-0 break-words">
-                    {trip.destination}
-                  </span>
-                </p>
+                <p className="trip-card-destination">{trip.destination}</p>
+                <h2 id={`trip-${trip.id}-name`} className="trip-card-title">
+                  {trip.name}
+                </h2>
               </div>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <p className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <CalendarDays
-                    aria-hidden="true"
-                    className="mt-0.5 size-4 shrink-0"
-                  />
-                  <span>{formatTripDates(trip.start_date, trip.end_date)}</span>
-                </p>
-                <span className="text-xs text-muted-foreground">
-                  {tripDayCount(trip.start_date, trip.end_date)}{" "}
-                  {tripDayCount(trip.start_date, trip.end_date) === 1
-                    ? "day"
-                    : "days"}
+              <div className="trip-card-bottom">
+                <div className="min-w-0">
+                  <p className="trip-card-dates">
+                    <CalendarDays
+                      aria-hidden="true"
+                      className="mt-0.5 size-4 shrink-0"
+                    />
+                    <span>
+                      {formatTripDates(trip.start_date, trip.end_date)} ·{" "}
+                      {tripDayCount(trip.start_date, trip.end_date)}{" "}
+                      {tripDayCount(trip.start_date, trip.end_date) === 1
+                        ? "day"
+                        : "days"}
+                    </span>
+                  </p>
+                  <p className="trip-card-zone">Time zone: {trip.time_zone}</p>
+                </div>
+                <span className="trip-open">
+                  <span className="sr-only">View trip</span>
+                  <ChevronRight aria-hidden="true" />
                 </span>
               </div>
-              <div className="mt-auto flex items-center justify-between gap-4 border-t pt-3">
-                <p className="min-w-0 flex-1 break-words text-xs text-muted-foreground">
-                  Time zone: {trip.time_zone}
-                </p>
-                <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary">
-                  View trip{" "}
-                  <ChevronRight aria-hidden="true" className="size-4" />
-                </span>
-              </div>
+              {trip.id === featuredID && (
+                <div className="trip-date-pass" aria-hidden="true">
+                  {(trip.start_date === trip.end_date
+                    ? [trip.start_date]
+                    : [trip.start_date, trip.end_date]
+                  ).map((date, index) => (
+                    <span key={index}>
+                      <b>{Number(date.slice(-2))}</b>
+                      {new Intl.DateTimeFormat(undefined, {
+                        month: "short",
+                        timeZone: "UTC",
+                      }).format(new Date(`${date}T12:00:00Z`))}
+                    </span>
+                  ))}
+                  <small>
+                    {tripDayCount(trip.start_date, trip.end_date)}{" "}
+                    {tripDayCount(trip.start_date, trip.end_date) === 1
+                      ? "day"
+                      : "days"}{" "}
+                    to make your own
+                  </small>
+                </div>
+              )}
             </Link>
           ))}
         </div>
+      )}
+      {trips.isSuccess && filtered.length > 0 && (
+        <p className="trips-results">
+          {filtered.length} {filtered.length === 1 ? "trip" : "trips"}, many
+          possibilities.
+        </p>
       )}
       {filtered.length > tripPageSize && (
         <nav

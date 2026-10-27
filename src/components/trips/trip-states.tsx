@@ -4,12 +4,21 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function TripLoading() {
+export function TripLoading({ overview = false }: { overview?: boolean }) {
   return (
-    <div role="status" className="grid gap-5 lg:grid-cols-2">
+    <div
+      role="status"
+      className={
+        overview ? "trip-grid trip-grid-loading" : "grid gap-5 lg:grid-cols-2"
+      }
+    >
       <span className="sr-only">Loading trips…</span>
-      {[0, 1].map((index) => (
-        <div key={index} className="surface space-y-4 p-5">
+      {[0, 1, ...(overview ? [2] : [])].map((index) => (
+        <div
+          key={index}
+          className={overview ? "trip-card space-y-4" : "surface space-y-4 p-5"}
+          data-featured={(overview && index === 0) || undefined}
+        >
           <Skeleton className="h-6 w-40 max-w-full" />
           <Skeleton className="h-8 w-3/4" />
           <Skeleton className="h-5 w-1/2" />

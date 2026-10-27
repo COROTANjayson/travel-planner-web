@@ -6,73 +6,74 @@ Exact implemented theme values live in `src/app/globals.css` and shared UI
 components. Change them centrally within the requested scope. Code paths in this
 guide are relative to the repository root.
 
-## Calm travel workspace design
+## Coastal Folio design
 
-Approved 2026-10-20. This redesign replaces the earlier Illustrated Journey
-visual identity; its Figma file is historical reference only.
-Refined 2026-10-22 to strengthen hierarchy, shorten planning forms, and reduce
-mobile chrome while preserving the existing planning model. Updated 2026-10-23
-with a blue-gray page surface and coordinated blue-tinted hover states.
+Approved 2026-10-25 from the reviewed Coastal Folio Figma design. This replaces
+prior blue/system-font guidance. Step 1 applies shared styling across the app
+and rebuilds navigation and Trips. Step 2 extends this direction to trip details,
+the day rail and activity detail views. Landing, authentication and forms retain
+their existing layouts and behavior.
 
-- Near-white blue-tinted background (#FCFDFF), charcoal text (#24272B), white reading
-  surfaces, restrained blue actions (#275BCC), and readable muted text
-  (#59616A). Use central semantic tokens and verify actual color pairings.
-- Use cool borders (#DCE2EC), muted surfaces (#E9EDF3), blue-tinted hover
-  backgrounds (#E4EBF7), and selected backgrounds (#E8EEF9). Outline and ghost
-  buttons use the accent surface and blue text for hover and expanded states.
-- Use system sans-serif typography for headings, controls, and reading. Page
-  titles use 1.875rem below 768px and 2.25rem above; larger display text is reserved for the
-  landing page. Supporting labels use sentence case, without decorative
-  uppercase tracking. Use rem units and let long content wrap.
-- Primary controls are at least 48px high; other product touch targets are at
-  least 44px high. Input text is at least 16px. Calendar columns fit the available
-  width on narrow screens while retaining 48px-high day buttons.
-- The shell is bounded at 1440px. Gutters are 24px below 768px, 32px from
-  768px, and 64px from 1280px. The trips overview is centered and bounded at
-  64rem within that shell. Forms stay bounded at 44rem.
-- Controls use 12px radii, cards 16px, and dialogs 24px. Reading cards use subtle
-  borders without added shadows; overlays retain elevation. Avoid nested
-  decorative surfaces or illustrated covers.
-- Reading and form surfaces are opaque. Only navigation chrome uses subtle
-  translucency, with solid fallbacks for reduced transparency/high contrast.
-- The landing page uses one Plan a trip action and a clearly labeled sample
-  itinerary with the planner's category colors. Examples do not create real
-  schedules or imply saved user data.
-- Keep real data, existing permissions, and domain behavior. Do not introduce
-  automatic rescheduling, new endpoints, or decorative maps as product behavior.
+- Self-host Manrope through `next/font/local`; use its variable font for headings,
+  controls and reading. Preserve wrapping, rem sizing and browser text scaling.
+- Near-white page #FAFCFA, dark ocean text #183D3E, muted text #52685B, white
+  reading surfaces, teal actions/focus #0E7277, and borders #DCE5DE. Inputs use
+  #6F8277 boundaries. Destructive actions use #9C4034. Verify actual pairings.
+- Desktop sidebar and mobile dock use opaque ocean #123C40 and supporting text
+  #BDD2CE. The mobile selected tab uses pale aqua #BFE3DC; sidebar active links
+  use #28585D with white text. Create Trip uses aqua in the sidebar.
+- Trip surfaces use sea #DCECE7, sand #F2EFDF and mist #EDF0F3. Ongoing badges use
+  #1C6465/white; upcoming badges match sand (#E5DDBF/#625333) or mist
+  (#D9E3E9/#405A69). Upcoming tones stay stable by trip ID. Past badges use
+  #E9EDE8/#526258. Status always has text.
+- No photos or raster covers. Reuse the approved vector route geometry from
+  `public/coastal/journey.svg` for cards and the sidebar. Hide it on past trips.
+- Primary actions use pill shapes, shared reading cards 16px radii, trip cards
+  24px, dialogs 24px, and sidebar right corners 28px. Use borders for reading
+  surfaces and restrained shadows only for floating navigation and overlays.
+- Keep touch controls at least 44px and primary form controls 48px; inputs 16px.
+  Avoid fixed text heights, preserve clear keyboard focus, and reserve safe-area
+  clearance for navigation and actions. Do not introduce a dark-mode UI.
+- Preserve real data, permissions, authentication, UTC instants and IANA zones.
+  No new endpoints, automatic rescheduling, routing or booking behavior.
 
 ## Navigation and trip planning
 
 - Core journey: Trips -> Open trip -> Choose day -> View or add activity.
-  Global navigation remains Trips, Invitations, and Account. Use compact top
-  navigation from 768px and labeled, safe-area-aware bottom navigation below it.
-  The authenticated brand link returns to Trips. Account uses the existing
-  popover on desktop and a short sheet on mobile.
-- Mobile navigation uses an inset, rounded dock with three equal, labeled touch
-  targets. Keep selection on the icon capsule and label rather than filling the
-  whole tab. Offset the dock above the bottom safe area and reserve room for it
-  beneath page content and sticky actions. Use an opaque fallback for its material.
-- Open trips into the itinerary. People and Settings are secondary actions.
-  Give each view a clear dominant action and use explicit verb labels.
-- Trip cards show name, destination, compact locale-aware dates, labeled status,
-  inclusive day count, time zone, and a compact View trip cue. The entire card
-  is one native link named by its trip heading, with visible keyboard focus;
-  do not add a separate footer button. Put the name first, destination beneath,
-  then dates and duration. Hover highlights the border and title without filling
-  the card. Filter counts describe all
-  loaded trips. Preserve ongoing/upcoming ordering before
-  past trips across pagination, useful filtered empty states, and wider cards
-  for sparse desktop lists. Status must not rely on color alone.
-- Trip status filters use one horizontal row with count badges and an underline
-  for the selected option. Let the row scroll on narrow screens; keyboard focus
-  stays visible inside it. Empty-state text has a bounded, full-width column.
-- Trip cards use one column below 1024px and two above; a sole card is bounded
-  at 44rem. Use consistent cards without decorative covers and preserve
-  visible text status badges. Activity cards use white bordered surfaces beside
-  a time rail; keep time and title readable when controls wrap.
-- Keep activity cards compact: use 12px horizontal and 14px vertical padding,
-  16px titles, a muted time range,
-  a small category badge beside the time, and optional place. Badges pair soft
+  Global destinations remain Trips, Invitations and Account. The authenticated
+  brand returns to Trips. Existing account popover/sheet and session actions remain.
+- At 1024px and above, show a 236px fixed, scrollable ocean sidebar with 28px
+  right corners, Create Trip, active navigation and the account area. From 768px
+  through 1023px, use the existing compact top navigation. Below 768px, use a
+  floating three-item capsule dock: 16px side/bottom gaps plus safe-area insets,
+  maximum 420px width, 56px minimum height and 44px tab targets. Both the outer
+  dock and selected tab have fully rounded ends. Enlarge naturally with text zoom.
+- Trips has a destination/name search, All/Ongoing/Upcoming/Past segmented status
+  controls and counts. Search trims surrounding spaces and ignores case; search
+  and status combine before pagination. Reset pagination on either change.
+  Counts describe all loaded trips; the live result count describes matches.
+  The empty-result reset clears both filters and returns focus to search.
+- Preserve existing ordering and 10-item pages. Feature only the first ongoing
+  trip in the current filtered result set; do not repeat it on later pages.
+  Remaining ongoing/upcoming trips use two columns from 1024px, otherwise one.
+  Past trips use compact full-width desktop rows. A sole trip fills the grid.
+- Only Trips uses 20px mobile content gutters, reduced to 16px below 360px.
+  Retain the other screens' existing 24px mobile shell gutters.
+- Cards show the full API destination prominently, trip name, locale-aware date
+  range, inclusive duration, explicit time zone and coordinated status badge.
+  The entire card is one native link named by its trip-name heading; the arrow
+  is a visual cue. Never invent country fields, images or activity counts.
+  Decorative featured date endpoints supplement the complete readable date range.
+- Create Trip links to `/trips/new`; it keeps the existing validated form and save
+  behavior. Distinguish an empty account from empty search/status results. Provide
+  reset, loading skeletons, safe errors and retry, pagination and visible focus.
+- Open trips into the existing itinerary. People and Settings remain secondary.
+  The following itinerary requirements describe the approved Step 2 implementation.
+- Activity cards use 16px mobile padding and 20px desktop padding with a 128px
+  desktop minimum height, 16px titles and 16px separation between entries. Put
+  the category in a softly rounded rectangular badge at top left, elapsed
+  duration and chevron at top right, then title and optional place below. Place
+  the complete activity time range outside the card. Badges pair soft
   colors with a coffee cup for Rest, cutlery for Eating, a plane for Travel, and
   sparkles for Activity; custom labels use a neutral tag. Keep labels readable
   and allow long ones to wrap. Reuse the badge in details. The full card opens
@@ -83,29 +84,42 @@ with a blue-gray page surface and coordinated blue-tinted hover states.
   optional in a secondary section. If a destination
   change requires clearing entered exact times, explain and confirm the change;
   preserve the dates as the existing form does.
-- Trip details use a centered 64rem workspace with a compact, unboxed header.
-  Desktop back navigation sits beside the title, with People and Settings to
-  the right. Destination, trip dates, and optional exact bounds wrap beneath.
-  Mobile uses one back/title/options bar, with the full name in its options
-  sheet and compact destination/date metadata below. The covered shell top bar
-  is hidden from presentation and keyboard navigation only while the detail bar
-  exists, preserving shell navigation during loading and errors.
-- Planning uses a chronological timeline with a time rail. Keep previous/next,
-  the calendar date trigger, and day position in one row, with Add activity on
-  desktop. The date trigger's accessible name includes the selected date.
-  Only that navigation row stays sticky on mobile. Group the daily summary,
-  time zone, Today, View map, and Overlaps directly below, then show activities
-  without another padded heading row. Keep empty days brief and permission-aware.
-  Do not restore the redundant day strip or require swipe gestures.
-- The selected day's summary shows activity count, earliest start and latest
-  end in the trip zone. If the end crosses into another date, show that date;
-  do not imply this range measures occupied time. Keep the time zone visible.
+- Trip details use a bounded 72rem workspace. People, Settings and Back to trips
+  sit above a pale sea summary with the full destination, name, coordinated status,
+  inclusive dates, day count, zone and optional exact bounds. Reuse the approved
+  route geometry, without photos. Mobile keeps a compact back/options bar and a
+  fully readable name in the summary; hide the covered shell header only while
+  the trip bar exists, preserving navigation during loading/errors.
+  On mobile, use 16px summary padding, 8px/12px title margins and 6px metadata
+  row gaps so the summary stays compact without reducing text sizes.
+- At 1024px and above, use a sticky 160px vertical day rail beside the timeline.
+  Below that, use a horizontal native scrolling day selector; it stays beneath
+  the mobile trip bar. Show weekday, date, Today where relevant, and loaded day
+  counts. Load seven trip-local dates at a time, bounded by the trip end; the
+  calendar provides access across long trips. Do not invent zero
+  counts while loading or unavailable. Keep the selected mobile date in view.
+- Below the day strip, show a full weekday/date heading and a compact day-position
+  and activity-count line. Put a secondary calendar action beside the heading
+  (icon-only on mobile, labeled Choose day on desktop) and Add activity on desktop.
+  Do not show previous/next day arrows or an aggregate day-level time range.
+  The zone is already visible in the trip summary. On mobile, put a
+  Day options settings icon beside the calendar. Its bottom sheet holds Today,
+  View map and Overlaps; selecting a tool closes the sheet and opens that tool,
+  returning focus to the settings icon on dismissal. Hide the utility row on
+  mobile; desktop keeps the tools inline.
+  The timeline has a desktop time rail and mobile time labels above full-width
+  activity cards. Empty days remain brief and permission-aware.
+- The selected day's summary shows its activity count. Each activity's complete
+  start/end range sits above its mobile card or in the desktop time rail. Stack
+  desktop start and end labels without a visible dash, beside a dot and thin
+  vertical connector. Do not repeat start/end times inside cards. For an overnight/multi-day activity, include its
+  actual end date. Keep the trip zone visible in the summary.
   Create/update successes use Sonner toasts rather than inline success banners.
   Mount one Toaster in the root layout, use top-right placement with mobile
   safe-area/header clearance, and emit one success per completed mutation from
   its existing API hook. Keep errors beside their forms and never include
   invitation tokens or other private data in notifications.
-- The mobile Add activity button is inset above the global navigation dock,
+- The compact mobile Add activity pill is right-aligned above the global dock,
   without a second full-width toolbar. Reserve room for both controls.
 - Use View map to open the existing dialog at every screen size; do not reserve
   a permanent map column. Pins and the place list follow the selected day and
@@ -120,12 +134,18 @@ with a blue-gray page surface and coordinated blue-tinted hover states.
   can read details; owners/editors can edit or delete. Return focus to the card
   after dismissal, or the day heading if the card disappears. Keep optional place
   selection and plain-language search and save feedback.
-- Activity details use a bounded 32rem desktop dialog and a compact mobile
-  sheet. Group category and date/time range beneath the title, showing a shared
-  date once and retaining both dates for overnight activities. Keep the trip
-  zone explicit. Use compact reading sections and a footer outside the scrolling
-  body for creator attribution, outlined Edit, and soft-red Delete with icons.
-  Secondary actions retain 44px touch targets, permissions and confirmation.
+- Activity details use a modal 480px right drawer from 768px and a full-screen
+  mobile view. Keep the itinerary behind the drawer, with the selected card
+  outlined. Back to itinerary and permitted Edit stay at the top. The title,
+  category, schedule and optional place, notes and plain to-do sections share one
+  scrolling reader; creator and permitted Delete stay in the bottom footer.
+  Put the category badge above the title. Below the title, a calendar icon sits
+  beside the full weekday/date; a smaller line shows the time range, elapsed
+  duration in minutes and trip zone. Retain both dates for overnight activities.
+  The full schedule retains both dates for overnight/multi-day activities and the
+  explicit trip zone. Back, Escape and outside dismissal preserve selected day
+  and return focus to the card
+  or selected-day heading. Edit opens the existing form, Delete its confirmation.
 - Show an icon and text category badge on each activity card. Owners/editors use
   Add activity and select Rest, Eating, Travel, Activity, or Custom in the form.
   Custom labels are per activity; no category management screen.

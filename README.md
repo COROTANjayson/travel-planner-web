@@ -140,8 +140,9 @@ Development/build automatically copy MapLibre workers into ignored
 
 [GitHub Actions](.github/workflows/check.yml) runs `npm ci` and the same check
 command independently on pushes and pull requests. Its Auth0 placeholders
-validate building, not login. The app uses system fonts without build-time font
-downloads; network failures must be reported, not bypassed by weakening checks.
+validate building, not login. The app self-hosts Manrope through `next/font/local`,
+with its license in `src/app/fonts/OFL.txt`; builds do not download fonts.
+Network failures must be reported, not bypassed by weakening checks.
 
 ## Working with a coding agent
 

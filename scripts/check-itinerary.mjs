@@ -35,6 +35,15 @@ function load(file, mocks = {}) {
   return context.exports;
 }
 const time = load("src/lib/activity-time.ts");
+assert.equal(
+  time.formatActivityDuration("2026-10-24T02:00:00Z", "2026-10-24T03:30:00Z"),
+  "90 min",
+);
+assert.equal(
+  time.formatActivityDuration("2026-03-08T06:30:00Z", "2026-03-08T07:30:00Z"),
+  "60 min",
+  "Duration measures elapsed time across DST",
+);
 const sameDayRange = time.formatActivityRange(
   "2026-11-10T00:30:00Z",
   "2026-11-10T03:30:00Z",
@@ -198,10 +207,13 @@ assert.match(
 );
 let tripQuery = { data: [] };
 let tripOffset = 0,
-  tripFilter = "All";
+  tripFilter = "All",
+  tripSearch = "";
+let tripSearchFocus = 0;
 const tripPage = load("src/app/trips/page.tsx", {
   react: {
     ...React,
+    useRef: () => ({ current: { focus: () => tripSearchFocus++ } }),
     useState: (initial) =>
       typeof initial === "number"
         ? [
@@ -211,12 +223,19 @@ const tripPage = load("src/app/trips/page.tsx", {
                 typeof value === "function" ? value(tripOffset) : value;
             },
           ]
-        : [
-            tripFilter,
-            (value) => {
-              tripFilter = value;
-            },
-          ],
+        : initial === "All"
+          ? [
+              tripFilter,
+              (value) => {
+                tripFilter = value;
+              },
+            ]
+          : [
+              tripSearch,
+              (value) => {
+                tripSearch = value;
+              },
+            ],
   },
   "next/link": {
     default: ({ children, ...props }) =>
@@ -224,6 +243,9 @@ const tripPage = load("src/app/trips/page.tsx", {
   },
   "@tanstack/react-query": { useQuery: () => tripQuery },
   "@/lib/trips": trips,
+  "@/components/ui/input": {
+    Input: (props) => React.createElement("input", props),
+  },
   "@/components/ui/button": {
     Button: ({ children, render, ...props }) => {
       delete props.nativeButton;
@@ -363,7 +385,64 @@ const emptyCard = tripPage
   .props.children.find((child) => child?.props?.className === "trips-empty");
 emptyCard.props.children.props.children.at(-1).props.onClick();
 assert.equal(tripFilter, "All", "The empty-state action restores all trips");
+assert.equal(
+  tripSearchFocus,
+  1,
+  "Reset returns keyboard focus to the search field",
+);
 assert.match(tripListHtml(), /View trip/);
+const searchInput = () =>
+  nodes(tripPage.default()).find(
+    (node) => node.props?.["aria-label"] === "Find a trip or destination",
+  );
+tripOffset = trips.tripPageSize;
+searchInput().props.onChange({ target: { value: "  eXtRa  " } });
+assert.equal(tripOffset, 0, "Changing search returns to page one");
+assert.match(tripListHtml(), /Extra trip/);
+assert.doesNotMatch(tripListHtml(), /Trip 1<\/h2>/);
+assert.match(tripListHtml(), /1 trip/);
+assert.match(
+  tripListHtml(),
+  /Ongoing<span class="filter-count">11<\/span>/,
+  "Counts remain global while searching",
+);
+tripSearch = "kyoto";
+assert.match(tripListHtml(), /No trips found/);
+tripSearch = "cebu";
+assert.match(tripListHtml(), /Trip 1/, "Search includes destinations");
+tripFilter = "Upcoming";
+assert.match(tripListHtml(), /No trips found/, "Search and status combine");
+tripFilter = "All";
+tripSearch = "";
+assert.equal(
+  (tripListHtml().match(/data-featured="true"/g) || []).length,
+  1,
+  "Only the first ongoing trip is featured",
+);
+tripOffset = trips.tripPageSize;
+assert.doesNotMatch(
+  tripListHtml(),
+  /data-featured="true"/,
+  "Later pages do not duplicate the featured trip",
+);
+tripOffset = 0;
+const beforeNoOngoing = tripQuery.data;
+tripQuery.data = [
+  {
+    ...tripFor(3, today.add({ days: 2 }), today.add({ days: 5 })),
+    name: "Kyoto",
+    destination: "Kyoto, Japan",
+  },
+];
+assert.doesNotMatch(
+  tripListHtml(),
+  /data-featured="true"/,
+  "Upcoming-only lists do not invent an ongoing feature",
+);
+tripQuery.data = beforeNoOngoing;
+console.log(
+  "Trips search/status combinations, global counts, pagination reset and featured selection passed.",
+);
 const tripDraft = {
   name: " Manila ",
   destination_place_id: 7,
@@ -747,6 +826,9 @@ const tripFormModule = load("src/components/trips/trip-form.tsx", {
   "@/lib/api": apiMock,
   "@/lib/activity-time": time,
   "@/lib/trips": trips,
+  "@/components/ui/input": {
+    Input: (props) => React.createElement("input", props),
+  },
   react: {
     useState: (value) => [
       typeof value === "function" ? value() : value,
@@ -1179,6 +1261,7 @@ const uiApi = {
     return true;
   },
 };
+const boardQueries = [];
 let itineraryNow = "2026-10-23T12:00:00Z";
 const temporal = require("@js-temporal/polyfill").Temporal;
 const components = load("src/components/trips/itinerary.tsx", {
@@ -1247,19 +1330,22 @@ const components = load("src/components/trips/itinerary.tsx", {
   "@tanstack/react-query": {
     useQueryClient: () => client,
     useQueries: () => [],
-    useQuery: ({ queryKey }) => ({
-      isPending: queryMode === "pending",
-      isSuccess: queryMode === "success" || queryMode === "empty",
-      isError: queryMode === "error",
-      isFetching: false,
-      data:
-        queryKey[2] === "activities"
-          ? queryMode === "empty"
-            ? []
-            : boardActivities
-          : boardConflicts,
-      error: new ApiError(500, "Failure"),
-    }),
+    useQuery: ({ queryKey }) => (
+      boardQueries.push(queryKey),
+      {
+        isPending: queryMode === "pending",
+        isSuccess: queryMode === "success" || queryMode === "empty",
+        isError: queryMode === "error",
+        isFetching: false,
+        data:
+          queryKey[2] === "activities"
+            ? queryMode === "empty"
+              ? []
+              : boardActivities
+            : boardConflicts,
+        error: new ApiError(500, "Failure"),
+      }
+    ),
   },
 });
 for (const [category, icon] of [
@@ -1305,7 +1391,7 @@ assert.match(rangeHtml, /2 activities planned/);
 assert.match(
   rangeHtml,
   /ends Fri, Oct 2/,
-  "The day summary identifies an overnight end in the trip zone",
+  "Activity timing identifies an overnight end in the trip zone",
 );
 boardActivities = [
   { ...overnight, ends_at: "2026-10-01T15:45:00Z" },
@@ -1324,16 +1410,26 @@ const summaryHtml = renderToStaticMarkup(
     canEdit: false,
     onFailure() {},
   }),
-).match(/<h3[^>]*class="day-summary[\s\S]*?<\/h3>/)[0];
+);
 assert.match(
   summaryHtml,
   /2 activities planned/,
   "Summary excludes activities starting on other days",
 );
-assert.match(
+assert.doesNotMatch(
   summaryHtml,
-  /9:00\s*AM – 9:00\s*AM/,
-  "Summary uses earliest start and latest end even when activities are unordered or nested",
+  /itinerary-day-timing/,
+  "No aggregate day-level time range",
+);
+assert.equal(
+  (summaryHtml.match(/dateTime="2026-10-01T01:00:00Z"/g) ?? []).length,
+  1,
+  "Activity start is shown once outside its card",
+);
+assert.equal(
+  (summaryHtml.match(/dateTime="2026-10-02T01:00:00Z"/g) ?? []).length,
+  1,
+  "Activity end is shown once outside its card",
 );
 boardActivities = [activity, overnight];
 for (const role of ["owner", "editor", "member", "viewer", undefined]) {
@@ -1369,7 +1465,7 @@ for (const role of ["owner", "editor", "member", "viewer", undefined]) {
   assert.match(html, /dateTime="2026-10-01"/);
   assert.match(html, /aria-labelledby="day-2026-10-01-heading"/);
   assert.match(html, /itinerary-board/);
-  assert.match(html, /ends next day/);
+  assert.match(html, /ends Fri, Oct 2/);
   assert.doesNotMatch(
     html,
     /No schedule conflicts/,
@@ -1422,8 +1518,23 @@ const trigger = {
   disabled: false,
   getClientRects: () => [1],
 };
-const dayNavigation = (label) =>
-  board().find((node) => node.props["aria-label"] === label);
+const chooseRelativeDay = (offset) => {
+  const date = temporal.PlainDate.from(uiState[0])
+    .add({ days: offset })
+    .toString();
+  const bounded =
+    date < trip.start_date
+      ? trip.start_date
+      : date > trip.end_date
+        ? trip.end_date
+        : date;
+  board()
+    .find(
+      (node) =>
+        node.props.className === "itinerary-day" && node.key === bounded,
+    )
+    .props.onClick();
+};
 const addButton = () =>
   board().find(
     (node) =>
@@ -1433,10 +1544,11 @@ const addButton = () =>
 const dayPanel = (date) =>
   board().find((node) => node.props.id === `day-${date}-details`);
 const details = (canEdit = true) =>
-  board(trip, canEdit).find(
-    (node) => node.props.finalFocus && !node.props.disablePointerDismissal,
-  );
-const detailActions = (canEdit = true) => nodes(details(canEdit).props.footer);
+  board(trip, canEdit).find((node) => node.props.presentation === "detail");
+const detailActions = (canEdit = true) => [
+  ...nodes(details(canEdit).props.headerAction),
+  ...nodes(details(canEdit).props.footer),
+];
 const openDetails = (canEdit = true) =>
   board(trip, canEdit)
     .find(
@@ -1478,11 +1590,35 @@ for (const role of ["owner", "editor", "member", "viewer"]) {
     renderToStaticMarkup(details(canEdit).props.description),
     /Asia\/Manila/,
   );
-  assert.equal(details(canEdit).props.mobilePresentation, "sheet");
+  const schedule = renderToStaticMarkup(details(canEdit).props.description);
+  assert.match(schedule, /Thursday, October 1, 2026/);
+  assert.match(schedule, /60 min/);
+  assert.match(
+    renderToStaticMarkup(details(canEdit).props.titleAccessory),
+    /Eating/,
+  );
+  assert.doesNotMatch(
+    schedule,
+    /Eating/,
+    "Category belongs above the title, separately from the schedule",
+  );
+  assert.equal(details(canEdit).props.mobilePresentation, "fullscreen");
+  assert.equal(details(canEdit).props.presentation, "detail");
   assert.equal(details(canEdit).props.finalFocus(), trigger);
   details(canEdit).props.onOpenChange(false);
   assert.equal(details(canEdit).props.open, false, "Dismissal closes details");
 }
+openDetails();
+boardActivities = [{ ...activity, ends_at: "2026-10-02T02:00:00Z" }, overnight];
+const overnightSchedule = renderToStaticMarkup(details().props.description);
+assert.match(overnightSchedule, /Thursday/);
+assert.match(overnightSchedule, /Friday/);
+assert.match(
+  overnightSchedule,
+  /1,500 min/,
+  "Duration uses elapsed minutes across dates",
+);
+boardActivities = [activity, overnight];
 openDetails();
 boardActivities = [
   {
@@ -1517,9 +1653,9 @@ assert.equal(
   "A removed activity does not silently reopen on refresh",
 );
 openDetails();
-dayNavigation("Next date").props.onClick();
+chooseRelativeDay(1);
 assert.equal(details().props.open, false, "Changing days closes details");
-dayNavigation("Previous date").props.onClick();
+chooseRelativeDay(-1);
 openDetails();
 detailActions()
   .find((node) => node.props["aria-label"] === `Edit ${activity.title}`)
@@ -1576,13 +1712,21 @@ boardConflicts = [
   },
 ];
 assert.equal(
-  dayNavigation("Previous date").props.disabled,
-  true,
-  "Cannot navigate before the trip",
+  board().some((node) =>
+    ["Previous date", "Next date"].includes(node.props["aria-label"]),
+  ),
+  false,
+  "Previous/next arrows are removed",
+);
+assert.deepEqual(
+  board()
+    .filter((node) => node.props.className === "itinerary-day")
+    .map((node) => node.key),
+  ["2026-10-01", "2026-10-02", "2026-10-03"],
 );
 assert.ok(!dayPanel("2026-10-01").props.hidden);
 assert.equal(dayPanel("2026-10-02"), undefined);
-dayNavigation("Next date").props.onClick();
+chooseRelativeDay(1);
 assert.ok(!dayPanel("2026-10-02").props.hidden);
 assert.equal(
   board().find((node) => node.props.conflicts).props.conflicts.length,
@@ -1592,15 +1736,15 @@ assert.equal(
 assert.ok(
   board().some((node) => node.props["aria-label"] === "Tools for Fri, Oct 2"),
 );
-dayNavigation("Next date").props.onClick();
+chooseRelativeDay(1);
 assert.equal(
-  dayNavigation("Next date").props.disabled,
-  true,
-  "Cannot navigate past the trip",
+  uiState[0],
+  trip.end_date,
+  "Day strip reaches the trip's final date",
 );
-dayNavigation("Previous date").props.onClick();
+chooseRelativeDay(-1);
 assert.ok(dayPanel("2026-10-02"));
-dayNavigation("Previous date").props.onClick();
+chooseRelativeDay(-1);
 const datePicker = (tripValue = trip) =>
   board(tripValue).find((node) => node.props.title === "Choose a day");
 assert.ok(
@@ -1612,19 +1756,16 @@ datePicker().props.children.props.children.props.onSelect(
   new Date("2026-10-03T12:00:00"),
 );
 assert.equal(uiState[0], "2026-10-03");
-assert.equal(dayNavigation("Next date").props.disabled, true);
-dayNavigation("Previous date").props.onClick();
-dayNavigation("Previous date").props.onClick();
+assert.ok(dayPanel(trip.end_date));
+chooseRelativeDay(-1);
+chooseRelativeDay(-1);
 const singleDay = { ...trip, end_date: trip.start_date };
-assert.equal(
-  board(singleDay).find((node) => node.props["aria-label"] === "Previous date")
-    .props.disabled,
-  true,
-);
-assert.equal(
-  board(singleDay).find((node) => node.props["aria-label"] === "Next date")
-    .props.disabled,
-  true,
+assert.deepEqual(
+  board(singleDay)
+    .filter((node) => node.props.className === "itinerary-day")
+    .map((node) => node.key),
+  [trip.start_date],
+  "A one-day trip has one selectable date",
 );
 const longTrip = { ...trip, end_date: "2027-01-31" };
 datePicker(longTrip).props.children.props.children.props.onSelect(
@@ -1743,7 +1884,9 @@ const compactDialog = TripDialog({
   title: "Details",
   description: React.createElement("span", null, "Schedule"),
   className: "activity-details-dialog",
-  mobilePresentation: "sheet",
+  mobilePresentation: "fullscreen",
+  presentation: "detail",
+  headerAction: pinnedFooter,
   children: "Long details",
   footer: pinnedFooter,
 });
@@ -1752,7 +1895,32 @@ const compactPopup = compactNodes.find(
   (node) => node.type === dialogParts.Popup,
 );
 assert.match(compactPopup.props.className, /activity-details-dialog/);
-assert.equal(compactPopup.props["data-mobile-presentation"], "sheet");
+assert.equal(compactPopup.props["data-mobile-presentation"], "fullscreen");
+const detailReader = compactNodes.find(
+  (node) => node.props["data-slot"] === "trip-dialog-reader",
+);
+assert.ok(
+  detailReader,
+  "Detail title and content share one reading scroll region",
+);
+assert.ok(nodes(detailReader).some((node) => node.type === dialogParts.Title));
+assert.ok(
+  nodes(detailReader).some(
+    (node) => node.props["data-slot"] === "trip-dialog-body",
+  ),
+);
+assert.ok(
+  !nodes(detailReader).some(
+    (node) => node.props["data-slot"] === "trip-dialog-footer",
+  ),
+);
+assert.equal(
+  nodes(busyDialog).some(
+    (node) => node.props["data-slot"] === "trip-dialog-reader",
+  ),
+  false,
+  "Default dialogs retain their existing layout",
+);
 assert.equal(
   compactNodes.find((node) => node.props["data-slot"] === "trip-dialog-footer")
     .props.children,
@@ -1768,7 +1936,7 @@ console.log(
   "Activity dialog date selection, edit/save/cancel, failed saves, dismissal and focus targets passed.",
 );
 
-dayNavigation("Previous date").props.onClick();
+chooseRelativeDay(-1);
 boardActivities = [
   { ...activity, ends_at: "2026-10-01T13:50:00Z" },
   { ...activity, id: 3, ends_at: "2026-10-01T02:00:00Z" },
@@ -1839,7 +2007,11 @@ boardActivities = [
 ];
 itineraryNow = "2026-10-01T17:00:00Z";
 const todayButton = () =>
-  board().find((node) => node.props.onClick && node.props.children === "Today");
+  board().find(
+    (node) =>
+      node.props.onClick &&
+      React.Children.toArray(node.props.children).includes("Today"),
+  );
 assert.equal(uiState[0], undefined);
 assert.ok(
   dayPanel("2026-10-02"),
@@ -1850,7 +2022,7 @@ assert.equal(
   undefined,
   "Today is omitted when already selected",
 );
-dayNavigation("Previous date").props.onClick();
+chooseRelativeDay(-1);
 assert.ok(todayButton(), "An active trip offers Today after navigating away");
 todayButton().props.onClick();
 assert.equal(uiState[0], "2026-10-02", "Today returns to the trip-local date");
@@ -1868,11 +2040,58 @@ assert.equal(
   3,
   "Map receives only the selected day's activities",
 );
-assert.doesNotMatch(
-  mapDialog().props.trigger.props.className,
-  /hidden/,
-  "Map access remains available on desktop",
+assert.ok(
+  board().some(
+    (node) =>
+      node.props.onClick &&
+      React.Children.toArray(node.props.children).includes("View map"),
+  ),
+  "Map action remains available",
 );
+const optionsDialog = () =>
+  board().find((node) => node.props.title === "Day options");
+optionsDialog().props.onOpenChange(true);
+assert.equal(optionsDialog().props.open, true);
+const optionsTrigger = { ...trigger, isConnected: true };
+uiRefs[5].current = optionsTrigger;
+board()
+  .find(
+    (node) =>
+      node.props.onClick &&
+      React.Children.toArray(node.props.children).includes("View map"),
+  )
+  .props.onClick({ currentTarget: trigger });
+assert.equal(
+  optionsDialog().props.open,
+  false,
+  "Selecting map closes Day options",
+);
+assert.equal(mapDialog().props.open, true);
+assert.equal(
+  optionsDialog().props.finalFocus(),
+  false,
+  "The sheet does not steal map focus",
+);
+assert.equal(
+  mapDialog().props.finalFocus(),
+  optionsTrigger,
+  "Closing map returns to the settings icon",
+);
+mapDialog().props.onOpenChange(false);
+optionsDialog().props.onOpenChange(true);
+board()
+  .find(
+    (node) =>
+      node.props.onClick &&
+      React.Children.toArray(node.props.children).includes("Overlaps"),
+  )
+  .props.onClick({ currentTarget: trigger });
+const overlapsDialog = () =>
+  board().find((node) => node.props.title?.startsWith("Conflicts on"));
+assert.equal(optionsDialog().props.open, false);
+assert.equal(overlapsDialog().props.open, true);
+assert.equal(overlapsDialog().props.finalFocus(), optionsTrigger);
+overlapsDialog().props.onOpenChange(false);
 assert.equal(
   board().some((node) => node.type === "aside"),
   false,
@@ -1882,6 +2101,44 @@ itineraryNow = "2026-10-04T00:00:00Z";
 assert.equal(todayButton(), undefined, "Today is omitted outside the trip");
 console.log(
   "Trip-local Today, accessible date selection, and on-demand selected-day map passed.",
+);
+
+// The visible rail and range request advance together without unbounded trip fetches.
+uiState = [];
+uiRefs = [];
+const railTrip = { ...trip, end_date: "2026-11-12" };
+itineraryNow = "2026-09-30T00:00:00Z";
+const railDays = () =>
+  board(railTrip, false).filter(
+    (node) => node.props.className === "itinerary-day",
+  );
+assert.equal(railDays().length, 7);
+assert.equal(railDays()[0].props["aria-current"], "date");
+assert.equal(railDays()[6].props["aria-label"], "Wed, Oct 7");
+railDays()[6].props.onClick();
+assert.equal(uiState[0], "2026-10-07");
+datePicker(railTrip).props.children.props.children.props.onSelect(
+  new Date("2026-10-08T12:00:00"),
+);
+assert.equal(railDays()[0].props["aria-label"], "Thu, Oct 8");
+const windowQuery = boardQueries
+  .filter((key) => key[2] === "activities")
+  .at(-1);
+assert.equal(windowQuery[4], "2026-10-07T16:00:00Z");
+assert.equal(windowQuery[5], "2026-10-14T16:00:00Z");
+uiState[0] = "2026-11-12";
+assert.equal(
+  railDays().length,
+  1,
+  "Final partial week excludes dates beyond trip end",
+);
+assert.equal(
+  railDays()[0].key,
+  railTrip.end_date,
+  "Final window contains only the final in-range date",
+);
+console.log(
+  "Seven-day rail selection, trip-local window requests, and long-trip boundaries passed.",
 );
 
 let detailRole = "owner",
@@ -2002,10 +2259,10 @@ for (detailRole of ["owner", "editor", "viewer"]) {
     "Mobile options expose the full trip name",
   );
   assert.ok(
-    nodes(itineraryProps.header).some(
+    nodes(itineraryProps.tools).some(
       (node) => node.props["aria-label"] === "Back to trips",
     ),
-    "Desktop back navigation belongs to the compact header",
+    "Desktop back navigation belongs to the trip toolbar",
   );
 }
 detailRole = "owner";

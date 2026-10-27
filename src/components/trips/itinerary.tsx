@@ -9,7 +9,7 @@ import {
   MapPin,
   CalendarCheck,
   CalendarDays,
-  ChevronLeft,
+  SlidersHorizontal,
   ChevronRight,
   Plus,
   Coffee,
@@ -28,7 +28,10 @@ import {
   type ActivityConflict,
   useItineraryApi,
 } from "@/lib/itinerary";
-import { formatActivityRange, formatActivityTime } from "@/lib/activity-time";
+import {
+  formatActivityDuration,
+  formatActivityTime,
+} from "@/lib/activity-time";
 import { participantName, type Participant } from "@/lib/memberships";
 import { type Trip } from "@/lib/trips";
 import { Button } from "@/components/ui/button";
@@ -101,8 +104,8 @@ function visibleDates(start: string, end: string, selected: string) {
   const offset = Temporal.PlainDate.from(selected).since(
     Temporal.PlainDate.from(start),
   ).days;
-  const anchor = moveDate(start, Math.floor(offset / 3) * 3);
-  return Array.from({ length: 3 }, (_, index) =>
+  const anchor = moveDate(start, Math.floor(offset / 7) * 7);
+  return Array.from({ length: 7 }, (_, index) =>
     moveDate(anchor, index),
   ).filter((date) => date <= end);
 }
@@ -143,6 +146,11 @@ export function Itinerary({
   const [deleting, setDeleting] = useState<Activity | null>(null);
   const [viewing, setViewing] = useState<number | null>(null);
   const detailTrigger = useRef<HTMLButtonElement | null>(null);
+  const dayRail = useRef<HTMLDivElement>(null);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [dayOptionsOpen, setDayOptionsOpen] = useState(false);
+  const dayOptionsTrigger = useRef<HTMLButtonElement>(null);
+  const dayToolTrigger = useRef<HTMLButtonElement | null>(null);
   function setSelected(date: string) {
     setViewing(null);
     setSelectedDate(date);
@@ -154,6 +162,18 @@ export function Itinerary({
         ? trip.end_date
         : selectedDate;
   const dates = visibleDates(trip.start_date, trip.end_date, selected);
+  useEffect(() => {
+    const rail = dayRail.current;
+    const current = rail?.querySelector<HTMLElement>('[aria-current="date"]');
+    if (rail && current && rail.scrollWidth > rail.clientWidth) {
+      rail.scrollTo({
+        left:
+          current.offsetLeft -
+          rail.offsetLeft -
+          (rail.clientWidth - current.clientWidth) / 2,
+      });
+    }
+  }, [selected]);
   const from = boundary(dates[0], trip.time_zone);
   const before = boundary(moveDate(dates[dates.length - 1], 1), trip.time_zone);
   const activities = useQuery({
@@ -219,13 +239,6 @@ export function Itinerary({
       (activity) => localDate(activity.starts_at, trip.time_zone) === selected,
     )
     .sort((a, b) => Temporal.Instant.compare(a.starts_at, b.starts_at));
-  const lastEnd = selectedActivities.reduce(
-    (latest, activity) =>
-      !latest || Temporal.Instant.compare(activity.ends_at, latest) > 0
-        ? activity.ends_at
-        : latest,
-    "",
-  );
   function addActivity(date: string, trigger: HTMLButtonElement) {
     const dayActivities =
       activities.data?.filter(
@@ -270,20 +283,58 @@ export function Itinerary({
             type="button"
             variant="ghost"
             className="min-h-11 px-2"
-            onClick={() => setSelected(today)}
+            onClick={() => {
+              setDayOptionsOpen(false);
+              setSelected(today);
+            }}
           >
+            <CalendarDays aria-hidden="true" />
             Today
           </Button>
         )}
+      <Button
+        variant="ghost"
+        className="min-h-11 px-2"
+        onClick={(event) => {
+          dayToolTrigger.current = dayOptionsOpen
+            ? dayOptionsTrigger.current
+            : event.currentTarget;
+          setDayOptionsOpen(false);
+          setMapOpen(true);
+        }}
+      >
+        <MapPin aria-hidden="true" />
+        View map
+      </Button>
+      <Button
+        variant="ghost"
+        className="min-h-11 px-2"
+        onClick={(event) => {
+          dayToolTrigger.current = dayOptionsOpen
+            ? dayOptionsTrigger.current
+            : event.currentTarget;
+          setDayOptionsOpen(false);
+          setConflictsOpen(true);
+        }}
+      >
+        <CalendarCheck aria-hidden="true" />
+        Overlaps
+        {(conflicts.isError || dayConflicts.length > 0) && (
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+            {conflicts.isError ? "Unavailable" : dayConflicts.length}
+          </span>
+        )}
+      </Button>
+    </nav>
+  );
+  const dayToolDialogs = (
+    <>
       <TripDialog
         title={`Places on ${dateLabel(selected)}`}
         description="Places attached to activities on the selected day."
-        trigger={
-          <Button variant="ghost" className="min-h-11 px-2">
-            <MapPin aria-hidden="true" />
-            View map
-          </Button>
-        }
+        open={mapOpen}
+        onOpenChange={setMapOpen}
+        finalFocus={() => returnFocus(dayToolTrigger.current)}
       >
         {activities.isPending ? (
           <p role="status">Loading places...</p>
@@ -306,16 +357,8 @@ export function Itinerary({
         description="Overlapping activities on this day."
         open={conflictsOpen}
         onOpenChange={setConflictsOpen}
-        trigger={
-          <Button variant="ghost" className="min-h-11 px-2">
-            <CalendarCheck aria-hidden="true" />
-            Overlaps
-            {(conflicts.isError || dayConflicts.length > 0) && (
-              <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-                {conflicts.isError ? "Unavailable" : dayConflicts.length}
-              </span>
-            )}
-          </Button>
+        finalFocus={() =>
+          editing ? false : returnFocus(dayToolTrigger.current)
         }
       >
         <div className="space-y-4">
@@ -362,11 +405,11 @@ export function Itinerary({
           )}
         </div>
       </TripDialog>
-    </nav>
+    </>
   );
 
   return (
-    <div className="flex min-w-0 flex-col gap-3">
+    <div className="coastal-itinerary flex min-w-0 flex-col gap-6">
       <header className="planning-header">
         <div className="min-w-0 flex-1">{header}</div>
         <nav
@@ -378,23 +421,81 @@ export function Itinerary({
       </header>
       <section
         aria-labelledby="itinerary-heading"
-        className="flex min-w-0 flex-col gap-2"
+        className="itinerary-workspace"
       >
-        <div className="itinerary-toolbar sticky z-30 -mx-6 flex flex-wrap items-center justify-between gap-2 border-b px-6 py-1 md:static md:mx-0 md:px-0">
-          <h2 id="itinerary-heading" className="sr-only">
-            Daily itinerary
-          </h2>
-          <div className="flex w-full min-w-0 items-center gap-2 md:w-auto">
-            <Button
-              type="button"
-              variant="outline"
-              className="size-12 shrink-0 md:size-11"
-              disabled={selected <= trip.start_date}
-              onClick={() => setSelected(moveDate(selected, -1))}
-              aria-label="Previous date"
-            >
-              <ChevronLeft aria-hidden="true" />
-            </Button>
+        <nav className="itinerary-days" aria-label="Choose itinerary day">
+          <p className="day-rail-label">Your days</p>
+          <div className="day-rail" ref={dayRail}>
+            {dates.map((date) => {
+              const count = (activities.data ?? []).filter(
+                (activity) =>
+                  localDate(activity.starts_at, trip.time_zone) === date,
+              ).length;
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  className="itinerary-day"
+                  aria-current={date === selected ? "date" : undefined}
+                  aria-label={`${dateLabel(date)}${date === today ? ", Today" : ""}`}
+                  onClick={() => setSelected(date)}
+                >
+                  <span className="day-weekday">
+                    {new Intl.DateTimeFormat(undefined, {
+                      weekday: "short",
+                      timeZone: "UTC",
+                    }).format(new Date(`${date}T12:00:00Z`))}
+                    {date === today && " · Today"}
+                  </span>
+                  <span className="day-number">{Number(date.slice(-2))}</span>
+                  <span className="day-plan">
+                    {activities.isSuccess
+                      ? count
+                        ? `${count} planned`
+                        : "Open day"
+                      : activities.isPending
+                        ? "Loading…"
+                        : "Unavailable"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+        <div className="itinerary-agenda">
+          <div className="itinerary-toolbar flex flex-wrap items-center justify-between gap-2">
+            <h2 id="itinerary-heading" className="sr-only">
+              Daily itinerary
+            </h2>
+            <div className="itinerary-day-heading">
+              <h3
+                id={`day-${selected}-heading`}
+                ref={selectedHeading}
+                tabIndex={-1}
+                className="day-summary outline-none focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                <time dateTime={selected}>
+                  {new Intl.DateTimeFormat(undefined, {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    timeZone: "UTC",
+                  }).format(new Date(`${selected}T12:00:00Z`))}
+                </time>
+              </h3>
+              <p
+                role="status"
+                aria-live="polite"
+                className="itinerary-day-meta"
+              >
+                Day {dayNumber} of {dayCount} ·{" "}
+                {activities.isPending
+                  ? "Loading activities…"
+                  : activities.isError || unavailable
+                    ? "Activities unavailable"
+                    : `${selectedActivities.length} ${selectedActivities.length === 1 ? "activity" : "activities"} planned`}
+              </p>
+            </div>
             <TripDialog
               title="Choose a day"
               description={`Day ${dayNumber} of ${dayCount}`}
@@ -405,25 +506,11 @@ export function Itinerary({
                 <Button
                   type="button"
                   variant="ghost"
-                  className="day-picker min-h-12 min-w-0 flex-1 whitespace-normal px-2 md:flex-none md:px-3"
+                  className="day-picker"
                   aria-label={`Choose day, ${dateLabel(selected)}, day ${dayNumber} of ${dayCount}`}
                 >
-                  <CalendarDays
-                    aria-hidden="true"
-                    className="hidden size-4 min-[375px]:block"
-                  />
-                  <span>
-                    <span className="block font-semibold">
-                      {dateLabel(selected)}
-                    </span>
-                    <span
-                      role="status"
-                      aria-live="polite"
-                      className="block text-xs font-normal text-muted-foreground"
-                    >
-                      Day {dayNumber} of {dayCount}
-                    </span>
-                  </span>
+                  <CalendarDays aria-hidden="true" className="size-4" />
+                  <span className="hidden md:inline">Choose day</span>
                 </Button>
               }
             >
@@ -465,420 +552,450 @@ export function Itinerary({
                 />
               </div>
             </TripDialog>
-            <Button
-              type="button"
-              variant="outline"
-              className="size-12 shrink-0 md:size-11"
-              disabled={selected >= trip.end_date}
-              onClick={() => setSelected(moveDate(selected, 1))}
-              aria-label="Next date"
-            >
-              <ChevronRight aria-hidden="true" />
-            </Button>
-          </div>
-          {canEdit && !unavailable && activities.isSuccess && (
-            <Button
-              type="button"
-              className="hidden md:inline-flex"
-              disabled={api.pending || editing !== null}
-              onClick={(event) => addActivity(selected, event.currentTarget)}
-            >
-              <Plus aria-hidden="true" />
-              Add activity
-            </Button>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h3
-              id={`day-${selected}-heading`}
-              ref={selectedHeading}
-              tabIndex={-1}
-              className="day-summary min-w-0 outline-none focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-ring"
-            >
-              <time dateTime={selected} className="sr-only">
-                {dateLabel(selected)}
-              </time>
-              <span className="font-semibold">
-                {activities.isPending
-                  ? "Loading activities…"
-                  : activities.isError || unavailable
-                    ? "Activities unavailable"
-                    : `${selectedActivities.length} ${selectedActivities.length === 1 ? "activity" : "activities"} planned`}
-              </span>
-              {activities.isSuccess && !unavailable && lastEnd && (
-                <span className="block text-sm font-normal text-muted-foreground">
-                  {timeLabel(selectedActivities[0].starts_at, trip.time_zone)} –{" "}
-                  {timeLabel(lastEnd, trip.time_zone)}
-                  {localDate(lastEnd, trip.time_zone) !== selected &&
-                    ` · ends ${dateLabel(localDate(lastEnd, trip.time_zone))}`}
-                </span>
-              )}
-            </h3>
-            <p className="min-w-0 break-words text-xs text-muted-foreground">
-              All times in {trip.time_zone}.
-            </p>
-          </div>
-          {dayTools}
-        </div>
-        {api.error && !editing && !deleting && <TripError error={api.error} />}
-        <TripDialog
-          open={!!editing && canEdit}
-          title={editedActivity ? "Edit activity" : "Add activity"}
-          description={`${newDate ? `${dateLabel(newDate)} · ` : ""}Times in ${trip.time_zone}.`}
-          busy={api.pending}
-          disablePointerDismissal
-          initialFocus={titleInput}
-          finalFocus={() => returnFocus(editTrigger.current)}
-          onOpenChange={(open) => {
-            if (!open) closeEditor();
-          }}
-        >
-          {editing && (
-            <ActivityForm
-              titleRef={titleInput}
-              key={newDate ?? editedActivity?.id}
-              initialValue={editedActivity ?? undefined}
-              initialDate={newDate}
-              initialStartsAt={
-                editing && "date" in editing ? editing.startsAt : undefined
-              }
-              initialPlace={editedActivity?.place ?? null}
-              tripZone={trip.time_zone}
-              tripID={trip.id}
-              tripStart={trip.start_date}
-              tripEnd={trip.end_date}
-              tripStartsAt={trip.starts_at}
-              tripEndsAt={trip.ends_at}
-              pending={api.pending || !canEdit}
-              error={api.error}
-              onDirty={() => setEditDirty(true)}
-              onCancel={closeEditor}
-              onSubmit={async (input) => {
-                if (!canEdit || api.pending) return;
-                try {
-                  if (await api.save(input, editedActivity?.id)) {
-                    setEditDirty(false);
-                    setEditing(null);
-                    setSelected(localDate(input.starts_at, trip.time_zone));
-                  }
-                } catch {
-                  /* The form retains its values and displays the API error. */
+            <div className="md:hidden">
+              <TripDialog
+                title="Day options"
+                description={dateLabel(selected)}
+                mobilePresentation="sheet"
+                open={dayOptionsOpen}
+                onOpenChange={setDayOptionsOpen}
+                finalFocus={() =>
+                  mapOpen || conflictsOpen ? false : dayOptionsTrigger.current
                 }
-              }}
-            />
-          )}
-        </TripDialog>
-        {!unavailable &&
-          (activities.isPending ? (
-            <div role="status" className="timeline-loading space-y-3">
-              <span className="sr-only">Loading activities…</span>
-              <div />
-              <div />
-              <div />
+                trigger={
+                  <Button
+                    variant="ghost"
+                    className="size-11"
+                    ref={dayOptionsTrigger}
+                    aria-label="Day options"
+                  >
+                    <SlidersHorizontal aria-hidden="true" />
+                  </Button>
+                }
+              >
+                <div className="mobile-day-options">{dayTools}</div>
+              </TripDialog>
             </div>
-          ) : activities.isError ? (
-            <TripError
-              error={activities.error}
-              retry={() => void activities.refetch()}
-              pending={activities.isFetching}
-            />
-          ) : (
-            <>
-              <div aria-label="Trip dates" className="itinerary-board pb-3">
-                {[selected].map((date) => {
-                  const dayActivities = selectedActivities;
-                  return (
-                    <section
-                      key={date}
-                      data-date={date}
-                      aria-label={dateLabel(date)}
-                      className="day-column"
-                    >
-                      <div
-                        id={`day-${date}-details`}
-                        role="region"
-                        aria-labelledby={`day-${date}-heading`}
-                        className="space-y-3"
+            {canEdit && !unavailable && activities.isSuccess && (
+              <Button
+                type="button"
+                className="hidden md:inline-flex"
+                disabled={api.pending || editing !== null}
+                onClick={(event) => addActivity(selected, event.currentTarget)}
+              >
+                <Plus aria-hidden="true" />
+                Add activity
+              </Button>
+            )}
+          </div>
+          <div className="itinerary-day-summary">
+            <div className="hidden md:block">{dayTools}</div>
+          </div>
+          {dayToolDialogs}
+          {api.error && !editing && !deleting && (
+            <TripError error={api.error} />
+          )}
+          <TripDialog
+            open={!!editing && canEdit}
+            title={editedActivity ? "Edit activity" : "Add activity"}
+            description={`${newDate ? `${dateLabel(newDate)} · ` : ""}Times in ${trip.time_zone}.`}
+            busy={api.pending}
+            disablePointerDismissal
+            initialFocus={titleInput}
+            finalFocus={() => returnFocus(editTrigger.current)}
+            onOpenChange={(open) => {
+              if (!open) closeEditor();
+            }}
+          >
+            {editing && (
+              <ActivityForm
+                titleRef={titleInput}
+                key={newDate ?? editedActivity?.id}
+                initialValue={editedActivity ?? undefined}
+                initialDate={newDate}
+                initialStartsAt={
+                  editing && "date" in editing ? editing.startsAt : undefined
+                }
+                initialPlace={editedActivity?.place ?? null}
+                tripZone={trip.time_zone}
+                tripID={trip.id}
+                tripStart={trip.start_date}
+                tripEnd={trip.end_date}
+                tripStartsAt={trip.starts_at}
+                tripEndsAt={trip.ends_at}
+                pending={api.pending || !canEdit}
+                error={api.error}
+                onDirty={() => setEditDirty(true)}
+                onCancel={closeEditor}
+                onSubmit={async (input) => {
+                  if (!canEdit || api.pending) return;
+                  try {
+                    if (await api.save(input, editedActivity?.id)) {
+                      setEditDirty(false);
+                      setEditing(null);
+                      setSelected(localDate(input.starts_at, trip.time_zone));
+                    }
+                  } catch {
+                    /* The form retains its values and displays the API error. */
+                  }
+                }}
+              />
+            )}
+          </TripDialog>
+          {!unavailable &&
+            (activities.isPending ? (
+              <div role="status" className="timeline-loading space-y-3">
+                <span className="sr-only">Loading activities…</span>
+                <div />
+                <div />
+                <div />
+              </div>
+            ) : activities.isError ? (
+              <TripError
+                error={activities.error}
+                retry={() => void activities.refetch()}
+                pending={activities.isFetching}
+              />
+            ) : (
+              <>
+                <div aria-label="Trip dates" className="itinerary-board pb-3">
+                  {[selected].map((date) => {
+                    const dayActivities = selectedActivities;
+                    return (
+                      <section
+                        key={date}
+                        data-date={date}
+                        aria-label={dateLabel(date)}
+                        className="day-column"
                       >
-                        {dayActivities.length === 0 ? (
-                          <div className="day-empty">
-                            <p className="font-semibold">Nothing planned yet</p>
-                            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                              {canEdit
-                                ? "Add your first activity to start planning this day."
-                                : "Activities will appear here when an editor adds them."}
-                            </p>
-                          </div>
-                        ) : (
-                          <ul className="space-y-3">
-                            {dayActivities.map((activity) => {
-                              return (
-                                <li
-                                  key={activity.id}
-                                  className="timeline-entry"
-                                >
-                                  <p className="timeline-time">
-                                    <time dateTime={activity.starts_at}>
-                                      {timeLabel(
-                                        activity.starts_at,
+                        <div
+                          id={`day-${date}-details`}
+                          role="region"
+                          aria-labelledby={`day-${date}-heading`}
+                          className="space-y-3"
+                        >
+                          {dayActivities.length === 0 ? (
+                            <div className="day-empty">
+                              <p className="font-semibold">
+                                Nothing planned yet
+                              </p>
+                              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                                {canEdit
+                                  ? "Add your first activity to start planning this day."
+                                  : "Activities will appear here when an editor adds them."}
+                              </p>
+                            </div>
+                          ) : (
+                            <ul className="space-y-4">
+                              {dayActivities.map((activity) => {
+                                return (
+                                  <li
+                                    key={activity.id}
+                                    className="timeline-entry"
+                                  >
+                                    <p className="timeline-time">
+                                      <time dateTime={activity.starts_at}>
+                                        {timeLabel(
+                                          activity.starts_at,
+                                          trip.time_zone,
+                                        )}
+                                      </time>{" "}
+                                      <span className="timeline-time-end">
+                                        <span className="md:sr-only">– </span>
+                                        <time dateTime={activity.ends_at}>
+                                          {timeLabel(
+                                            activity.ends_at,
+                                            trip.time_zone,
+                                          )}
+                                        </time>
+                                      </span>
+                                      {localDate(
+                                        activity.ends_at,
                                         trip.time_zone,
+                                      ) > date && (
+                                        <span className="timeline-end-date">
+                                          {" "}
+                                          · ends{" "}
+                                          {dateLabel(
+                                            localDate(
+                                              activity.ends_at,
+                                              trip.time_zone,
+                                            ),
+                                          )}
+                                        </span>
                                       )}
-                                    </time>
-                                  </p>
-                                  <Card className="relative min-w-0 gap-0 ring-0">
-                                    <CardContent className="space-y-2 px-3">
-                                      <button
-                                        type="button"
-                                        className="absolute inset-0 cursor-pointer rounded-2xl outline-none transition-colors duration-150 hover:bg-muted/30 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-                                        aria-label={`View details for ${activity.title}`}
-                                        aria-haspopup="dialog"
-                                        onClick={(event) => {
-                                          detailTrigger.current =
-                                            event.currentTarget;
-                                          setViewing(activity.id);
-                                        }}
-                                      />
-                                      <div className="pointer-events-none relative space-y-2">
-                                        <div className="min-w-0 space-y-1">
-                                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                            <p className="text-xs leading-5 font-medium tabular-nums text-muted-foreground">
-                                              <time
-                                                dateTime={activity.starts_at}
-                                              >
-                                                {timeLabel(
-                                                  activity.starts_at,
-                                                  trip.time_zone,
-                                                )}
-                                              </time>{" "}
-                                              –{" "}
-                                              <time dateTime={activity.ends_at}>
-                                                {timeLabel(
-                                                  activity.ends_at,
-                                                  trip.time_zone,
-                                                )}
-                                              </time>
-                                              {localDate(
-                                                activity.ends_at,
-                                                trip.time_zone,
-                                              ) > date && (
-                                                <span className="text-muted-foreground">
-                                                  {" "}
-                                                  · ends next day
-                                                </span>
-                                              )}
-                                            </p>
+                                    </p>
+                                    <Card className="relative min-w-0 gap-0 ring-0">
+                                      <CardContent className="px-3">
+                                        <button
+                                          type="button"
+                                          className="absolute inset-0 cursor-pointer rounded-2xl outline-none transition-colors duration-150 hover:bg-muted/30 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                                          aria-label={`View details for ${activity.title}`}
+                                          aria-haspopup="dialog"
+                                          data-selected={
+                                            viewing === activity.id || undefined
+                                          }
+                                          onClick={(event) => {
+                                            detailTrigger.current =
+                                              event.currentTarget;
+                                            setViewing(activity.id);
+                                          }}
+                                        />
+                                        <div className="activity-card-body pointer-events-none relative">
+                                          <div className="activity-card-meta">
                                             <CategoryBadge
                                               category={activity.category}
                                             />
+                                            <span className="activity-card-actions">
+                                              <span className="activity-duration">
+                                                {formatActivityDuration(
+                                                  activity.starts_at,
+                                                  activity.ends_at,
+                                                )}
+                                              </span>
+                                              <ChevronRight
+                                                aria-hidden="true"
+                                                className="activity-open-cue"
+                                              />
+                                            </span>
                                           </div>
                                           <h4 className="break-words text-base leading-6 font-semibold">
                                             {activity.title}
                                           </h4>
+                                          {activity.place && (
+                                            <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                                              <MapPin
+                                                aria-hidden="true"
+                                                className="mt-0.5 size-4 shrink-0"
+                                              />
+                                              <span className="min-w-0 break-words">
+                                                {activity.place.name}
+                                              </span>
+                                            </p>
+                                          )}
                                         </div>
-                                        {activity.place && (
-                                          <p className="flex items-start gap-2 text-sm text-muted-foreground">
-                                            <MapPin
-                                              aria-hidden="true"
-                                              className="mt-0.5 size-4 shrink-0"
-                                            />
-                                            <span className="min-w-0 break-words">
-                                              {activity.place.name}
-                                            </span>
-                                          </p>
-                                        )}
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
-                      </div>
-                    </section>
-                  );
-                })}
-              </div>
-            </>
-          ))}
-        {canEdit && !unavailable && activities.isSuccess && (
-          <div className="mobile-add-activity fixed inset-x-0 z-30 border-t bg-background px-6 py-3 md:hidden">
-            <Button
-              className="min-h-12 w-full"
-              disabled={api.pending || editing !== null}
-              onClick={(event) => addActivity(selected, event.currentTarget)}
-            >
-              <Plus aria-hidden="true" />
-              Add activity
-            </Button>
-          </div>
-        )}
-        <TripDialog
-          title={viewedActivity?.title ?? "Activity details"}
-          className="activity-details-dialog"
-          mobilePresentation="sheet"
-          description={
-            viewedActivity ? (
-              <span className="flex flex-col gap-2">
-                <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <CategoryBadge category={viewedActivity.category} />
-                  <span>
-                    {formatActivityRange(
-                      viewedActivity.starts_at,
-                      viewedActivity.ends_at,
-                      trip.time_zone,
-                    )}
-                  </span>
-                </span>
-                <span className="text-xs">All times in {trip.time_zone}.</span>
-              </span>
-            ) : (
-              "Activity details"
-            )
-          }
-          open={!!viewedActivity}
-          onOpenChange={(open) => {
-            if (!open) setViewing(null);
-          }}
-          finalFocus={() =>
-            editing || deleting ? false : returnFocus(detailTrigger.current)
-          }
-          footer={
-            viewedActivity && (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="min-w-0 flex-1 break-words text-xs text-muted-foreground">
-                  {participants
-                    ? `Created by ${viewedCreator ? participantName(viewedCreator) : "Former participant"}`
-                    : "Creator unavailable"}
-                </p>
-                {canEdit && (
-                  <div className="flex shrink-0 justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      disabled={api.pending || editing !== null}
-                      aria-label={`Edit ${viewedActivity.title}`}
-                      onClick={() => {
-                        editTrigger.current = detailTrigger.current;
-                        api.reset();
-                        setEditDirty(false);
-                        setEditing(viewedActivity);
-                        setViewing(null);
-                      }}
-                    >
-                      <Pencil aria-hidden="true" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      disabled={api.pending || editing !== null}
-                      aria-label={`Delete ${viewedActivity.title}`}
-                      onClick={() => {
-                        api.reset();
-                        setDeleting(viewedActivity);
-                        setViewing(null);
-                      }}
-                    >
-                      <Trash2 aria-hidden="true" />
-                      Delete
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )
-          }
-        >
-          {viewedActivity && (
-            <div className="space-y-4 text-sm leading-6">
-              {viewedActivity.place && (
-                <section className="space-y-1">
-                  <h3 className="text-xs font-medium text-muted-foreground">
-                    Place
-                  </h3>
-                  <p className="break-words font-medium">
-                    {viewedActivity.place.name}
-                  </p>
-                  {viewedActivity.place.address && (
-                    <p className="break-words text-muted-foreground">
-                      {viewedActivity.place.address}
-                    </p>
-                  )}
-                </section>
-              )}
-              {viewedActivity.notes && (
-                <section className="space-y-1">
-                  <h3 className="text-xs font-medium text-muted-foreground">
-                    Notes
-                  </h3>
-                  <p className="whitespace-pre-wrap break-words">
-                    {viewedActivity.notes}
-                  </p>
-                </section>
-              )}
-              {viewedActivity.checklist.length > 0 && (
-                <section className="space-y-1">
-                  <h3 className="text-xs font-medium text-muted-foreground">
-                    To do
-                  </h3>
-                  <ul className="list-disc space-y-1 pl-5">
-                    {viewedActivity.checklist.map((item, index) => (
-                      <li
-                        key={index}
-                        className="whitespace-pre-wrap break-words"
-                      >
-                        {item.text}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
+                                      </CardContent>
+                                    </Card>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </div>
+                      </section>
+                    );
+                  })}
+                </div>
+              </>
+            ))}
+          {canEdit && !unavailable && activities.isSuccess && (
+            <div className="mobile-add-activity fixed inset-x-0 z-30 border-t bg-background px-6 py-3 md:hidden">
+              <Button
+                className="min-h-12"
+                disabled={api.pending || editing !== null}
+                onClick={(event) => addActivity(selected, event.currentTarget)}
+              >
+                <Plus aria-hidden="true" />
+                Add activity
+              </Button>
             </div>
           )}
-        </TripDialog>
-        {deleting && canEdit && (
-          <AlertDialog
-            open
-            onOpenChange={(open) => {
-              if (!open && !api.pending) {
-                api.reset();
-                setDeleting(null);
-              }
-            }}
-          >
-            <AlertDialogContent
-              className="w-[calc(100%-2rem)]"
-              finalFocus={() => returnFocus(detailTrigger.current)}
-            >
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete activity?</AlertDialogTitle>
-                <AlertDialogDescription className="break-words">
-                  Permanently delete “{deleting.title}”? This cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              {api.error && <TripError error={api.error} />}
-              <AlertDialogFooter>
-                <AlertDialogCancel className="min-h-11" disabled={api.pending}>
-                  Cancel
-                </AlertDialogCancel>
+          <TripDialog
+            title={viewedActivity?.title ?? "Activity details"}
+            titleAccessory={
+              viewedActivity && (
+                <CategoryBadge category={viewedActivity.category} />
+              )
+            }
+            className="activity-details-dialog"
+            presentation="detail"
+            mobilePresentation="fullscreen"
+            headerAction={
+              viewedActivity &&
+              canEdit && (
                 <Button
-                  className="min-h-11"
-                  variant="destructive"
-                  disabled={api.pending}
-                  onClick={async () => {
-                    if (!canEdit || api.pending) return;
-                    try {
-                      if (await api.remove(deleting.id)) setDeleting(null);
-                    } catch {
-                      /* Keep the confirmation open and show the error. */
-                    }
+                  variant="outline"
+                  disabled={api.pending || editing !== null}
+                  aria-label={`Edit ${viewedActivity.title}`}
+                  onClick={() => {
+                    editTrigger.current = detailTrigger.current;
+                    api.reset();
+                    setEditDirty(false);
+                    setEditing(viewedActivity);
+                    setViewing(null);
                   }}
                 >
-                  {api.pending ? "Deleting…" : "Delete activity"}
+                  <Pencil aria-hidden="true" />
+                  Edit
                 </Button>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+              )
+            }
+            description={
+              viewedActivity ? (
+                <span className="activity-detail-schedule">
+                  <CalendarDays aria-hidden="true" />
+                  <span>
+                    <span className="activity-detail-date">
+                      {new Intl.DateTimeFormat(undefined, {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                        timeZone: trip.time_zone,
+                      }).formatRange(
+                        new Date(viewedActivity.starts_at),
+                        new Date(viewedActivity.ends_at),
+                      )}
+                    </span>
+                    <span className="activity-detail-time">
+                      {timeLabel(viewedActivity.starts_at, trip.time_zone)} –{" "}
+                      {timeLabel(viewedActivity.ends_at, trip.time_zone)}
+                      {" · "}
+                      {formatActivityDuration(
+                        viewedActivity.starts_at,
+                        viewedActivity.ends_at,
+                      )}
+                      {" · "}
+                      {trip.time_zone}
+                    </span>
+                  </span>
+                </span>
+              ) : (
+                "Activity details"
+              )
+            }
+            open={!!viewedActivity}
+            onOpenChange={(open) => {
+              if (!open) setViewing(null);
+            }}
+            finalFocus={() =>
+              editing || deleting ? false : returnFocus(detailTrigger.current)
+            }
+            footer={
+              viewedActivity && (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="min-w-0 flex-1 break-words text-xs text-muted-foreground">
+                    {participants
+                      ? `Created by ${viewedCreator ? participantName(viewedCreator) : "Former participant"}`
+                      : "Creator unavailable"}
+                  </p>
+                  {canEdit && (
+                    <div className="flex shrink-0 justify-end gap-2">
+                      <Button
+                        variant="destructive"
+                        disabled={api.pending || editing !== null}
+                        aria-label={`Delete ${viewedActivity.title}`}
+                        onClick={() => {
+                          api.reset();
+                          setDeleting(viewedActivity);
+                          setViewing(null);
+                        }}
+                      >
+                        <Trash2 aria-hidden="true" />
+                        Delete
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )
+            }
+          >
+            {viewedActivity && (
+              <div className="activity-detail-sections text-sm leading-6">
+                {viewedActivity.place && (
+                  <section className="space-y-1">
+                    <h3 className="text-xs font-medium text-muted-foreground">
+                      Place
+                    </h3>
+                    <p className="break-words font-medium">
+                      {viewedActivity.place.name}
+                    </p>
+                    {viewedActivity.place.address && (
+                      <p className="break-words text-muted-foreground">
+                        {viewedActivity.place.address}
+                      </p>
+                    )}
+                  </section>
+                )}
+                {viewedActivity.notes && (
+                  <section className="space-y-1">
+                    <h3 className="text-xs font-medium text-muted-foreground">
+                      Notes
+                    </h3>
+                    <p className="whitespace-pre-wrap break-words">
+                      {viewedActivity.notes}
+                    </p>
+                  </section>
+                )}
+                {viewedActivity.checklist.length > 0 && (
+                  <section className="space-y-1">
+                    <h3 className="text-xs font-medium text-muted-foreground">
+                      To do
+                    </h3>
+                    <ul className="list-disc space-y-1 pl-5">
+                      {viewedActivity.checklist.map((item, index) => (
+                        <li
+                          key={index}
+                          className="whitespace-pre-wrap break-words"
+                        >
+                          {item.text}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </div>
+            )}
+          </TripDialog>
+          {deleting && canEdit && (
+            <AlertDialog
+              open
+              onOpenChange={(open) => {
+                if (!open && !api.pending) {
+                  api.reset();
+                  setDeleting(null);
+                }
+              }}
+            >
+              <AlertDialogContent
+                className="w-[calc(100%-2rem)]"
+                finalFocus={() => returnFocus(detailTrigger.current)}
+              >
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete activity?</AlertDialogTitle>
+                  <AlertDialogDescription className="break-words">
+                    Permanently delete “{deleting.title}”? This cannot be
+                    undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                {api.error && <TripError error={api.error} />}
+                <AlertDialogFooter>
+                  <AlertDialogCancel
+                    className="min-h-11"
+                    disabled={api.pending}
+                  >
+                    Cancel
+                  </AlertDialogCancel>
+                  <Button
+                    className="min-h-11"
+                    variant="destructive"
+                    disabled={api.pending}
+                    onClick={async () => {
+                      if (!canEdit || api.pending) return;
+                      try {
+                        if (await api.remove(deleting.id)) setDeleting(null);
+                      } catch {
+                        /* Keep the confirmation open and show the error. */
+                      }
+                    }}
+                  >
+                    {api.pending ? "Deleting…" : "Delete activity"}
+                  </Button>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
       </section>
     </div>
   );

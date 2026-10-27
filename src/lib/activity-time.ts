@@ -106,3 +106,7 @@ export function formatActivityRange(start: string, end: string, zone: string) {
     timeStyle: "short",
   }).formatRange(new Date(start), new Date(end));
 }
+
+export function formatActivityDuration(start: string, end: string) {
+  return `${Temporal.Instant.from(end).since(Temporal.Instant.from(start)).total("minutes").toLocaleString(undefined, { maximumFractionDigits: 2 })} min`;
+}

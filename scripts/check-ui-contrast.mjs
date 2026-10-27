@@ -78,11 +78,17 @@ check(
   token("destructive"),
   mix(token("background"), token("destructive"), 0.2),
 );
-// The dock's 94% card material must stay readable even over black page content.
-const dockMaterial = mix(token("card"), "#000000", 0.06);
-check(token("muted-foreground"), dockMaterial);
-check(token("primary"), dockMaterial);
-check(token("ring"), dockMaterial, 3);
+// Opaque ocean navigation has its own foreground and selected surface.
+check(token("ocean-text"), token("ocean"));
+check(token("ocean"), token("aqua"));
+check(token("aqua"), token("ocean"), 3);
+for (const surface of ["trip-sea", "trip-sand", "trip-mist"]) {
+  check(token("foreground"), token(surface));
+  check(token("muted-foreground"), token(surface));
+}
+check("#625333", "#e5ddbf");
+check("#405a69", "#d9e3e9");
+check("#526258", "#e9ede8");
 const ongoing = css.match(
   /\.trip-status\[data-status="Ongoing"\]\s*\{\s*background:\s*(#[0-9a-f]{6});\s*color:\s*(#[0-9a-f]{6})/i,
 );
