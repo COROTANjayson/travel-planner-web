@@ -158,8 +158,8 @@ their existing layouts and behavior.
   activity form, then Save. Do not show checkboxes, completion counts, status
   labels, or strikethroughs. Preserve historical completion values in storage.
   Existing Sleeping activities retain their label and edit as a custom category.
-- Explain role capabilities beside role selection. Invitation creation requires
-  manually copying and sharing the one-time token; do not imply email delivery.
+- Explain role capabilities beside role selection. Invitations appear in the
+  recipient's account; do not imply email delivery.
 
 ## Components, forms, and accessibility
 
@@ -200,6 +200,18 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
 [non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html),
 [target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html),
 [reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html).
+
+## Invitations
+
+- Invitations navigation opens `/invitations`; the former acceptance route redirects
+  there. Use the existing bounded white surface, typography, and responsive shell.
+- Show only the verified account's pending invitations, with trip name, destination,
+  dates, inviter, role, and expiry. Accept opens that trip; Decline removes the
+  invitation and returns focus to the inbox heading. Keep loading, empty, retry,
+  safe mutation-error, and verification-required states. Disable actions while saving.
+- Owners enter email and role; show clear in-app delivery and seven-day expiry
+  instructions without tokens or copy controls. Owner history shows Declined and
+  allows reinviting through the same form. No email notifications are sent.
 
 ## Review and maintenance
 

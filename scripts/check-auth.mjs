@@ -266,14 +266,14 @@ async function checkSessionRecovery() {
     mobileHtml,
     /<a(?=[^>]*href="\/trips")(?=[^>]*aria-current="page")/,
   );
-  assert.match(mobileHtml, /href="\/invitations\/accept"/);
+  assert.match(mobileHtml, /href="\/invitations"/);
   assert.match(mobileHtml, />Trips<|>Trips<\//);
   assert.match(mobileHtml, />Invitations<|>Invitations<\//);
   assert.match(mobileHtml, />Account<\//);
   for (const [path, activeHref] of [
     ["/trips/new", "/trips"],
     ["/trips/7", "/trips"],
-    ["/invitations/accept", "/invitations/accept"],
+    ["/invitations", "/invitations"],
   ]) {
     pathname = path;
     const mobile = renderToStaticMarkup(
@@ -301,7 +301,7 @@ async function checkSessionRecovery() {
   assert.equal(context.exports.AuthPanel({ sidebar: true }), null);
   assert.equal(context.exports.AuthPanel({ mobile: true }), null);
   auth = { isAuthenticated: true };
-  pathname = "/invitations/accept";
+  pathname = "/invitations";
   const sidebarHtml = renderToStaticMarkup(
     context.exports.AuthPanel({ sidebar: true }),
   );
@@ -309,7 +309,7 @@ async function checkSessionRecovery() {
   assert.match(sidebarHtml, /Create a trip/);
   assert.match(
     sidebarHtml,
-    /<a(?=[^>]*href="\/invitations\/accept")(?=[^>]*aria-current="page")/,
+    /<a(?=[^>]*href="\/invitations")(?=[^>]*aria-current="page")/,
   );
   assert.match(sidebarHtml, /Your account/);
   console.log("Auth states and login/logout actions passed.");

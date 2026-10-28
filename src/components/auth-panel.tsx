@@ -168,7 +168,7 @@ export function AuthPanel({
           <span>Trips</span>
         </Link>
         <Link
-          href="/invitations/accept"
+          href="/invitations"
           aria-current={
             pathname.startsWith("/invitations") ? "page" : undefined
           }
@@ -231,7 +231,7 @@ export function AuthPanel({
             My trips
           </Link>
           <Link
-            href="/invitations/accept"
+            href="/invitations"
             aria-current={
               pathname.startsWith("/invitations") ? "page" : undefined
             }
@@ -288,7 +288,7 @@ export function AuthPanel({
         variant="ghost"
         className="min-h-11"
         aria-current={pathname.startsWith("/invitations") ? "page" : undefined}
-        render={<Link href="/invitations/accept" />}
+        render={<Link href="/invitations" />}
         nativeButton={false}
       >
         Invitations

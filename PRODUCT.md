@@ -42,8 +42,9 @@ itinerary, not saved user data.
 - Show schedule overlaps as advisory conflicts. Activities use the trip's IANA
   time zone; saved exact times remain UTC instants.
 
-The API owns authorization and durable scheduling rules. Invitation acceptance
-uses a pasted token and matching verified email; email delivery is future work.
+The API owns authorization and durable scheduling rules. Invitations appear in
+an inbox for the matching verified email, where recipients can accept or decline.
+They expire after seven days; email delivery is future work.
 Preserve entered values after recoverable errors and protect unsaved work.
 To-dos currently have no completion controls. See the [web README](README.md)
 for the authoritative implemented contracts and limitations.

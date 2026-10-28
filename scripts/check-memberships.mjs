@@ -73,6 +73,7 @@ const invitation = {
   expires_at: "2030-01-01T00:00:00Z",
   revoked_at: null,
   accepted_at: null,
+  declined_at: null,
 };
 assert.equal(
   membership.participantName({ ...owner, display_name: " " }),
@@ -83,6 +84,13 @@ assert.equal(
   "Traveler",
 );
 assert.equal(membership.invitationStatus(invitation, 0), "pending");
+assert.equal(
+  membership.invitationStatus(
+    { ...invitation, declined_at: "2029-01-01" },
+    Infinity,
+  ),
+  "declined",
+);
 assert.equal(
   membership.invitationStatus(invitation, Date.parse(invitation.expires_at)),
   "expired",
@@ -206,12 +214,13 @@ assert.deepEqual(
 );
 calls = [];
 response = other;
-await api.accept(" test-token ");
+await api.accept(3);
 assert.deepEqual(successToasts.splice(0), ["Invitation accepted."]);
-assert.equal(calls[0][0], "/api/v1/invitations/accept");
-assert.equal(calls[0][1].body, '{"token":"test-token"}');
-assert.equal(calls.length, 2);
-assert.equal(JSON.stringify(calls[1][1].queryKey), '["trips"]');
+assert.equal(calls[0][0], "/api/v1/invitations/3/accept");
+assert.equal(calls[0][1].body, undefined);
+assert.equal(calls.length, 3);
+assert.equal(JSON.stringify(calls[1][1].queryKey), '["invitations"]');
+assert.equal(JSON.stringify(calls[2][1].queryKey), '["trips"]');
 for (const condition of [
   "wrong email",
   "unverified",
@@ -219,13 +228,44 @@ for (const condition of [
   "revoked",
   "replaced",
   "already used",
+  "declined",
 ]) {
   failure = new ApiError(400, `${condition}: secret-token`);
   await assert.rejects(
-    api.accept(" secret-token "),
+    api.accept(3),
     (error) =>
       error.message === membership.acceptanceError &&
       !error.message.includes("secret-token"),
+  );
+}
+failure = undefined;
+calls = [];
+response = [invitation];
+await api.receivedInvitations();
+assert.equal(calls[0][0], "/api/v1/invitations");
+calls = [];
+response = undefined;
+await api.decline(3);
+assert.equal(calls[0][0], "/api/v1/invitations/3/decline");
+assert.equal(calls[0][1].method, "POST");
+assert.equal(JSON.stringify(calls[1][1].queryKey), '["invitations"]');
+assert.equal(
+  calls.length,
+  2,
+  "Decline refreshes invitations without joining a trip",
+);
+assert.deepEqual(successToasts.splice(0), ["Invitation declined."]);
+for (const action of [api.accept, api.decline]) {
+  failure = new ApiError(404, "private details");
+  calls = [];
+  await assert.rejects(
+    action(3),
+    (error) => error.message === membership.acceptanceError,
+  );
+  assert.equal(
+    JSON.stringify(calls[1][1].queryKey),
+    '["invitations"]',
+    "Stale actions refresh the inbox",
   );
 }
 for (const status of [403, 404, 409]) {
@@ -304,6 +344,146 @@ await assert.rejects(
   realApi.useApi()("/api/v1/trips/7"),
   (error) => error.message === "The requested resource was not found.",
 );
+const received = {
+  id: 3,
+  trip_id: 7,
+  trip_name: "Cebu together",
+  destination: "Cebu City",
+  start_date: "2026-11-07",
+  end_date: "2026-11-08",
+  role: "member",
+  inviter_name: "Alex",
+  expires_at: "2030-01-01T00:00:00Z",
+};
+let profile = {
+  isSuccess: true,
+  data: { email: "sam@example.com", email_verified: true },
+};
+let inboxResult = { data: [received] };
+let inboxOptions;
+let actionState = null;
+let focused = 0;
+let nextActionError;
+const navigation = [];
+const pageActions = [];
+const pageApi = {
+  pending: false,
+  error: null,
+  receivedInvitations: () => {},
+  accept: async (id) => {
+    pageActions.push(["accept", id]);
+    if (nextActionError) throw nextActionError;
+    return other;
+  },
+  decline: async (id) => {
+    pageActions.push(["decline", id]);
+    if (nextActionError) throw nextActionError;
+    inboxResult = { data: [] };
+  },
+};
+const inboxPage = load("src/app/invitations/page.tsx", {
+  react: {
+    ...React,
+    useRef: () => ({ current: { focus: () => focused++ } }),
+    useState: () => [
+      actionState,
+      (value) => {
+        actionState = value;
+      },
+    ],
+  },
+  "@/lib/api": apiModule,
+  "@/lib/memberships": { useMembershipsApi: () => pageApi },
+  "@/lib/trips": { formatTripDates: (start, end) => `${start} – ${end}` },
+  "next/navigation": {
+    useRouter: () => ({ replace: (path) => navigation.push(path) }),
+  },
+  "@tanstack/react-query": {
+    useQuery: (options) => {
+      if (options.queryKey[0] === "me") return profile;
+      inboxOptions = options;
+      return inboxResult;
+    },
+  },
+  "@/components/ui/button": {
+    Button: ({ children, ...props }) =>
+      React.createElement("button", props, children),
+  },
+  "@/components/trips/trip-states": {
+    TripError: ({ error }) =>
+      React.createElement("p", { role: "alert" }, error.message),
+  },
+}).default;
+function elements(node, type) {
+  if (!React.isValidElement(node)) return [];
+  return [
+    ...(node.type === type ||
+    (type === "button" && typeof node.props.onClick === "function")
+      ? [node]
+      : []),
+    ...React.Children.toArray(node.props.children).flatMap((child) =>
+      elements(child, type),
+    ),
+  ];
+}
+const pageHtml = () => renderToStaticMarkup(inboxPage());
+assert.match(pageHtml(), /Cebu together/);
+assert.match(pageHtml(), /Cebu City/);
+assert.match(pageHtml(), /Invited by Alex/);
+assert.match(pageHtml(), /Join as member/);
+assert.equal(inboxOptions.enabled, true);
+assert.doesNotMatch(pageHtml(), /token/i);
+await elements(inboxPage(), "button")[0].props.onClick();
+// Event handlers dispatch asynchronously; let their continuation complete.
+await new Promise(setImmediate);
+assert.deepEqual(pageActions.splice(0), [["accept", 3]]);
+assert.deepEqual(navigation.splice(0), ["/trips/7"]);
+actionState = null;
+await elements(inboxPage(), "button")[1].props.onClick();
+await new Promise(setImmediate);
+assert.deepEqual(pageActions.splice(0), [["decline", 3]]);
+assert.equal(navigation.length, 0);
+assert.equal(focused, 1);
+assert.match(pageHtml(), /No pending invitations/);
+inboxResult = { data: [received] };
+nextActionError = new Error("Try again");
+await elements(inboxPage(), "button")[0].props.onClick();
+await new Promise(setImmediate);
+assert.equal(navigation.length, 0, "Failed acceptance does not navigate");
+assert.equal(actionState, null, "Failed actions can be retried");
+pageApi.pending = true;
+assert.ok(
+  elements(inboxPage(), "button").every((button) => button.props.disabled),
+);
+await elements(inboxPage(), "button")[0].props.onClick();
+assert.equal(pageActions.length, 1, "Pending actions cannot submit again");
+pageApi.pending = false;
+profile = {
+  isSuccess: true,
+  data: { email: "sam@example.com", email_verified: false },
+};
+assert.match(pageHtml(), /Verify sam@example.com/);
+assert.equal(inboxOptions.enabled, false);
+assert.doesNotMatch(pageHtml(), /Cebu together|Auth0/);
+profile = { isSuccess: true, data: { email: null, email_verified: true } };
+assert.match(pageHtml(), /Your account has no email address/);
+profile = { isPending: true };
+assert.match(pageHtml(), /Checking your email/);
+profile = { isError: true, error: new Error("Profile unavailable") };
+assert.match(pageHtml(), /Profile unavailable/);
+profile = {
+  isSuccess: true,
+  data: { email: "sam@example.com", email_verified: true },
+};
+inboxResult = { isPending: true };
+assert.match(pageHtml(), /Loading invitations/);
+inboxResult = { isError: true, error: new Error("Inbox unavailable") };
+assert.match(pageHtml(), /Inbox unavailable/);
+const nextConfig = load("next.config.ts", {}, { process: { env: {} } }).default;
+const redirects = await nextConfig.redirects();
+assert.equal(redirects[0].source, "/invitations/accept");
+assert.equal(redirects[0].destination, "/invitations");
+assert.equal(redirects[0].permanent, false);
 console.log(
   "Membership permissions, participant controls, statuses, requests, cache updates, and safe acceptance errors passed.",
 );

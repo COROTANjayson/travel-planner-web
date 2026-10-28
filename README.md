@@ -66,15 +66,21 @@ names the recipient and explains that the current owner becomes an editor.
 Successful transfer refreshes participant, trip, and trip-list data; leaving
 clears the affected trip cache and returns to the list.
 
-Invitation tokens are shown once in component state for copying, never query
-cache, browser storage, URLs, logs, analytics, or error reports. Acceptance uses
-a pasted token in the JSON body and needs the matching verified email. Preserve
-failed input privately, show the same safe invalid-invitation message for all
-400 acceptance failures, clear the token on success, and refresh the trip list.
-Do not infer a trip ID from the returned participant. Email delivery is future
-work. Invitation creation/revocation refreshes its history, which never returns
-raw tokens. Keep the existing mutation hooks and query keys as the implementation
-reference rather than adding another fetch client or state store.
+Invitations appear at `/invitations` for the signed-in user's matching verified
+email; the old `/invitations/accept` page redirects there. The inbox shows pending,
+unexpired invitations, including those created before signup, with a limited
+trip summary. Accept by invitation ID, refresh invitations and trips, then open
+the trip ID from the inbox summary. Decline by ID, refresh the inbox, and remain
+there. Unavailable invitations use the same safe message and refresh the list.
+Block duplicate submissions and retain retry controls for recoverable failures.
+
+Owners invite by email and role without copying tokens. Creation/revocation
+refreshes owner history, which includes Declined; owners can invite again after
+a decline. Invitations expire after seven days. No email notification is sent.
+Verification changes require signing out and back in to refresh access-token
+claims. Never expose cached invitation summaries before verification succeeds.
+The API retains token acceptance for existing clients, but the web UI never
+shows or stores raw tokens. Keep the existing mutation hooks and query keys.
 
 Read the [UI/UX guide](docs/ui-ux.md) for component conventions, approved design decisions,
 and UI review. Reuse primitives before adding one; the shadcn configuration is

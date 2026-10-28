@@ -6,6 +6,15 @@ const apiBaseUrl = (
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  async redirects() {
+    return [
+      {
+        source: "/invitations/accept",
+        destination: "/invitations",
+        permanent: false,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

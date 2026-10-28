@@ -22,14 +22,23 @@ export interface Invitation {
   expires_at: string;
   accepted_at: string | null;
   revoked_at: string | null;
+  declined_at: string | null;
   created_at: string;
   updated_at: string;
 }
-export interface CreatedInvitation extends Invitation {
-  token: string;
+export interface ReceivedInvitation {
+  id: number;
+  trip_id: number;
+  trip_name: string;
+  destination: string;
+  start_date: string;
+  end_date: string;
+  role: AssignableRole;
+  inviter_name: string;
+  expires_at: string;
 }
 export const acceptanceError =
-  "This invitation is invalid, expired, revoked, or does not match your verified email.";
+  "This invitation is no longer available. Refresh your invitations and try again.";
 export const participantName = (person: Participant) =>
   person.display_name.trim() || person.email || "Traveler";
 export function invitationStatus(invitation: Invitation, now = Date.now()) {
@@ -37,9 +46,11 @@ export function invitationStatus(invitation: Invitation, now = Date.now()) {
     ? "revoked"
     : invitation.accepted_at
       ? "accepted"
-      : Date.parse(invitation.expires_at) <= now
-        ? "expired"
-        : "pending";
+      : invitation.declined_at
+        ? "declined"
+        : Date.parse(invitation.expires_at) <= now
+          ? "expired"
+          : "pending";
 }
 export function permissions(role?: TripRole) {
   return {
@@ -71,7 +82,7 @@ export function useMembershipsApi(
     path: string,
     method: string,
     body: object | undefined,
-    kind: "members" | "invitations" | "leave" | "accept",
+    kind: "members" | "invitations" | "leave" | "accept" | "decline",
     successMessage?: string,
   ): Promise<T | undefined> {
     if (busy.current) return;
@@ -96,7 +107,12 @@ export function useMembershipsApi(
         kind === "invitations"
           ? [client.invalidateQueries({ queryKey: invitationsKey })]
           : [
-              client.invalidateQueries({ queryKey: ["trips"] }),
+              ...(kind === "accept" || kind === "decline"
+                ? [client.invalidateQueries({ queryKey: ["invitations"] })]
+                : []),
+              ...(kind !== "decline"
+                ? [client.invalidateQueries({ queryKey: ["trips"] })]
+                : []),
               ...(kind === "members"
                 ? [
                     client.invalidateQueries({ queryKey: membersKey }),
@@ -112,18 +128,25 @@ export function useMembershipsApi(
       return result;
     } catch (cause) {
       const failure =
-        kind === "accept"
+        kind === "accept" || kind === "decline"
           ? new ApiError(
               cause instanceof ApiError ? cause.status : 500,
-              cause instanceof ApiError && cause.status === 400
+              cause instanceof ApiError && [400, 404].includes(cause.status)
                 ? acceptanceError
-                : "Unable to accept this invitation. Please try again.",
+                : `Unable to ${kind === "accept" ? "accept" : "decline"} this invitation. Please try again.`,
             )
           : cause instanceof ApiError
             ? cause
             : new Error("Something went wrong. Please try again.");
       setError(failure);
       await onFailure?.(failure);
+      if (
+        (kind === "accept" || kind === "decline") &&
+        failure instanceof ApiError &&
+        [400, 403, 404, 409].includes(failure.status)
+      ) {
+        await client.invalidateQueries({ queryKey: ["invitations"] });
+      }
       if (
         failure instanceof ApiError &&
         [403, 404, 409].includes(failure.status) &&
@@ -139,7 +162,6 @@ export function useMembershipsApi(
       setPending(false);
     }
   }
-  // Tokens travel directly to component state, never through the Query mutation cache.
   return {
     pending,
     error,
@@ -149,7 +171,7 @@ export function useMembershipsApi(
     invitations: (signal?: AbortSignal) =>
       read<Invitation[]>(`${base}/invitations`, signal),
     create: (email: string, role: AssignableRole) =>
-      mutate<CreatedInvitation>(
+      mutate<Invitation>(
         `${base}/invitations`,
         "POST",
         { email: email.trim(), role },
@@ -186,11 +208,21 @@ export function useMembershipsApi(
         "members",
         "Ownership transferred.",
       ),
-    accept: (token: string) =>
-      mutate<Participant>(
-        "/api/v1/invitations/accept",
+    receivedInvitations: (signal?: AbortSignal) =>
+      read<ReceivedInvitation[]>("/api/v1/invitations", signal),
+    decline: (id: number) =>
+      mutate<void>(
+        `/api/v1/invitations/${id}/decline`,
         "POST",
-        { token: token.trim() },
+        undefined,
+        "decline",
+        "Invitation declined.",
+      ),
+    accept: (id: number) =>
+      mutate<Participant>(
+        `/api/v1/invitations/${id}/accept`,
+        "POST",
+        undefined,
         "accept",
         "Invitation accepted.",
       ),

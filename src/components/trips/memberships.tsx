@@ -273,8 +273,6 @@ export function Invitations({
   });
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<AssignableRole>("member");
-  const [token, setToken] = useState("");
-  const [copyStatus, setCopyStatus] = useState("");
   const [revoke, setRevoke] = useState<{ id: number; email: string } | null>(
     null,
   );
@@ -293,12 +291,9 @@ export function Invitations({
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (api.pending) return;
-    setToken("");
-    setCopyStatus("");
     try {
       const invitation = await api.create(email, role);
       if (invitation) {
-        setToken(invitation.token);
         setEmail("");
       }
     } catch {
@@ -309,8 +304,9 @@ export function Invitations({
     <section className="space-y-6 border-t pt-6" aria-label="Invitations">
       <h3 className="font-semibold">Invite someone</h3>
       <p className="text-sm leading-6 text-muted-foreground">
-        Create an invitation, then copy and share the token yourself.
-        Invitations are not emailed automatically.
+        Invite them using the email address they sign in with. The invitation
+        will appear in their Invitations after they verify that email. It
+        expires after seven days. No email is sent.
       </p>
       <form onSubmit={(event) => void create(event)} className="space-y-4">
         <div className="space-y-2">
@@ -343,55 +339,6 @@ export function Invitations({
           {api.pending ? "Saving…" : "Create invitation"}
         </Button>
       </form>
-      {token && (
-        <div className="space-y-3 rounded-xl border bg-secondary/40 p-4">
-          <Label htmlFor="created-token">Invitation token</Label>
-          <Input
-            className="min-h-11 font-mono"
-            id="created-token"
-            readOnly
-            value={token}
-            autoComplete="off"
-          />
-          <p className="text-sm text-muted-foreground">
-            Copy this token now and share it with the invited person. It cannot
-            be retrieved again.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button
-              className="min-h-11"
-              variant="outline"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(token);
-                  setCopyStatus("Token copied.");
-                } catch {
-                  setCopyStatus(
-                    "Could not copy. Select the token and copy it manually.",
-                  );
-                }
-              }}
-            >
-              Copy token
-            </Button>
-            <Button
-              className="min-h-11"
-              variant="outline"
-              onClick={() => {
-                setToken("");
-                setCopyStatus("");
-              }}
-            >
-              Dismiss
-            </Button>
-          </div>
-          {copyStatus && (
-            <p role="status" className="text-sm">
-              {copyStatus}
-            </p>
-          )}
-        </div>
-      )}
       {api.error && (
         <TripError
           error={
@@ -420,7 +367,10 @@ export function Invitations({
             >
               <p className="break-words font-medium">{invitation.email}</p>
               <p className="text-sm text-muted-foreground">
-                {invitation.role} · {invitationStatus(invitation)}
+                {invitation.role} ·{" "}
+                <span className="capitalize">
+                  {invitationStatus(invitation)}
+                </span>
               </p>
               <p className="text-sm text-muted-foreground">
                 Expires{" "}
@@ -455,7 +405,6 @@ export function Invitations({
             if (api.pending) return;
             try {
               await api.revoke(revoke.id);
-              setToken("");
             } catch {
               /* Safe error is shown above. */
             }
