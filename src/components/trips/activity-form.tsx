@@ -31,6 +31,9 @@ import {
 import { TripError } from "./trip-states";
 import { DateTimeField } from "./date-time-field";
 
+import type { CostChange, ExpensePerson } from "@/lib/expenses";
+import { ActivityExpenseDrafts } from "./activity-expense-drafts";
+
 const durations = { "30": 30, "60": 60, "120": 120 } as const;
 type Duration = keyof typeof durations | "custom";
 
@@ -45,6 +48,9 @@ function formatEndTime(instant: string, zone: string, startDate: string) {
 
 export function ActivityForm({
   titleRef,
+  expensePeople = [],
+  expenseUserID,
+  showMoreDetails,
   initialValue,
   initialDate,
   initialStartsAt,
@@ -61,6 +67,9 @@ export function ActivityForm({
   pending,
   error,
 }: {
+  expensePeople?: ExpensePerson[];
+  expenseUserID?: number;
+  showMoreDetails?: boolean;
   initialValue?: ActivityInput & { id?: number };
   initialPlace?: Place | null;
   tripZone: string;
@@ -72,13 +81,19 @@ export function ActivityForm({
   tripEnd: string;
   tripStartsAt: string | null;
   tripEndsAt: string | null;
-  onSubmit: (input: ActivityInput) => void;
+  onSubmit: (input: ActivityInput, requestKey?: string) => void;
   onCancel: () => void;
   onDirty?: () => void;
   pending: boolean;
   error: unknown;
 }) {
   const prefix = useId();
+  const [expenseChanges, setExpenseChanges] = useState<CostChange[]>([]);
+  // A failed response may already have committed, so edits must keep the submission key.
+  const requestKey = useRef("");
+  function markDirty() {
+    onDirty?.();
+  }
   const api = useApi();
   const [title, setTitle] = useState(initialValue?.title ?? "");
   const [notes, setNotes] = useState(initialValue?.notes ?? "");
@@ -199,6 +214,14 @@ export function ActivityForm({
         throw new Error("Give every to-do item a short description.");
       const input: ActivityInput = {
         title,
+        ...(expenseChanges.length
+          ? {
+              expense_changes: expenseChanges.map((c) => ({
+                ...c,
+                id: c.id && c.id > 0 ? c.id : undefined,
+              })),
+            }
+          : {}),
         notes,
         time_zone: tripZone,
         place_id: place?.id ?? null,
@@ -225,7 +248,8 @@ export function ActivityForm({
       )
         throw new Error("Activity dates must fit within the trip dates.");
       setValidationError(undefined);
-      onSubmit(input);
+      if (!requestKey.current) requestKey.current = crypto.randomUUID();
+      onSubmit(input, requestKey.current);
     } catch (cause) {
       setValidationError(
         cause instanceof Error ? cause.message : "Check the activity times.",
@@ -277,7 +301,7 @@ export function ActivityForm({
         throw new ApiError(500, "Unable to save the place. Please try again.");
       setPlace(selected);
       setResults(null);
-      onDirty?.();
+      markDirty();
     } catch (cause) {
       setPlaceError(cause);
     } finally {
@@ -288,19 +312,31 @@ export function ActivityForm({
   return (
     <form
       onSubmit={submit}
-      onChangeCapture={onDirty}
-      onInvalidCapture={(event) =>
-        event.target instanceof HTMLElement &&
-        event.target.closest("details")?.setAttribute("open", "")
-      }
-      className="activity-form space-y-5"
+      onChangeCapture={(event) => {
+        if (
+          event.target instanceof HTMLElement &&
+          !event.currentTarget.contains(event.target)
+        )
+          return;
+        markDirty();
+      }}
+      onInvalidCapture={(event) => {
+        if (!(event.target instanceof HTMLElement)) return;
+        let section = event.target.closest("details");
+        while (section) {
+          section.removeAttribute?.("hidden");
+          section.setAttribute("open", "");
+          section = section.parentElement?.closest("details") ?? null;
+        }
+      }}
+      className="activity-form activity-planning-form"
     >
       <fieldset
         disabled={pending || placePending}
         className="min-w-0 space-y-5"
       >
         <div className="space-y-2">
-          <Label htmlFor={`${prefix}-title`}>What are you doing?</Label>
+          <Label htmlFor={`${prefix}-title`}>Activity name</Label>
           <Input
             ref={titleRef}
             placeholder="e.g. Dinner at the waterfront"
@@ -311,150 +347,114 @@ export function ActivityForm({
             onChange={(event) => setTitle(event.target.value)}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor={`${prefix}-category`}>Category</Label>
-          <Select
-            value={categoryChoice}
-            onValueChange={(value) => {
-              if (value !== null) {
-                setCategoryChoice(value);
-                onDirty?.();
-              }
-            }}
-          >
-            <SelectTrigger
-              id={`${prefix}-category`}
-              className="min-h-11 w-full"
-            >
-              <SelectValue>
-                {categoryChoice === "custom" ? "Custom" : categoryChoice}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {activityCategories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
-              <SelectItem value="custom">Custom</SelectItem>
-            </SelectContent>
-          </Select>
-          {categoryChoice === "custom" && (
-            <div className="space-y-2">
-              <Label htmlFor={`${prefix}-custom-category`}>
-                Custom category
-              </Label>
-              <Input
-                id={`${prefix}-custom-category`}
-                required
-                value={customCategory}
-                placeholder="e.g. Shopping"
-                onChange={(event) => setCustomCategory(event.target.value)}
-              />
-              <p className="text-sm text-muted-foreground">
-                This label belongs to this activity.
-              </p>
-            </div>
-          )}
-        </div>
-        <div className="form-section space-y-5">
-          <DateTimeField
-            id={`${prefix}-start`}
-            label="Start"
-            zone={tripZone}
-            draft={startTime}
-            split
-            hideDate={!!initialDate && !initialValue}
-            minDate={tripStart}
-            maxDate={tripEnd}
-            disabled={pending}
-            onChange={(next) => {
-              setStartTime(next);
-              setTimeChanged(true);
-              setValidationError(undefined);
-              onDirty?.();
-            }}
-          />
-          <div className="space-y-2">
-            <Label htmlFor={`${prefix}-duration`}>Duration</Label>
-            <Select
-              value={duration}
-              onValueChange={(value) => {
-                if (
-                  value === "30" ||
-                  value === "60" ||
-                  value === "120" ||
-                  value === "custom"
-                ) {
-                  setDuration(value);
-                  setTimeChanged(true);
-                  setValidationError(undefined);
-                  onDirty?.();
-                }
+        <details className="activity-when-editor">
+          <summary>
+            <span className="activity-when-label">When</span>
+            <span className="activity-when-value">
+              {interval
+                ? `${new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric", timeZone: tripZone }).format(new Date(interval.start))} · ${new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: tripZone }).format(new Date(interval.start))} – ${formatEndTime(interval.end, tripZone, startTime.value.slice(0, 10))}`
+                : "Choose a date and time"}
+            </span>
+          </summary>
+          <div className="form-section space-y-5">
+            <DateTimeField
+              id={`${prefix}-start`}
+              label="Start"
+              zone={tripZone}
+              draft={startTime}
+              split
+              hideDate={!!initialDate && !initialValue}
+              minDate={tripStart}
+              maxDate={tripEnd}
+              disabled={pending}
+              onChange={(next) => {
+                setStartTime(next);
+                setTimeChanged(true);
+                setValidationError(undefined);
+                markDirty();
               }}
-            >
-              <SelectTrigger
-                id={`${prefix}-duration`}
-                className="min-h-11 w-full"
-              >
-                <SelectValue>
-                  {duration === "30"
-                    ? "30 minutes"
-                    : duration === "60"
-                      ? "1 hour"
-                      : duration === "120"
-                        ? "2 hours"
-                        : "Custom duration"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="30">30 minutes</SelectItem>
-                <SelectItem value="60">1 hour</SelectItem>
-                <SelectItem value="120">2 hours</SelectItem>
-                <SelectItem value="custom">Custom duration</SelectItem>
-              </SelectContent>
-            </Select>
-            {duration === "custom" && (
-              <div className="space-y-2">
-                <Label htmlFor={`${prefix}-custom-hours`}>
-                  Duration (hours)
-                </Label>
-                <Input
-                  id={`${prefix}-custom-hours`}
-                  type="number"
-                  min="0"
-                  step="any"
-                  inputMode="decimal"
-                  required
-                  aria-describedby={`${prefix}-custom-hours-help`}
-                  value={customHours}
-                  placeholder="e.g. 1.5"
-                  onChange={(event) => {
-                    setCustomHours(event.target.value);
+            />
+            <div className="space-y-2">
+              <Label htmlFor={`${prefix}-duration`}>Duration</Label>
+              <Select
+                value={duration}
+                onValueChange={(value) => {
+                  if (
+                    value === "30" ||
+                    value === "60" ||
+                    value === "120" ||
+                    value === "custom"
+                  ) {
+                    setDuration(value);
                     setTimeChanged(true);
                     setValidationError(undefined);
-                  }}
-                />
-                <p
-                  id={`${prefix}-custom-hours-help`}
-                  className="text-sm text-muted-foreground"
+                    markDirty();
+                  }
+                }}
+              >
+                <SelectTrigger
+                  id={`${prefix}-duration`}
+                  className="min-h-11 w-full"
                 >
-                  Enter the number of hours, e.g. 1.5 for 1 hour 30 minutes.
+                  <SelectValue>
+                    {duration === "30"
+                      ? "30 minutes"
+                      : duration === "60"
+                        ? "1 hour"
+                        : duration === "120"
+                          ? "2 hours"
+                          : "Custom duration"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 minutes</SelectItem>
+                  <SelectItem value="60">1 hour</SelectItem>
+                  <SelectItem value="120">2 hours</SelectItem>
+                  <SelectItem value="custom">Custom duration</SelectItem>
+                </SelectContent>
+              </Select>
+              {duration === "custom" && (
+                <div className="space-y-2">
+                  <Label htmlFor={`${prefix}-custom-hours`}>
+                    Duration (hours)
+                  </Label>
+                  <Input
+                    id={`${prefix}-custom-hours`}
+                    type="number"
+                    min="0"
+                    step="any"
+                    inputMode="decimal"
+                    required
+                    aria-describedby={`${prefix}-custom-hours-help`}
+                    value={customHours}
+                    placeholder="e.g. 1.5"
+                    onChange={(event) => {
+                      setCustomHours(event.target.value);
+                      setTimeChanged(true);
+                      setValidationError(undefined);
+                    }}
+                  />
+                  <p
+                    id={`${prefix}-custom-hours-help`}
+                    className="text-sm text-muted-foreground"
+                  >
+                    Enter the number of hours, e.g. 1.5 for 1 hour 30 minutes.
+                  </p>
+                </div>
+              )}
+              {interval && (
+                <p className="text-sm text-muted-foreground">
+                  Ends{" "}
+                  {formatEndTime(
+                    interval.end,
+                    tripZone,
+                    startTime.value.slice(0, 10),
+                  )}
                 </p>
-              </div>
-            )}
-            {interval && (
-              <p className="text-sm text-muted-foreground">
-                Ends{" "}
-                {formatEndTime(
-                  interval.end,
-                  tripZone,
-                  startTime.value.slice(0, 10),
-                )}
-              </p>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        </details>
         {interval &&
           (overlaps.isPending ? (
             <p role="status" className="text-sm">
@@ -473,219 +473,290 @@ export function ActivityForm({
               </AlertDescription>
             </Alert>
           ) : null)}
-        <details className="optional-section" open={!!initialPlace}>
-          <summary>
-            <span className="min-w-0">
-              Place{" "}
-              <span className="optional-hint">
-                {place ? place.name : "Add a stop on the map"}
-              </span>
-            </span>
-            <Plus aria-hidden="true" className="optional-expand" />
-            <Minus aria-hidden="true" className="optional-collapse" />
-          </summary>
-          <div className="space-y-3 pt-4">
-            <Label htmlFor={`${prefix}-place-search`}>
-              Search for a place (optional)
-            </Label>
-            {place && (
-              <div className="rounded-xl border bg-secondary/40 p-4 text-sm">
-                <p className="font-medium">{place.name}</p>
-                <p className="break-words text-muted-foreground">
-                  {place.address}
+        <section className="activity-plan-expenses">
+          <h3>Expenses (optional)</h3>
+          <ActivityExpenseDrafts
+            tripID={tripID}
+            activityID={initialValue?.id}
+            title={title}
+            zone={tripZone}
+            people={expensePeople}
+            userID={expenseUserID}
+            changes={expenseChanges}
+            pending={pending}
+            onChange={(changes) => {
+              setExpenseChanges(changes);
+              markDirty();
+            }}
+          />
+        </section>
+        <details
+          className="activity-more-details"
+          open={!!showMoreDetails && !!initialValue}
+        >
+          <summary>More activity details</summary>
+          <div className="space-y-2">
+            <Label htmlFor={`${prefix}-category`}>Category</Label>
+            <Select
+              value={categoryChoice}
+              onValueChange={(value) => {
+                if (value !== null) {
+                  setCategoryChoice(value);
+                  markDirty();
+                }
+              }}
+            >
+              <SelectTrigger
+                id={`${prefix}-category`}
+                className="min-h-11 w-full"
+              >
+                <SelectValue>
+                  {categoryChoice === "custom" ? "Custom" : categoryChoice}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {activityCategories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+                <SelectItem value="custom">Custom</SelectItem>
+              </SelectContent>
+            </Select>
+            {categoryChoice === "custom" && (
+              <div className="space-y-2">
+                <Label htmlFor={`${prefix}-custom-category`}>
+                  Custom category
+                </Label>
+                <Input
+                  id={`${prefix}-custom-category`}
+                  required
+                  value={customCategory}
+                  placeholder="e.g. Shopping"
+                  onChange={(event) => setCustomCategory(event.target.value)}
+                />
+                <p className="text-sm text-muted-foreground">
+                  This label belongs to this activity.
                 </p>
+              </div>
+            )}
+          </div>
+          <details className="optional-section" open={false}>
+            <summary>
+              <span className="min-w-0">
+                Place{" "}
+                <span className="optional-hint">
+                  {place ? place.name : "Add a stop on the map"}
+                </span>
+              </span>
+              <Plus aria-hidden="true" className="optional-expand" />
+              <Minus aria-hidden="true" className="optional-collapse" />
+            </summary>
+            <div className="space-y-3 pt-4">
+              <Label htmlFor={`${prefix}-place-search`}>
+                Search for a place (optional)
+              </Label>
+              {place && (
+                <div className="rounded-xl border bg-secondary/40 p-4 text-sm">
+                  <p className="font-medium">{place.name}</p>
+                  <p className="break-words text-muted-foreground">
+                    {place.address}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-2 min-h-11"
+                    onClick={() => {
+                      setPlace(null);
+                      markDirty();
+                    }}
+                  >
+                    Clear place
+                  </Button>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  id={`${prefix}-place-search`}
+                  className="min-h-11 min-w-0 flex-1"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault();
+                      void search();
+                    }
+                  }}
+                  placeholder="Search for a place"
+                  enterKeyHint="search"
+                />
                 <Button
                   type="button"
                   variant="outline"
-                  className="mt-2 min-h-11"
-                  onClick={() => {
-                    setPlace(null);
-                    onDirty?.();
-                  }}
+                  className="min-h-11"
+                  onClick={() => void search()}
                 >
-                  Clear place
+                  {placePending ? "Loading…" : "Search"}
                 </Button>
               </div>
-            )}
-            <div className="flex flex-wrap gap-2">
-              <Input
-                id={`${prefix}-place-search`}
-                className="min-h-11 min-w-0 flex-1"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.nativeEvent.isComposing) {
-                    event.preventDefault();
-                    void search();
-                  }
-                }}
-                placeholder="Search for a place"
-                enterKeyHint="search"
-              />
+              {results && (
+                <div aria-live="polite">
+                  {results.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No places found.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {results.map((candidate) => (
+                        <li key={candidate.provider_place_id}>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-auto min-h-11 w-full justify-start whitespace-normal text-left"
+                            onClick={() => void choose(candidate)}
+                          >
+                            <span>
+                              <strong>{candidate.name}</strong>
+                              <br />
+                              <span className="text-muted-foreground">
+                                {candidate.address}
+                              </span>
+                            </span>
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {!!placeError && <TripError error={placeError} />}
+              <p className="text-xs text-muted-foreground">
+                Searches run only when you press Search. Place data ©{" "}
+                <a
+                  className="underline"
+                  href="https://www.openstreetmap.org/copyright"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  OpenStreetMap contributors
+                </a>
+                .
+              </p>
+            </div>
+          </details>
+          <details className="optional-section" open={false}>
+            <summary id={`${prefix}-checklist-label`}>
+              <span className="min-w-0">
+                To do (optional){" "}
+                <span className="optional-hint">
+                  {checklist.length
+                    ? `${checklist.length} ${checklist.length === 1 ? "item" : "items"}`
+                    : "Tickets, reservations, little reminders"}
+                </span>
+              </span>
+              <Plus aria-hidden="true" className="optional-expand" />
+              <Minus aria-hidden="true" className="optional-collapse" />
+            </summary>
+            <div
+              className="space-y-3 pt-4"
+              role="group"
+              aria-labelledby={`${prefix}-checklist-label`}
+            >
+              <p className="text-sm text-muted-foreground">
+                A simple list of things to do during this activity.
+              </p>
+              <ol className="space-y-3">
+                {checklist.map((item, index) => (
+                  <li
+                    key={item.key}
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    <Input
+                      className="min-h-11 min-w-0 flex-1 basis-32"
+                      aria-label={`To-do item ${index + 1}`}
+                      required
+                      value={item.text}
+                      placeholder="e.g. Buy tickets"
+                      onChange={(event) =>
+                        setChecklist(
+                          checklist.map((current) =>
+                            current.key === item.key
+                              ? { ...current, text: event.target.value }
+                              : current,
+                          ),
+                        )
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="min-h-11"
+                      aria-label={`Remove to-do item ${index + 1}`}
+                      onClick={() => {
+                        setChecklist(
+                          checklist.filter(
+                            (current) => current.key !== item.key,
+                          ),
+                        );
+                        markDirty();
+                        requestAnimationFrame(() =>
+                          checklistAddButton.current?.focus(),
+                        );
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </li>
+                ))}
+              </ol>
               <Button
+                ref={checklistAddButton}
                 type="button"
                 variant="outline"
                 className="min-h-11"
-                onClick={() => void search()}
+                disabled={checklist.length >= 50}
+                onClick={() => {
+                  setChecklist([
+                    ...checklist,
+                    { key: checklistKey.current++, text: "", done: false },
+                  ]);
+                  markDirty();
+                }}
               >
-                {placePending ? "Loading…" : "Search"}
+                Add to-do item
               </Button>
+              <p className="text-xs text-muted-foreground">
+                {checklist.length}/50 items
+              </p>
             </div>
-            {results && (
-              <div aria-live="polite">
-                {results.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No places found.
-                  </p>
-                ) : (
-                  <ul className="space-y-2">
-                    {results.map((candidate) => (
-                      <li key={candidate.provider_place_id}>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-auto min-h-11 w-full justify-start whitespace-normal text-left"
-                          onClick={() => void choose(candidate)}
-                        >
-                          <span>
-                            <strong>{candidate.name}</strong>
-                            <br />
-                            <span className="text-muted-foreground">
-                              {candidate.address}
-                            </span>
-                          </span>
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+          </details>
+          <details className="optional-section" open={false}>
+            <summary>
+              <span className="min-w-0">
+                Notes{" "}
+                <span className="optional-hint">
+                  Anything else worth remembering
+                </span>
+              </span>
+              <Plus aria-hidden="true" className="optional-expand" />
+              <Minus aria-hidden="true" className="optional-collapse" />
+            </summary>
+            <div className="pt-4 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor={`${prefix}-notes`}>Activity notes</Label>
+                <textarea
+                  id={`${prefix}-notes`}
+                  rows={3}
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  className="w-full min-w-0 rounded-lg border border-input bg-card px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
+                />
               </div>
-            )}
-            {!!placeError && <TripError error={placeError} />}
-            <p className="text-xs text-muted-foreground">
-              Searches run only when you press Search. Place data ©{" "}
-              <a
-                className="underline"
-                href="https://www.openstreetmap.org/copyright"
-                target="_blank"
-                rel="noreferrer"
-              >
-                OpenStreetMap contributors
-              </a>
-              .
-            </p>
-          </div>
-        </details>
-        <details
-          className="optional-section"
-          open={!!initialValue?.checklist?.length}
-        >
-          <summary id={`${prefix}-checklist-label`}>
-            <span className="min-w-0">
-              To do (optional){" "}
-              <span className="optional-hint">
-                {checklist.length
-                  ? `${checklist.length} ${checklist.length === 1 ? "item" : "items"}`
-                  : "Tickets, reservations, little reminders"}
-              </span>
-            </span>
-            <Plus aria-hidden="true" className="optional-expand" />
-            <Minus aria-hidden="true" className="optional-collapse" />
-          </summary>
-          <div
-            className="space-y-3 pt-4"
-            role="group"
-            aria-labelledby={`${prefix}-checklist-label`}
-          >
-            <p className="text-sm text-muted-foreground">
-              A simple list of things to do during this activity.
-            </p>
-            <ol className="space-y-3">
-              {checklist.map((item, index) => (
-                <li
-                  key={item.key}
-                  className="flex flex-wrap items-center gap-2"
-                >
-                  <Input
-                    className="min-h-11 min-w-0 flex-1 basis-32"
-                    aria-label={`To-do item ${index + 1}`}
-                    required
-                    value={item.text}
-                    placeholder="e.g. Buy tickets"
-                    onChange={(event) =>
-                      setChecklist(
-                        checklist.map((current) =>
-                          current.key === item.key
-                            ? { ...current, text: event.target.value }
-                            : current,
-                        ),
-                      )
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="min-h-11"
-                    aria-label={`Remove to-do item ${index + 1}`}
-                    onClick={() => {
-                      setChecklist(
-                        checklist.filter((current) => current.key !== item.key),
-                      );
-                      onDirty?.();
-                      requestAnimationFrame(() =>
-                        checklistAddButton.current?.focus(),
-                      );
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </li>
-              ))}
-            </ol>
-            <Button
-              ref={checklistAddButton}
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              disabled={checklist.length >= 50}
-              onClick={() => {
-                setChecklist([
-                  ...checklist,
-                  { key: checklistKey.current++, text: "", done: false },
-                ]);
-                onDirty?.();
-              }}
-            >
-              Add to-do item
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              {checklist.length}/50 items
-            </p>
-          </div>
-        </details>
-        <details className="optional-section" open={!!initialValue?.notes}>
-          <summary>
-            <span className="min-w-0">
-              Notes{" "}
-              <span className="optional-hint">
-                Anything else worth remembering
-              </span>
-            </span>
-            <Plus aria-hidden="true" className="optional-expand" />
-            <Minus aria-hidden="true" className="optional-collapse" />
-          </summary>
-          <div className="pt-4 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor={`${prefix}-notes`}>Activity notes</Label>
-              <textarea
-                id={`${prefix}-notes`}
-                rows={3}
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                className="w-full min-w-0 rounded-lg border border-input bg-card px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
-              />
             </div>
-          </div>
+          </details>
         </details>
       </fieldset>
       {validationError && (
@@ -700,12 +771,12 @@ export function ActivityForm({
           className="min-h-11"
           disabled={pending || placePending}
         >
-          {pending ? "Saving…" : initialValue ? "Save changes" : "Add activity"}
+          {pending ? "Saving…" : "Save activity"}
         </Button>
         <Button
           type="button"
           variant="outline"
-          className="min-h-11"
+          className="sr-only focus:not-sr-only"
           disabled={pending}
           onClick={onCancel}
         >

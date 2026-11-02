@@ -939,6 +939,136 @@ summary {
 .dialog-backdrop[data-ending-style] {
   opacity: 0;
 }
+.expense-flow-dialog.activity-details-dialog
+  [data-slot="trip-dialog-header"]
+  h2 {
+  margin: 0;
+  max-width: none;
+}
+.expense-flow-dialog .activity-detail-navigation {
+  padding: 0.5rem 1.5rem;
+}
+.figma-expense-form {
+  padding-top: 0.5rem;
+}
+.figma-price-choice {
+  display: flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--secondary);
+}
+.figma-price-choice label {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.figma-price-choice input {
+  position: absolute;
+  opacity: 0;
+}
+.figma-price-choice span {
+  display: grid;
+  min-height: 3rem;
+  place-items: center;
+  padding: 0.5rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.figma-price-choice input:checked + span {
+  color: var(--primary-foreground);
+  background: var(--primary);
+  font-weight: 600;
+}
+.figma-price-choice input:focus-visible + span {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.figma-money-summary {
+  display: grid;
+  gap: 1rem;
+  background: var(--secondary);
+  overflow-wrap: anywhere;
+}
+.figma-summary-value {
+  font-weight: 700;
+}
+.figma-money-summary > p:not(.figma-summary-value) {
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+.expense-flow-dialog [data-slot="input"],
+.expense-flow-dialog [data-slot="select-trigger"] {
+  min-height: 3rem;
+  border-radius: 0.875rem;
+}
+.figma-select-button[data-slot="button"] {
+  font-size: 1rem;
+  width: 100%;
+  min-height: 3rem;
+  height: auto;
+  justify-content: space-between;
+  border-radius: 0.875rem;
+  padding: 0.75rem;
+  white-space: normal;
+  text-align: left;
+}
+.figma-custom-shares {
+  display: grid;
+}
+.figma-custom-shares > div {
+  display: grid;
+  gap: 1rem;
+  align-items: center;
+}
+.figma-payment-columns {
+  display: grid;
+  gap: 0.5rem;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.figma-payment-columns > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.figma-table-heading {
+  color: var(--muted-foreground);
+}
+.figma-payment-row {
+  display: grid;
+  width: 100%;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  border-radius: 0;
+}
+.figma-payment-row:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.figma-payment-note {
+  color: var(--muted-foreground);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.figma-member-line {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  overflow-wrap: anywhere;
+}
+.figma-member-line > :last-child {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.figma-member-debt {
+  display: grid;
+  border-top: 1px solid var(--border);
+}
+@media (min-width: 768px) {
+  .trip-dialog.activity-details-dialog.expense-flow-dialog {
+    width: min(520px, 100%);
+  }
+}
 .activity-detail-navigation {
   display: flex;
   align-items: center;
@@ -1002,11 +1132,13 @@ summary {
   padding: 0 1.5rem 1.5rem;
   overflow: visible;
 }
-.activity-detail-sections > section {
+.activity-detail-sections > section,
+.activity-detail-notes > section {
   padding-block: 1.5rem;
   border-top: 1px solid var(--border);
 }
-.activity-detail-sections > section > h3 {
+.activity-detail-sections > section > h3,
+.activity-detail-notes > section > h3 {
   margin-bottom: 0.75rem;
 }
 .activity-details-dialog [data-slot="trip-dialog-footer"] {
@@ -1858,4 +1990,874 @@ summary {
   .day-plan {
     grid-column: 2;
   }
+}
+
+@media (min-width: 1024px) {
+  .trip-dialog.activity-details-dialog {
+    width: min(1040px, 100%);
+  }
+  .activity-detail-sections {
+    display: block;
+  }
+  .activity-detail-sections > *,
+  .activity-detail-notes {
+    min-width: 0;
+  }
+  .activity-detail-notes p,
+  .activity-detail-notes ul {
+    max-width: 70ch;
+  }
+}
+
+.expense-cost-content {
+  display: grid;
+  gap: 1.25rem;
+}
+.expense-amount-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7rem;
+  align-items: end;
+  gap: 0.75rem;
+}
+.expense-amount-fields .expense-amount-input {
+  min-height: 3.5rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.expense-amount-fields [data-slot="select-trigger"] {
+  min-height: 3.5rem;
+}
+.expense-choice {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 0.875rem;
+  background: var(--secondary);
+}
+.expense-choice > label {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.5rem;
+  border-radius: 0.625rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.expense-choice input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.expense-choice > label:has(input:checked) {
+  background: var(--card);
+  color: var(--foreground);
+  font-weight: 600;
+}
+.expense-choice > label:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.expense-choice > label:has(input:disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+.expense-sharing {
+  display: grid;
+  gap: 0.875rem;
+  padding-top: 0.25rem;
+}
+.expense-travelers {
+  display: grid;
+  gap: 0.5rem;
+}
+.expense-traveler {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+.expense-traveler[data-selected="true"] {
+  background: var(--secondary);
+}
+.expense-traveler-name {
+  display: flex;
+  min-width: 0;
+  min-height: 2.75rem;
+  flex: 1;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.expense-traveler-share {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+.expense-traveler .expense-custom-share {
+  width: 6.5rem;
+  min-width: 0;
+  flex-shrink: 0;
+}
+.expense-split-preview {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+.expense-extra {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+.expense-extra > summary {
+  min-height: 2.75rem;
+  align-content: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.expense-extra > summary > span {
+  margin-left: 0.5rem;
+}
+.expense-detail-fields {
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 600px) {
+  .expense-travelers,
+  .expense-detail-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Expense screens follow the reviewed 420 × 970 reference composition. */
+.expense-flow-dialog .activity-detail-navigation,
+.reference-activity-dialog .activity-detail-navigation {
+  margin: 0 24px;
+  padding: 8px 0;
+  min-height: 60px;
+}
+.expense-flow-dialog .activity-detail-navigation [data-slot="button"],
+.reference-activity-dialog .activity-detail-navigation [data-slot="button"] {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--primary);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+  min-height: 44px;
+  box-shadow: none;
+}
+.expense-flow-dialog.activity-details-dialog [data-slot="trip-dialog-header"] {
+  padding: 24px 24px 22px;
+}
+.expense-flow-dialog.activity-details-dialog
+  [data-slot="trip-dialog-header"]
+  h2 {
+  font-size: 25px;
+  line-height: 32px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.expense-flow-dialog
+  [data-slot="trip-dialog-header"]
+  [data-slot="dialog-description"] {
+  line-height: 22px;
+}
+.expense-flow-dialog [data-slot="trip-dialog-footer"] {
+  border: 0;
+  padding: 12px 24px 22px;
+}
+.expense-flow-dialog [data-slot="trip-dialog-footer"] [data-slot="button"] {
+  min-height: 48px;
+  justify-content: flex-start;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.figma-money-summary {
+  border: 1px solid var(--border);
+  padding: 20px;
+  border-radius: 18px;
+}
+.figma-summary-value {
+  font-size: 22px;
+  line-height: 30px;
+}
+.figma-custom-shares {
+  gap: 36px;
+  margin-top: 60px;
+  margin-bottom: 64px;
+}
+.figma-custom-shares > div {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 158px);
+}
+.figma-custom-shares label {
+  font-size: 16px;
+  font-weight: 400;
+}
+.figma-custom-shares input {
+  padding-inline: 20px;
+}
+.expense-payment-list {
+  display: grid;
+  gap: 28px;
+  padding-top: 4px;
+}
+.expense-payment-list > .figma-money-summary {
+  min-height: 113px;
+  gap: 12px;
+}
+.figma-payment-columns {
+  grid-template-columns: minmax(0, 1.8fr) repeat(3, minmax(0, 0.8fr));
+}
+.figma-payment-columns > :not(:first-child) {
+  text-align: left;
+}
+.figma-table-heading {
+  font-size: 14px;
+  line-height: 20px;
+  padding-bottom: 0;
+}
+.figma-payment-row {
+  padding: 24px 0 16px;
+  gap: 10px;
+  min-height: 90px;
+}
+.figma-payment-note {
+  font-size: 12px;
+  line-height: 20px;
+}
+.figma-payment-row:first-of-type .figma-payment-note {
+  color: var(--primary);
+}
+.expense-payment-form {
+  padding-top: 6px;
+}
+.expense-payment-form .payment-coverage-preview {
+  min-height: 192px;
+  gap: 20px;
+}
+.expense-payment-form .payment-coverage-preview h3 {
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 700;
+}
+.expense-payment-form .payment-coverage-preview p,
+.expense-payment-form .payment-coverage-preview .figma-member-line {
+  font-size: 18px;
+  line-height: 26px;
+}
+.expense-payment-form .payment-coverage-preview p.text-primary {
+  font-weight: 700;
+}
+.reservation-form .payment-coverage-preview {
+  min-height: 256px;
+}
+.reservation-form .payment-coverage-preview p {
+  font-size: 16px;
+}
+.reservation-shared-coverage p:first-child {
+  font-size: 14px;
+}
+.reservation-shared-coverage p:last-child {
+  font-size: 16px;
+  color: var(--primary);
+  font-weight: 700;
+  margin-top: 4px;
+}
+.expense-payment-form .payment-form-help {
+  margin-top: 64px;
+  font-size: 14px;
+  line-height: 28px;
+  color: var(--muted-foreground);
+  max-width: 31ch;
+}
+.reservation-form .payment-form-help {
+  margin-top: 44px;
+  max-width: none;
+}
+.expense-payment-form .payment-form-followup {
+  margin-top: 4px;
+}
+.expense-member-detail {
+  padding-top: 12px;
+}
+.expense-member-detail > .figma-money-summary {
+  min-height: 108px;
+  margin-bottom: 38px;
+  gap: 12px;
+}
+.expense-member-detail > .figma-member-line {
+  font-size: 18px;
+  line-height: 26px;
+}
+.member-paid-date {
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--primary);
+}
+.figma-member-debt {
+  margin-top: 28px;
+  padding-top: 28px;
+  gap: 12px;
+}
+.figma-member-debt .figma-member-line {
+  font-size: 18px;
+  line-height: 26px;
+}
+.figma-member-debt > [data-slot="button"] {
+  min-height: 48px;
+  margin-top: 16px;
+  padding-inline: 16px;
+  justify-content: flex-start;
+  font-weight: 700;
+}
+.repayment-amount {
+  min-height: 44px;
+  margin-block: -9px;
+  text-align: left;
+  cursor: pointer;
+}
+.member-payment-explanation {
+  font-size: 14px;
+  line-height: 28px;
+  color: var(--muted-foreground);
+  margin-top: 72px;
+  max-width: 31ch;
+}
+.member-payment-explanation + .member-payment-explanation {
+  max-width: none;
+}
+.reference-activity-dialog [data-slot="trip-dialog-header"] {
+  padding: 30px 24px 24px;
+}
+.reference-activity-dialog [data-slot="trip-dialog-header"] h2 {
+  font-size: 30px;
+  line-height: 40px;
+  font-weight: 700;
+  margin: 12px 0 14px;
+  letter-spacing: 0;
+}
+.activity-detail-category {
+  display: block;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--muted-foreground);
+}
+.reference-activity-dialog .activity-detail-date {
+  font-size: 16px;
+  line-height: 26px;
+  font-weight: 400;
+}
+.reference-activity-dialog .activity-detail-time {
+  font-size: 14px;
+  line-height: 24px;
+}
+.reference-activity-dialog .activity-detail-sections > section {
+  padding: 0;
+}
+.activity-cost-heading {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+.activity-cost-heading h3 {
+  font-size: 22px;
+  font-weight: 700;
+}
+.activity-cost-heading [data-slot="button"] {
+  min-height: 48px;
+  padding-inline: 16px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.activity-cost-total {
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.activity-cost-total p:first-child {
+  font-size: 14px;
+  line-height: 22px;
+}
+.activity-cost-total p:last-child {
+  font-size: 26px;
+  line-height: 36px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.activity-cost-list > article {
+  padding: 22px 0 18px;
+  border-bottom: 1px solid var(--border);
+}
+.activity-cost-list > article:last-child {
+  border-bottom: 0;
+  padding-bottom: 30px;
+}
+.activity-cost-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+.activity-cost-title h4 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 26px;
+}
+.activity-cost-title button {
+  padding-block: 9px;
+  margin-block: -9px;
+  cursor: pointer;
+  text-align: left;
+}
+.activity-cost-title > span {
+  max-width: 60%;
+  font-size: 16px;
+  line-height: 26px;
+  overflow-wrap: anywhere;
+}
+.activity-cost-meta {
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--muted-foreground);
+  margin-top: 8px;
+}
+.activity-cost-status {
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--primary);
+  margin-top: 10px;
+}
+.activity-view-payments[data-slot="button"] {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  margin-top: 16px;
+  justify-content: flex-start;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 999px;
+  background: transparent;
+}
+.reference-activity-dialog .activity-detail-notes section {
+  padding: 24px 0 28px;
+}
+.reference-activity-dialog .activity-detail-notes h3 {
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--foreground);
+}
+.reference-activity-dialog .activity-detail-notes p,
+.reference-activity-dialog .activity-detail-notes li {
+  font-size: 14px;
+  line-height: 24px;
+}
+.activity-management {
+  grid-column: 1 / -1;
+  margin-top: 64px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+.activity-management > summary {
+  cursor: pointer;
+}
+.activity-planning-dialog .activity-detail-reader {
+  display: flex;
+  flex-direction: column;
+}
+.activity-planning-dialog [data-slot="trip-dialog-body"] {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.activity-planning-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.activity-planning-form > fieldset {
+  flex: 1;
+}
+.activity-planning-form label,
+.activity-when-label {
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+.activity-when-editor {
+  padding: 0;
+  border: 0;
+  margin-top: 24px;
+}
+.activity-when-editor > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.activity-when-editor > summary::-webkit-details-marker {
+  display: none;
+}
+.activity-when-label {
+  display: block;
+  margin-bottom: 8px;
+}
+.activity-when-value {
+  display: block;
+  padding: 12px;
+  border: 1px solid var(--input);
+  border-radius: 14px;
+  font-size: 16px;
+  line-height: 24px;
+  background: var(--card);
+}
+.activity-when-editor .form-section {
+  padding-top: 24px;
+}
+.activity-plan-expenses {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.activity-plan-expenses > h3 {
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 700;
+}
+.activity-plan-cost {
+  border-bottom: 1px solid var(--border);
+}
+.activity-plan-cost:last-child {
+  border: 0;
+}
+.activity-plan-cost > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+.activity-plan-cost [data-slot="button"] {
+  padding: 0;
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 400;
+  justify-content: flex-start;
+}
+.activity-plan-cost span {
+  font-size: 16px;
+}
+.activity-plan-cost p {
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--muted-foreground);
+}
+.activity-add-another[data-slot="button"] {
+  width: 100%;
+  min-height: 48px;
+  padding-inline: 16px;
+  margin-top: 20px;
+  justify-content: flex-start;
+  font-weight: 700;
+  background: transparent;
+}
+.activity-plan-total {
+  margin-top: 24px;
+}
+.activity-plan-total h4 {
+  font-size: 20px;
+  line-height: 30px;
+  font-weight: 700;
+}
+.activity-plan-total p {
+  font-size: 16px;
+  line-height: 26px;
+  margin-top: 8px;
+}
+.activity-plan-help {
+  font-size: 14px;
+  line-height: 28px;
+  margin-top: 40px;
+  color: var(--muted-foreground);
+}
+.activity-more-details {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.activity-more-details > summary {
+  cursor: pointer;
+}
+.activity-more-details[open] > *:not(summary) {
+  margin-top: 24px;
+}
+.activity-planning-form > .form-actions {
+  margin-top: auto;
+  border: 0;
+  box-shadow: none;
+  background: var(--background);
+  padding: 18px 0 22px;
+}
+.activity-planning-form > .form-actions > [type="submit"] {
+  width: 100%;
+  min-height: 48px;
+  justify-content: flex-start;
+  padding-inline: 16px;
+  font-weight: 700;
+}
+@media (min-width: 1024px) {
+  .reference-activity-dialog [data-slot="trip-dialog-header"] {
+    padding: 24px 32px;
+  }
+  .reference-activity-dialog [data-slot="trip-dialog-body"] {
+    padding-inline: 32px;
+  }
+  .reference-activity-dialog .activity-detail-category {
+    display: none;
+  }
+  .reference-activity-dialog [data-slot="trip-dialog-header"] h2 {
+    font-size: 32px;
+    max-width: none;
+    margin-bottom: 12px;
+  }
+  .reference-activity-dialog .activity-detail-date,
+  .reference-activity-dialog .activity-detail-time {
+    display: inline;
+    font-size: 16px;
+    line-height: 28px;
+    color: var(--muted-foreground);
+  }
+  .reference-activity-dialog .activity-detail-time::before {
+    content: " · ";
+  }
+  .reference-activity-dialog .activity-detail-sections {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 24px 32px;
+  }
+  .reference-activity-dialog .activity-cost-section {
+    display: contents;
+  }
+  .reference-activity-dialog .activity-cost-heading {
+    grid-row: 1;
+    grid-column: 1/-1;
+    margin: 0;
+    padding-top: 18px;
+  }
+  .reference-activity-dialog .activity-cost-total {
+    grid-row: 2;
+    grid-column: 1/-1;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border: 0;
+    padding: 0;
+  }
+  .reference-activity-dialog .activity-cost-total > div {
+    display: flex;
+    gap: 4px;
+  }
+  .reference-activity-dialog .activity-cost-total > div:first-child::after {
+    content: " · ";
+  }
+  .reference-activity-dialog .activity-cost-total p:first-child,
+  .reference-activity-dialog .activity-cost-total p:last-child {
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 26px;
+    margin: 0;
+  }
+  .reference-activity-dialog .activity-cost-list {
+    grid-row: 3;
+    grid-column: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0 24px;
+  }
+  .reference-activity-dialog .activity-detail-notes {
+    grid-row: 3;
+    grid-column: 2;
+    padding: 0 24px;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+  .reference-activity-dialog .activity-detail-notes section {
+    border: 0;
+  }
+  .reference-activity-dialog .activity-view-payments {
+    width: auto;
+    border: 0;
+    padding: 0;
+    background: none;
+  }
+}
+@media (max-width: 359px) {
+  .figma-custom-shares > div {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 42%);
+  }
+  .activity-cost-total {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.reference-field {
+  position: relative;
+  min-width: 0;
+}
+.reference-field > span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  pointer-events: none;
+  font-size: 16px;
+  color: var(--foreground);
+}
+.reference-field input:not(:focus) {
+  color: transparent;
+}
+.reference-field:has(input:focus) > span {
+  visibility: hidden;
+}
+.reference-date-field input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+}
+.reference-date-field input:focus::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+.figma-custom-shares .reference-field > span {
+  padding-inline: 20px;
+}
+.reference-activity-dialog [data-slot="trip-dialog-header"] {
+  padding-bottom: 18px;
+}
+.reference-activity-dialog [data-slot="trip-dialog-header"] h2 {
+  margin-bottom: 6px;
+}
+.reference-activity-dialog .activity-detail-time {
+  margin-top: 6px;
+}
+.activity-cost-heading {
+  margin-bottom: 10px;
+}
+.activity-cost-total {
+  padding-bottom: 10px;
+}
+.activity-cost-meta + .activity-cost-meta {
+  margin-top: 6px;
+}
+.activity-cost-list > article {
+  padding-bottom: 13px;
+}
+.activity-view-payments[data-slot="button"] {
+  margin-top: 6px;
+}
+
+.activity-plan-costs {
+  margin-top: 12px;
+}
+.activity-plan-cost {
+  padding: 24px 0 8px;
+}
+.activity-plan-cost:first-child {
+  padding-top: 0;
+}
+.activity-plan-cost [data-slot="button"] {
+  min-height: 44px;
+  padding-block: 10px;
+  margin-block: -10px;
+}
+.activity-plan-cost p {
+  margin-top: 4px;
+}
+.activity-add-another[data-slot="button"] {
+  margin-top: 16px;
+}
+.activity-plan-help {
+  max-width: 340px;
+}
+.activity-planning-form > .form-actions {
+  margin-inline: 0;
+}
+
+.expense-flow-dialog.activity-details-dialog
+  [data-slot="trip-dialog-header"]
+  h2 {
+  margin-bottom: 6px;
+}
+.figma-expense-form label {
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+.figma-custom-shares label {
+  color: var(--foreground);
+}
+.expense-flow-dialog [data-slot="select-trigger"] > svg {
+  display: none;
+}
+.expense-payment-form fieldset > :not(:last-child) {
+  margin-block-end: 32px;
+}
+.expense-payment-form .payment-coverage-preview {
+  margin-top: 38px;
+}
+.expense-member-detail > .figma-member-line,
+.figma-member-debt > .figma-member-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 94px;
+}
+.member-payment-explanation + .member-payment-explanation {
+  margin-top: 32px;
+}
+
+.figma-payment-row {
+  padding-bottom: 11px;
+  gap: 8px;
+}
+
+.payment-row-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+}
+.payment-row-footer .figma-payment-note {
+  flex: 1;
+  min-width: 120px;
+}
+.payment-row-action {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.payment-row-action svg {
+  width: 14px;
+  height: 14px;
+}
+.figma-payment-row:hover {
+  background: var(--secondary);
+}
+.expense-flow-dialog [data-slot="select-trigger"] > svg {
+  display: block;
 }

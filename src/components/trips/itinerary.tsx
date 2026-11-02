@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ActivityExpenses } from "./expenses";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
 import { TZDate } from "react-day-picker";
@@ -17,7 +19,6 @@ import {
   Plane,
   Sparkles,
   Tag,
-  Pencil,
   Trash2,
   type LucideIcon,
 } from "lucide-react";
@@ -114,19 +115,25 @@ export function Itinerary({
   trip,
   participants,
   canEdit,
+  current,
   onFailure,
-  header,
-  tools,
+  initialDate,
+  onDateChange,
 }: {
-  header: ReactNode;
-  tools: ReactNode;
+  initialDate?: string;
+  onDateChange?: (date: string) => void;
   trip: Trip;
   participants?: Participant[];
   canEdit: boolean;
+  current?: Participant;
   onFailure: (error: Error) => void | Promise<void>;
 }) {
+  const router = useRouter();
+  const params = useSearchParams();
+  const requestedActivity = Number(params.get("activity")) || null;
   const api = useItineraryApi(trip.id, onFailure);
   const [selectedDate, setSelectedDate] = useState(() => {
+    if (initialDate) return initialDate;
     const today = Temporal.Now.zonedDateTimeISO(trip.time_zone)
       .toPlainDate()
       .toString();
@@ -137,14 +144,16 @@ export function Itinerary({
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [conflictsOpen, setConflictsOpen] = useState(false);
   const [editing, setEditing] = useState<
-    Activity | { date: string; startsAt?: string } | null
+    | (Activity & { showMoreDetails?: boolean })
+    | { date: string; startsAt?: string }
+    | null
   >(null);
   const [editDirty, setEditDirty] = useState(false);
   const titleInput = useRef<HTMLInputElement>(null);
   const editTrigger = useRef<HTMLButtonElement | null>(null);
   const selectedHeading = useRef<HTMLHeadingElement>(null);
   const [deleting, setDeleting] = useState<Activity | null>(null);
-  const [viewing, setViewing] = useState<number | null>(null);
+  const [viewing, setViewing] = useState<number | null>(requestedActivity);
   const detailTrigger = useRef<HTMLButtonElement | null>(null);
   const dayRail = useRef<HTMLDivElement>(null);
   const [mapOpen, setMapOpen] = useState(false);
@@ -154,6 +163,7 @@ export function Itinerary({
   function setSelected(date: string) {
     setViewing(null);
     setSelectedDate(date);
+    onDateChange?.(date);
   }
   const selected =
     selectedDate < trip.start_date
@@ -203,15 +213,30 @@ export function Itinerary({
   const unavailable = [activities.error, conflicts.error].some(
     (error) => error instanceof ApiError && error.status === 404,
   );
+  const linkedActivity = useQuery({
+    queryKey: ["trip", trip.id, "activity", viewing],
+    enabled: viewing !== null && viewing === requestedActivity,
+    queryFn: ({ signal }) => api.get(viewing!, signal),
+    retry: false,
+  });
+  const [lastRequested, setLastRequested] = useState(requestedActivity);
+  if (lastRequested !== requestedActivity) {
+    setLastRequested(requestedActivity);
+    setViewing(requestedActivity);
+  }
   const viewedActivity =
     !unavailable && !activities.isError
-      ? activities.data?.find(
-          (activity) =>
-            activity.id === viewing &&
-            localDate(activity.starts_at, trip.time_zone) === selected,
-        )
+      ? (activities.data?.find((activity) => activity.id === viewing) ??
+        (viewing !== null && viewing === requestedActivity
+          ? linkedActivity.data
+          : undefined))
       : undefined;
-  if (viewing !== null && !activities.isPending && !viewedActivity)
+  if (
+    viewing !== null &&
+    !activities.isPending &&
+    !viewedActivity &&
+    (requestedActivity === null || linkedActivity.isError)
+  )
     setViewing(null);
   const viewedCreator = participants?.find(
     (person) => person.user_id === viewedActivity?.created_by_user_id,
@@ -268,6 +293,7 @@ export function Itinerary({
       return;
     api.reset();
     setEditDirty(false);
+    if (editedActivity) setViewing(editedActivity.id);
     setEditing(null);
   };
 
@@ -410,15 +436,6 @@ export function Itinerary({
 
   return (
     <div className="coastal-itinerary flex min-w-0 flex-col gap-6">
-      <header className="planning-header">
-        <div className="min-w-0 flex-1">{header}</div>
-        <nav
-          aria-label="Trip tools"
-          className="hidden shrink-0 flex-wrap gap-2 md:flex"
-        >
-          {tools}
-        </nav>
-      </header>
       <section
         aria-labelledby="itinerary-heading"
         className="itinerary-workspace"
@@ -597,8 +614,14 @@ export function Itinerary({
           )}
           <TripDialog
             open={!!editing && canEdit}
+            presentation="detail"
+            className="activity-details-dialog expense-flow-dialog activity-planning-dialog"
+            backLabel={
+              editedActivity ? "Back to activity" : "Back to itinerary"
+            }
+            backdropClassName="bg-black/60"
             title={editedActivity ? "Edit activity" : "Add activity"}
-            description={`${newDate ? `${dateLabel(newDate)} · ` : ""}Times in ${trip.time_zone}.`}
+            description="Add costs while planning your day."
             busy={api.pending}
             disablePointerDismissal
             initialFocus={titleInput}
@@ -611,6 +634,11 @@ export function Itinerary({
               <ActivityForm
                 titleRef={titleInput}
                 key={newDate ?? editedActivity?.id}
+                expensePeople={participants ?? []}
+                expenseUserID={current?.user_id}
+                showMoreDetails={
+                  editedActivity ? !!editedActivity.showMoreDetails : true
+                }
                 initialValue={editedActivity ?? undefined}
                 initialDate={newDate}
                 initialStartsAt={
@@ -627,13 +655,19 @@ export function Itinerary({
                 error={api.error}
                 onDirty={() => setEditDirty(true)}
                 onCancel={closeEditor}
-                onSubmit={async (input) => {
+                onSubmit={async (input, requestKey) => {
                   if (!canEdit || api.pending) return;
                   try {
-                    if (await api.save(input, editedActivity?.id)) {
+                    const saved = await api.save(
+                      input,
+                      editedActivity?.id,
+                      requestKey,
+                    );
+                    if (saved) {
                       setEditDirty(false);
                       setEditing(null);
                       setSelected(localDate(input.starts_at, trip.time_zone));
+                      if (saved !== true) setViewing(saved.id);
                     }
                   } catch {
                     /* The form retains its values and displays the API error. */
@@ -804,17 +838,19 @@ export function Itinerary({
             title={viewedActivity?.title ?? "Activity details"}
             titleAccessory={
               viewedActivity && (
-                <CategoryBadge category={viewedActivity.category} />
+                <span className="activity-detail-category">
+                  {viewedActivity.category}
+                </span>
               )
             }
-            className="activity-details-dialog"
+            className="activity-details-dialog reference-activity-dialog"
             presentation="detail"
             mobilePresentation="fullscreen"
             headerAction={
               viewedActivity &&
               canEdit && (
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   disabled={api.pending || editing !== null}
                   aria-label={`Edit ${viewedActivity.title}`}
                   onClick={() => {
@@ -825,7 +861,6 @@ export function Itinerary({
                     setViewing(null);
                   }}
                 >
-                  <Pencil aria-hidden="true" />
                   Edit
                 </Button>
               )
@@ -833,14 +868,12 @@ export function Itinerary({
             description={
               viewedActivity ? (
                 <span className="activity-detail-schedule">
-                  <CalendarDays aria-hidden="true" />
                   <span>
                     <span className="activity-detail-date">
                       {new Intl.DateTimeFormat(undefined, {
                         weekday: "long",
                         day: "numeric",
                         month: "long",
-                        year: "numeric",
                         timeZone: trip.time_zone,
                       }).formatRange(
                         new Date(viewedActivity.starts_at),
@@ -850,11 +883,6 @@ export function Itinerary({
                     <span className="activity-detail-time">
                       {timeLabel(viewedActivity.starts_at, trip.time_zone)} –{" "}
                       {timeLabel(viewedActivity.ends_at, trip.time_zone)}
-                      {" · "}
-                      {formatActivityDuration(
-                        viewedActivity.starts_at,
-                        viewedActivity.ends_at,
-                      )}
                       {" · "}
                       {trip.time_zone}
                     </span>
@@ -866,84 +894,121 @@ export function Itinerary({
             }
             open={!!viewedActivity}
             onOpenChange={(open) => {
-              if (!open) setViewing(null);
+              if (!open) {
+                setViewing(null);
+                if (params.has("activity"))
+                  router.replace(`/trips/${trip.id}`, { scroll: false });
+              }
             }}
             finalFocus={() =>
               editing || deleting ? false : returnFocus(detailTrigger.current)
             }
-            footer={
-              viewedActivity && (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="min-w-0 flex-1 break-words text-xs text-muted-foreground">
-                    {participants
-                      ? `Created by ${viewedCreator ? participantName(viewedCreator) : "Former participant"}`
-                      : "Creator unavailable"}
-                  </p>
-                  {canEdit && (
-                    <div className="flex shrink-0 justify-end gap-2">
-                      <Button
-                        variant="destructive"
-                        disabled={api.pending || editing !== null}
-                        aria-label={`Delete ${viewedActivity.title}`}
-                        onClick={() => {
-                          api.reset();
-                          setDeleting(viewedActivity);
-                          setViewing(null);
-                        }}
-                      >
-                        <Trash2 aria-hidden="true" />
-                        Delete
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )
-            }
           >
             {viewedActivity && (
               <div className="activity-detail-sections text-sm leading-6">
-                {viewedActivity.place && (
-                  <section className="space-y-1">
-                    <h3 className="text-xs font-medium text-muted-foreground">
-                      Place
-                    </h3>
-                    <p className="break-words font-medium">
-                      {viewedActivity.place.name}
-                    </p>
-                    {viewedActivity.place.address && (
-                      <p className="break-words text-muted-foreground">
-                        {viewedActivity.place.address}
+                <ActivityExpenses
+                  key={viewedActivity.id}
+                  trip={trip}
+                  participants={participants}
+                  current={current}
+                  activityID={String(viewedActivity.id)}
+                  activityTitle={viewedActivity.title}
+                  onFailure={onFailure}
+                  compact
+                />
+                <div className="activity-detail-notes">
+                  {viewedActivity.place && (
+                    <section className="space-y-1">
+                      <h3 className="text-xs font-medium text-muted-foreground">
+                        Place
+                      </h3>
+                      <p className="break-words font-medium">
+                        {viewedActivity.place.name}
                       </p>
-                    )}
-                  </section>
-                )}
-                {viewedActivity.notes && (
-                  <section className="space-y-1">
-                    <h3 className="text-xs font-medium text-muted-foreground">
-                      Notes
-                    </h3>
-                    <p className="whitespace-pre-wrap break-words">
-                      {viewedActivity.notes}
+                      {viewedActivity.place.address && (
+                        <p className="break-words text-muted-foreground">
+                          {viewedActivity.place.address}
+                        </p>
+                      )}
+                    </section>
+                  )}
+                  {viewedActivity.notes && (
+                    <section className="space-y-1">
+                      <h3>Notes</h3>
+                      <p className="whitespace-pre-wrap break-words">
+                        {viewedActivity.notes}
+                      </p>
+                    </section>
+                  )}
+                  {viewedActivity.checklist.length > 0 && (
+                    <section className="space-y-1">
+                      <h3>To do</h3>
+                      <ul className="space-y-1">
+                        {viewedActivity.checklist.map((item, index) => (
+                          <li
+                            key={index}
+                            className="whitespace-pre-wrap break-words"
+                          >
+                            {item.text}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                </div>
+                <details className="activity-management">
+                  <summary>Activity options</summary>{" "}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="min-w-0 flex-1 break-words text-xs text-muted-foreground">
+                      {participants
+                        ? `Created by ${viewedCreator ? participantName(viewedCreator) : "Former participant"}`
+                        : "Creator unavailable"}
                     </p>
-                  </section>
-                )}
-                {viewedActivity.checklist.length > 0 && (
-                  <section className="space-y-1">
-                    <h3 className="text-xs font-medium text-muted-foreground">
-                      To do
-                    </h3>
-                    <ul className="list-disc space-y-1 pl-5">
-                      {viewedActivity.checklist.map((item, index) => (
-                        <li
-                          key={index}
-                          className="whitespace-pre-wrap break-words"
+                    {canEdit && (
+                      <div className="flex shrink-0 justify-end gap-2">
+                        <Button
+                          variant="destructive"
+                          disabled={api.pending || editing !== null}
+                          aria-label={`Delete ${viewedActivity.title}`}
+                          onClick={() => {
+                            api.reset();
+                            setDeleting(viewedActivity);
+                            setViewing(null);
+                          }}
                         >
-                          {item.text}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
+                          <Trash2 aria-hidden="true" />
+                          Delete
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  {canEdit && (
+                    <Button
+                      variant="link"
+                      onClick={() => {
+                        editTrigger.current = detailTrigger.current;
+                        api.reset();
+                        setEditDirty(false);
+                        setEditing({
+                          ...viewedActivity,
+                          showMoreDetails: true,
+                        });
+                        setViewing(null);
+                      }}
+                    >
+                      Edit other activity details
+                    </Button>
+                  )}
+                  <ActivityExpenses
+                    trip={trip}
+                    participants={participants}
+                    current={current}
+                    activityID={String(viewedActivity.id)}
+                    activityTitle={viewedActivity.title}
+                    onFailure={onFailure}
+                    managementOnly
+                  />
+                </details>
               </div>
             )}
           </TripDialog>

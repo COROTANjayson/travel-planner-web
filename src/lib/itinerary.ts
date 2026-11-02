@@ -16,7 +16,10 @@ export interface ChecklistItem {
   text: string;
   done: boolean;
 }
+import { expenseInput, type CostChange } from "./expenses";
+
 export interface ActivityInput {
+  expense_changes?: CostChange[];
   title: string;
   starts_at: string;
   ends_at: string;
@@ -42,6 +45,14 @@ export interface ActivityConflict {
 export const activityPageSize = 10;
 export function activityInput(input: ActivityInput): ActivityInput {
   return {
+    ...(input.expense_changes?.length
+      ? {
+          expense_changes: input.expense_changes.map((c) => ({
+            ...expenseInput(c),
+            ...(c.id ? { id: c.id } : {}),
+          })),
+        }
+      : {}),
     title: input.title.trim(),
     starts_at: input.starts_at,
     ends_at: input.ends_at,
@@ -82,6 +93,7 @@ export function useItineraryApi(
     method: "POST" | "PUT" | "DELETE",
     id?: number,
     input?: ActivityInput,
+    requestKey?: string,
   ) {
     if (busy.current) return;
     busy.current = true;
@@ -94,7 +106,10 @@ export function useItineraryApi(
           method,
           ...(input
             ? {
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                  "Content-Type": "application/json",
+                  ...(requestKey ? { "Idempotency-Key": requestKey } : {}),
+                },
                 body: JSON.stringify(activityInput(input)),
               }
             : {}),
@@ -112,6 +127,13 @@ export function useItineraryApi(
         client.removeQueries({ queryKey: key, exact: true });
       else client.setQueryData(key, result);
       await refresh();
+      if (input?.expense_changes?.length)
+        await Promise.all([
+          client.invalidateQueries({ queryKey: ["trip", tripID, "ledger"] }),
+          client.invalidateQueries({
+            queryKey: ["trip", tripID, "expense-status"],
+          }),
+        ]);
       if (method !== "DELETE")
         toast.success(
           method === "POST" ? "Activity created." : "Activity updated.",
@@ -185,8 +207,8 @@ export function useItineraryApi(
         if (page.length < activityPageSize) return all;
       }
     },
-    save: (input: ActivityInput, id?: number) =>
-      mutate(id === undefined ? "POST" : "PUT", id, input),
+    save: (input: ActivityInput, id?: number, requestKey?: string) =>
+      mutate(id === undefined ? "POST" : "PUT", id, input, requestKey),
     remove: (id: number) => mutate("DELETE", id),
   };
 }

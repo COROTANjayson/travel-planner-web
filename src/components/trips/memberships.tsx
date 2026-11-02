@@ -74,8 +74,10 @@ function RoleSelect({
         className="max-w-xs text-xs leading-5 text-muted-foreground"
       >
         {value === "editor"
-          ? "Can edit the trip and its activities."
-          : "Can view the itinerary and people, but cannot edit plans."}
+          ? "Can edit the trip, activities, and all expenses and payments."
+          : value === "member"
+            ? "Can view plans, record expenses and payments, and manage their own financial records."
+            : "Can view plans, people, expenses, and balances; cannot make changes."}
       </p>
     </div>
   );
@@ -249,8 +251,8 @@ export function Participants({
               confirm.action === "transfer"
                 ? `Make ${participantName(confirm.person)} the owner? You will become an editor.`
                 : confirm.action === "leave"
-                  ? "You will lose access to this trip."
-                  : `Remove ${participantName(confirm.person)} from this trip? They will lose access.`
+                  ? "You will lose access to this trip. Your financial records and balances remain available to the remaining travelers."
+                  : `Remove ${participantName(confirm.person)} from this trip? They will lose access. Their financial records and balances remain available to the remaining travelers.`
             }
             onCancel={() => setConfirm(null)}
             onConfirm={() => void submit()}

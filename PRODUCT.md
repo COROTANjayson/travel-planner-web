@@ -39,6 +39,9 @@ itinerary, not saved user data.
   usable when the map is unavailable.
 - Invite companions, manage participants and roles, transfer ownership, and
   leave trips. Owners and editors can change itineraries; viewers can read them.
+- Plan activity costs per person or for a group, split evenly or by exact
+  amounts, record deposits and covered purchases, and track cash loans and
+  repayments separately per currency.
 - Show schedule overlaps as advisory conflicts. Activities use the trip's IANA
   time zone; saved exact times remain UTC instants.
 
@@ -58,7 +61,7 @@ separate from current capabilities:
 - Create, reuse, and share traveler templates.
 - Let groups split into different plans and coordinate a later reunion.
 - Help adjust schedules as plans change.
-- Split trip expenses and budgets among companions.
+- Plan trip budgets among companions.
 
 These goals are not shipped features or authorization to implement them. Their
 priority, detailed behavior, and delivery dates remain undecided. The original

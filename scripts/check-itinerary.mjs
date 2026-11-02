@@ -8,6 +8,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 const require = createRequire(import.meta.url);
 let confirmDiscard = false;
+let activityRequestNumber = 0;
 const successToasts = [];
 const sonnerMock = {
   toast: { success: (message) => successToasts.push(message) },
@@ -24,6 +25,9 @@ function load(file, mocks = {}) {
     exports: {},
     require: (id) => mocks[id] || (id === "sonner" ? sonnerMock : require(id)),
     Date,
+    crypto: {
+      randomUUID: () => `activity-test-key-${++activityRequestNumber}`,
+    },
     Intl,
     Error,
     TextEncoder,
@@ -505,6 +509,7 @@ assert.equal(
 failure = undefined;
 calls = [];
 const itinerary = load("src/lib/itinerary.ts", {
+  "./expenses": { expenseInput: (input) => input },
   react: {
     useCallback: (callback) => callback,
     useRef: (value) => ({ current: value }),
@@ -748,7 +753,10 @@ const wrap = (tag) =>
     return React.createElement(tag, null, children);
   };
 const primitiveMocks = {
-  "@/components/ui/button": { Button: wrap("button") },
+  "@/components/ui/button": {
+    Button: wrap("button"),
+    buttonVariants: () => "button",
+  },
   "@/components/ui/card": Object.fromEntries(
     ["Card", "CardContent", "CardHeader", "CardTitle"].map((key) => [
       key,
@@ -767,6 +775,7 @@ let activityFormState = null,
   activityHookIndex = 0,
   overlapQuery;
 const formModule = load("src/components/trips/activity-form.tsx", {
+  "./activity-expense-drafts": { ActivityExpenseDrafts: () => null },
   ...primitiveMocks,
   "@/lib/api": apiMock,
   "@/lib/itinerary": itinerary,
@@ -900,9 +909,9 @@ const form = formModule.ActivityForm({
 const formHtml = renderToStaticMarkup(form);
 assert.match(formHtml, /value="2026-10-01T09:23:45\.123456"/);
 assert.doesNotMatch(formHtml, /Activity time zone/);
-assert.match(formHtml, /What are you doing/);
+assert.match(formHtml, /Activity name/);
 assert.match(formHtml, /e.g. Dinner at the waterfront/);
-assert.match(formHtml, /Save changes/);
+assert.match(formHtml, /Save activity/);
 const newFormHtml = renderToStaticMarkup(
   formModule.ActivityForm({
     tripID: 7,
@@ -946,9 +955,25 @@ const savedOptional = nodes(
   }),
 ).filter((node) => node.type === "details");
 assert.ok(
-  savedOptional.every((section) => section.props.open),
-  "Saved place, notes and to-dos stay discoverable when editing",
+  savedOptional.length >= 4 &&
+    savedOptional.some(
+      (section) => section.props.className === "activity-more-details",
+    ),
+  "Saved place, notes and to-dos stay available under More activity details",
 );
+for (const showMoreDetails of [undefined, false, true]) {
+  const details = nodes(
+    formModule.ActivityForm({
+      ...optionalProps,
+      initialValue: activity,
+      showMoreDetails,
+    }),
+  ).find((node) => node.props.className === "activity-more-details");
+  assert.ok(
+    !details.props.hidden,
+    "Every edit entry exposes the notes and to-do controls",
+  );
+}
 let openedInvalidSection = false;
 form.props.onInvalidCapture({
   target: {
@@ -965,7 +990,7 @@ assert.equal(
   "Native validation reveals a collapsed optional field before focusing it",
 );
 assert.doesNotMatch(newFormHtml, />60</);
-assert.match(newFormHtml, /Add activity/);
+assert.match(newFormHtml, /Save activity/);
 form.props.onSubmit({ preventDefault() {} });
 assert.equal(
   submitted.starts_at,
@@ -1152,7 +1177,10 @@ assert.equal(
   "Visit museum",
   "Removing an item retains the following item's draft",
 );
-checklistForm().props.onChangeCapture();
+checklistForm().props.onChangeCapture({
+  target: {},
+  currentTarget: { contains: () => true },
+});
 assert.ok(
   dirtyChanges >= 4,
   "Add/remove and native changes participate in discard protection",
@@ -1265,6 +1293,13 @@ const boardQueries = [];
 let itineraryNow = "2026-10-23T12:00:00Z";
 const temporal = require("@js-temporal/polyfill").Temporal;
 const components = load("src/components/trips/itinerary.tsx", {
+  "next/navigation": {
+    useRouter: () => ({ push() {}, replace() {} }),
+    useSearchParams: () => new URLSearchParams(),
+  },
+  "@/lib/money": load("src/lib/money.ts"),
+  "./expenses": { ActivityExpenses: wrap("section") },
+  "next/link": { __esModule: true, default: wrap("a") },
   ...primitiveMocks,
   "@/lib/api": apiMock,
   "@/lib/activity-time": time,
@@ -1339,9 +1374,11 @@ const components = load("src/components/trips/itinerary.tsx", {
         isFetching: false,
         data:
           queryKey[2] === "activities"
-            ? queryMode === "empty"
-              ? []
-              : boardActivities
+            ? queryKey[3] === "detail"
+              ? boardActivities.find((a) => a.id === queryKey[4])
+              : queryMode === "empty"
+                ? []
+                : boardActivities
             : boardConflicts,
         error: new ApiError(500, "Failure"),
       }
@@ -1544,10 +1581,12 @@ const addButton = () =>
 const dayPanel = (date) =>
   board().find((node) => node.props.id === `day-${date}-details`);
 const details = (canEdit = true) =>
-  board(trip, canEdit).find((node) => node.props.presentation === "detail");
+  board(trip, canEdit).find((node) =>
+    node.props.className?.includes("reference-activity-dialog"),
+  );
 const detailActions = (canEdit = true) => [
   ...nodes(details(canEdit).props.headerAction),
-  ...nodes(details(canEdit).props.footer),
+  ...nodes(details(canEdit).props.children),
 ];
 const openDetails = (canEdit = true) =>
   board(trip, canEdit)
@@ -1568,7 +1607,7 @@ for (const role of ["owner", "editor", "member", "viewer"]) {
   assert.match(html, /Reserve table/);
   assert.match(html, /Order breakfast/);
   assert.match(
-    renderToStaticMarkup(details(canEdit).props.footer),
+    renderToStaticMarkup(details(canEdit).props.children),
     /Former participant/,
   );
   assert.match(html, /Notes/);
@@ -1591,8 +1630,8 @@ for (const role of ["owner", "editor", "member", "viewer"]) {
     /Asia\/Manila/,
   );
   const schedule = renderToStaticMarkup(details(canEdit).props.description);
-  assert.match(schedule, /Thursday, October 1, 2026/);
-  assert.match(schedule, /60 min/);
+  assert.match(schedule, /Thursday, October 1/);
+  assert.doesNotMatch(schedule, /60 min/);
   assert.match(
     renderToStaticMarkup(details(canEdit).props.titleAccessory),
     /Eating/,
@@ -1615,8 +1654,8 @@ assert.match(overnightSchedule, /Thursday/);
 assert.match(overnightSchedule, /Friday/);
 assert.match(
   overnightSchedule,
-  /1,500 min/,
-  "Duration uses elapsed minutes across dates",
+  /Asia\/Manila/,
+  "The reference schedule retains the trip zone across dates",
 );
 boardActivities = [activity, overnight];
 openDetails();
@@ -1851,9 +1890,17 @@ const dialogParts = Object.fromEntries(
   ].map((key) => [key, wrap("div")]),
 );
 const { TripDialog } = load("src/components/trips/trip-dialog.tsx", {
+  react: {
+    ...React,
+    useRef: (initial) => ({ current: initial }),
+    useEffect() {},
+  },
   "@base-ui/react/dialog": { Dialog: dialogParts },
   "lucide-react": { X: wrap("span") },
-  "@/components/ui/button": { Button: wrap("button") },
+  "@/components/ui/button": {
+    Button: wrap("button"),
+    buttonVariants: () => "button",
+  },
 });
 let cancelled = false,
   changed = false;
@@ -1948,7 +1995,7 @@ assert.equal(
   "2026-10-01T13:50:00Z",
   "Use latest scheduled end regardless of list order",
 );
-assert.match(dialog().props.description, /Thu, Oct 1/);
+assert.equal(dialog().props.description, "Add costs while planning your day.");
 const prefilled = formModule.ActivityForm(addProps);
 const startField = nodes(prefilled).find(
   (node) => node.props.label === "Start",
@@ -2122,7 +2169,7 @@ datePicker(railTrip).props.children.props.children.props.onSelect(
 );
 assert.equal(railDays()[0].props["aria-label"], "Thu, Oct 8");
 const windowQuery = boardQueries
-  .filter((key) => key[2] === "activities")
+  .filter((key) => key[2] === "activities" && key[3] === "board")
   .at(-1);
 assert.equal(windowQuery[4], "2026-10-07T16:00:00Z");
 assert.equal(windowQuery[5], "2026-10-14T16:00:00Z");
@@ -2154,8 +2201,10 @@ let detailQuery = {
     ends_at: overnight.ends_at,
   },
 };
-const detailItinerary = ({ header, tools }) =>
-  React.createElement("div", null, header, tools);
+const detailItinerary = () =>
+  React.createElement("div", null, "Itinerary view");
+const detailExpenses = () => React.createElement("div", null, "Expenses view");
+let detailView = "";
 const detailRoute = load("src/app/trips/[tripID]/page.tsx", {
   ...primitiveMocks,
   "next/link": {
@@ -2164,6 +2213,7 @@ const detailRoute = load("src/app/trips/[tripID]/page.tsx", {
   },
   "next/navigation": {
     useParams: () => ({ tripID: "7" }),
+    useSearchParams: () => new URLSearchParams(detailView),
     useRouter: () => ({}),
   },
   react: {
@@ -2195,6 +2245,7 @@ const detailRoute = load("src/app/trips/[tripID]/page.tsx", {
   "@/lib/activity-time": time,
   "@/lib/memberships": { ...membership, useMembershipsApi: () => ({}) },
   "@/components/trips/itinerary": { Itinerary: detailItinerary },
+  "@/components/trips/expenses": { Expenses: detailExpenses },
   "@/components/trips/memberships": {
     Participants: wrap("div"),
     Invitations: wrap("div"),
@@ -2225,7 +2276,7 @@ const detailRoute = load("src/app/trips/[tripID]/page.tsx", {
 const detailTree = () => {
   detailHook = 0;
   const route = detailRoute.default();
-  return route.type(route.props);
+  return route.props.children.type(route.props.children.props);
 };
 for (detailRole of ["owner", "editor", "viewer"]) {
   const tree = detailTree();
@@ -2233,13 +2284,15 @@ for (detailRole of ["owner", "editor", "viewer"]) {
     (node) => node.type === detailItinerary,
   ).props;
   assert.equal(itineraryProps.canEdit, detailRole !== "viewer");
-  const tools = nodes(itineraryProps.tools);
+  const tools = nodes(tree);
   assert.ok(tools.some((node) => node.props.title === "People & invitations"));
   assert.equal(
     tools.some((node) => node.props.title === "Trip settings"),
     detailRole !== "viewer",
   );
-  const metadata = renderToStaticMarkup(itineraryProps.header);
+  const metadata = renderToStaticMarkup(
+    nodes(tree).find((node) => node.props.className === "trip-summary"),
+  );
   assert.match(metadata, /Cebu &amp; friends/);
   assert.match(metadata, /Cebu City/);
   assert.ok(
@@ -2259,9 +2312,7 @@ for (detailRole of ["owner", "editor", "viewer"]) {
     "Mobile options expose the full trip name",
   );
   assert.ok(
-    nodes(itineraryProps.tools).some(
-      (node) => node.props["aria-label"] === "Back to trips",
-    ),
+    nodes(tree).some((node) => node.props["aria-label"] === "Back to trips"),
     "Desktop back navigation belongs to the trip toolbar",
   );
 }
@@ -2274,16 +2325,14 @@ detailQuery.data = {
   ends_at: null,
 };
 const longDetail = nodes(detailTree()).find(
-  (node) => node.type === detailItinerary,
-).props;
+  (node) => node.props.className === "trip-summary",
+);
 assert.ok(
-  renderToStaticMarkup(longDetail.header).includes(
-    detailQuery.data.destination,
-  ),
+  renderToStaticMarkup(longDetail).includes(detailQuery.data.destination),
   "Compact metadata retains long destinations",
 );
 assert.equal(
-  nodes(longDetail.header).some((node) => node.type === "time"),
+  nodes(longDetail).some((node) => node.type === "time"),
   false,
   "Date-only trips do not invent exact bounds",
 );
@@ -2298,9 +2347,9 @@ assert.equal(
 nodes(mobileOptions.props.children)
   .find((node) => node.props.onClick)
   .props.onClick();
-const peopleDialog = nodes(
-  nodes(detailTree()).find((node) => node.type === detailItinerary).props.tools,
-).find((node) => node.props.title === "People & invitations");
+const peopleDialog = nodes(detailTree()).find(
+  (node) => node.props.title === "People & invitations",
+);
 assert.equal(
   peopleDialog.props.open,
   true,
@@ -2315,6 +2364,64 @@ assert.equal(
   false,
   "Closing options does not steal focus from People",
 );
+const itineraryDateChanged = nodes(detailTree()).find(
+  (node) => node.type === detailItinerary,
+).props.onDateChange;
+itineraryDateChanged("2026-10-02");
+detailView = "view=expenses";
+let expenseTree = detailTree();
+assert.ok(nodes(expenseTree).some((node) => node.type === detailExpenses));
+assert.equal(
+  nodes(expenseTree).find((node) => node.type === detailExpenses).props.active,
+  true,
+);
+assert.equal(
+  nodes(expenseTree).some((node) => node.type === detailItinerary),
+  false,
+);
+assert.ok(
+  nodes(expenseTree).some((node) => node.props.children === "Trip expenses"),
+);
+assert.ok(
+  nodes(expenseTree).some(
+    (node) => node.props.title === "People & invitations",
+  ),
+);
+detailView = "view=unknown";
+assert.equal(
+  nodes(detailTree()).find((node) => node.type === detailExpenses).props.active,
+  false,
+  "The ledger stays mounted across views to retain editors",
+);
+assert.equal(
+  nodes(detailTree()).find((node) => node.type === detailItinerary).props
+    .initialDate,
+  "2026-10-02",
+);
+detailView = "";
+const cachedTrip = detailQuery.data;
+detailQuery = {
+  data: cachedTrip,
+  isError: true,
+  error: new ApiError(500, "Offline"),
+};
+const staleTripTree = detailTree();
+assert.ok(
+  nodes(staleTripTree).some((node) => node.type === detailExpenses),
+  "A failed background trip refresh must not unmount ledger drafts",
+);
+assert.ok(
+  nodes(staleTripTree).some((node) => node.props.className === "trip-summary"),
+);
+assert.ok(
+  nodes(staleTripTree).some((node) => node.props.error?.message === "Offline"),
+);
+detailQuery = {
+  data: cachedTrip,
+  isError: true,
+  error: new ApiError(404, "Removed"),
+};
+assert.match(renderToStaticMarkup(detailTree()), /Trip not found/);
 detailQuery = { isPending: true };
 assert.match(renderToStaticMarkup(detailTree()), /Loading trips/);
 assert.equal(
@@ -2335,4 +2442,66 @@ assert.equal(
 );
 console.log(
   "Compact trip context, exact bounds, role tools, full mobile name and loading/error navigation passed.",
+);
+
+activityFormState = [];
+const stagedCost = {
+  id: -1,
+  description: "Inn",
+  currency: "PHP",
+  amount_minor: "400000",
+  payer_user_id: 0,
+  split_mode: "equal",
+  shares: [{ user_id: 1 }],
+  incurred_on: "2026-10-01",
+};
+const drafts = nodes(durationForm()).find(
+  (node) => node.type?.name === "ActivityExpenseDrafts",
+);
+drafts.props.onChange([stagedCost]);
+submitted = undefined;
+durationForm().props.onSubmit({ preventDefault() {} });
+assert.equal(submitted.expense_changes.length, 1);
+assert.equal(
+  submitted.expense_changes[0].id,
+  undefined,
+  "Temporary draft IDs never reach the API",
+);
+assert.equal(submitted.expense_changes[0].description, "Inn");
+assert.equal(
+  itinerary.activityInput(submitted).expense_changes[0].amount_minor,
+  "400000",
+);
+console.log(
+  "Activity saves include staged costs without persisting temporary draft IDs.",
+);
+
+activityFormState = [];
+const activityAttempts = [];
+const retryProps = {
+  ...durationProps,
+  error: new Error("Response lost after commit"),
+  onSubmit: (input, key) => activityAttempts.push({ input, key }),
+};
+durationForm(retryProps).props.onSubmit({ preventDefault() {} });
+let retryForm = durationForm(retryProps);
+nodes(retryForm)
+  .find((node) => node.props.id === "activity-title")
+  .props.onChange({ target: { value: "Edited after failed save" } });
+retryForm.props.onChangeCapture({
+  target: {},
+  currentTarget: { contains: () => true },
+});
+durationForm(retryProps).props.onSubmit({ preventDefault() {} });
+nodes(durationForm(retryProps))
+  .find((node) => node.type?.name === "ActivityExpenseDrafts")
+  .props.onChange([stagedCost]);
+durationForm(retryProps).props.onSubmit({ preventDefault() {} });
+assert.equal(activityAttempts.length, 3);
+assert.equal(activityAttempts[1].input.title, "Edited after failed save");
+assert.equal(activityAttempts[2].input.expense_changes.length, 1);
+assert.ok(activityAttempts[0].key);
+assert.ok(
+  activityAttempts.every((attempt) => attempt.key === activityAttempts[0].key),
+  "Editing activity fields or costs after a failed save must not create a new submission",
 );

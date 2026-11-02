@@ -1,8 +1,8 @@
 "use client";
 
-import { type ReactElement, type ReactNode } from "react";
+import { useEffect, useRef, type ReactElement, type ReactNode } from "react";
 import { Dialog } from "@base-ui/react/dialog";
-import { ArrowLeft, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "cn";
 
@@ -14,6 +14,7 @@ export function TripDialog({
   children,
   footer,
   className,
+  backdropClassName,
   keepMounted = false,
   open,
   onOpenChange,
@@ -24,6 +25,8 @@ export function TripDialog({
   mobilePresentation = "fullscreen",
   presentation = "dialog",
   headerAction,
+  backLabel = "Back to itinerary",
+  focusTitleOnChange = false,
 }: {
   trigger?: ReactElement;
   title: string;
@@ -32,6 +35,7 @@ export function TripDialog({
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
+  backdropClassName?: string;
   keepMounted?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -40,9 +44,15 @@ export function TripDialog({
   mobilePresentation?: "fullscreen" | "sheet";
   presentation?: "dialog" | "detail";
   headerAction?: ReactNode;
+  backLabel?: string;
+  focusTitleOnChange?: boolean;
   initialFocus?: Dialog.Popup.Props["initialFocus"];
   finalFocus?: Dialog.Popup.Props["finalFocus"];
 }) {
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (open && focusTitleOnChange) titleRef.current?.focus();
+  }, [open, title, focusTitleOnChange]);
   const readingContent = (
     <>
       <div
@@ -51,7 +61,11 @@ export function TripDialog({
       >
         <div className="min-w-0 space-y-2">
           {titleAccessory}
-          <Dialog.Title className="break-words text-xl leading-tight font-semibold tracking-tight">
+          <Dialog.Title
+            ref={titleRef}
+            tabIndex={-1}
+            className="break-words text-xl leading-tight font-semibold tracking-tight"
+          >
             {title}
           </Dialog.Title>
           <Dialog.Description className="break-words text-sm leading-6 text-muted-foreground">
@@ -76,7 +90,7 @@ export function TripDialog({
       <div
         data-slot="trip-dialog-body"
         className={cn(
-          "min-h-0 overflow-y-auto overscroll-contain p-6 has-[>.activity-form]:pb-0",
+          "min-h-0 overflow-y-auto overscroll-contain p-6 has-[>.activity-form]:pb-0 has-[>.ledger-form]:pb-0",
           !footer && "rounded-b-[inherit]",
         )}
       >
@@ -98,7 +112,13 @@ export function TripDialog({
     >
       {trigger && <Dialog.Trigger render={trigger} />}
       <Dialog.Portal keepMounted={keepMounted}>
-        <Dialog.Backdrop className="dialog-backdrop fixed inset-0 z-50 bg-black/30" />
+        <Dialog.Backdrop
+          forceRender={!!backdropClassName}
+          className={cn(
+            "dialog-backdrop fixed inset-0 z-50",
+            backdropClassName ?? "bg-black/30",
+          )}
+        />
         <Dialog.Popup
           initialFocus={initialFocus}
           finalFocus={finalFocus}
@@ -111,9 +131,8 @@ export function TripDialog({
         >
           {presentation === "detail" && (
             <div className="activity-detail-navigation">
-              <Dialog.Close render={<Button variant="ghost" />}>
-                <ArrowLeft aria-hidden="true" />
-                Back to itinerary
+              <Dialog.Close disabled={busy} render={<Button variant="ghost" />}>
+                {backLabel}
               </Dialog.Close>
               {headerAction}
             </div>

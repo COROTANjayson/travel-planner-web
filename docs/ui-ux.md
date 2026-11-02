@@ -67,7 +67,10 @@ their existing layouts and behavior.
 - Create Trip links to `/trips/new`; it keeps the existing validated form and save
   behavior. Distinguish an empty account from empty search/status results. Provide
   reset, loading skeletons, safe errors and retry, pagination and visible focus.
-- Open trips into the existing itinerary. People and Settings remain secondary.
+- Open trips into the existing itinerary. Itinerary/Expenses are native links
+  below the shared trip summary; Expenses uses `?view=expenses`. Preserve the
+  selected itinerary date across switches and browser history. People and
+  Settings remain secondary and available in both views.
   The following itinerary requirements describe the approved Step 2 implementation.
 - Activity cards use 16px mobile padding and 20px desktop padding with a 128px
   desktop minimum height, 16px titles and 16px separation between entries. Put
@@ -138,20 +141,24 @@ their existing layouts and behavior.
   mobile view. Keep the itinerary behind the drawer, with the selected card
   outlined. Back to itinerary and permitted Edit stay at the top. The title,
   category, schedule and optional place, notes and plain to-do sections share one
-  scrolling reader; creator and permitted Delete stay in the bottom footer.
-  Put the category badge above the title. Below the title, a calendar icon sits
-  beside the full weekday/date; a smaller line shows the time range, elapsed
-  duration in minutes and trip zone. Retain both dates for overnight activities.
+  scrolling reader. Creator, Delete and financial correction tools sit under
+  Activity options, after the main content. Follow the supplied November 1
+  reference: desktop pairs the cost list with a Notes/To do panel; mobile stacks
+  Notes and To do after expenses. Keep the desktop drawer attached to the right.
+  Show a plain category above the mobile title, followed by the weekday/date,
+  time range and trip zone. Retain both dates for overnight activities.
   The full schedule retains both dates for overnight/multi-day activities and the
   explicit trip zone. Back, Escape and outside dismissal preserve selected day
   and return focus to the card
-  or selected-day heading. Edit opens the existing form, Delete its confirmation.
+  or selected-day heading. Edit opens the activity planner; Delete, under
+  Activity options, opens its confirmation.
 - Show an icon and text category badge on each activity card. Owners/editors use
   Add activity and select Rest, Eating, Travel, Activity, or Custom in the form.
   Custom labels are per activity; no category management screen.
-- Activity forms show title, category, start and duration first. Place, To do,
-  and Notes are expandable sections with right-aligned plus/minus indicators
-  and flush-aligned helper text; saved content opens its section initially.
+- Activity forms show Activity name, When and Expenses first. Category, Place, To do,
+  and Notes stay under More activity details, visible in every activity editor.
+  Activity options → Edit other activity details opens that section automatically.
+  Notes holds the activity description and other free-form reminders.
   Collapsing a section retains its draft. Native validation reveals collapsed
   invalid fields before focus moves to them.
 - To-dos are simple text items: add, rename, or remove them in the existing
@@ -201,36 +208,42 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
 [target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html),
 [reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html).
 
-## Invitations
+## Expenses
 
-- Invitations navigation opens `/invitations`; the former acceptance route redirects
-  there. Use the existing bounded white surface, typography, and responsive shell.
-- Show only the verified account's pending invitations, with trip name, destination,
-  dates, inviter, role, and expiry. Accept opens that trip; Decline removes the
-  invitation and returns focus to the inbox heading. Keep loading, empty, retry,
-  safe mutation-error, and verification-required states. Disable actions while saving.
-- Owners enter email and role; show clear in-app delivery and seven-day expiry
-  instructions without tokens or copy controls. Owner history shows Declined and
-  allows reinviting through the same form. No email notifications are sent.
+- Follow revised Figma sections [07](https://www.figma.com/design/fSnvj7wJlyAcAUGdWsGxFX/Travel-Planner?node-id=68-281)
+  and [07b](https://www.figma.com/design/fSnvj7wJlyAcAUGdWsGxFX/Travel-Planner?node-id=69-102).
+  Keep Itinerary/Expenses navigation, Coastal Folio tokens, 44px touch targets,
+  full-screen mobile forms, and sticky opaque form actions.
+- Expenses is an activity list; management lives inside activity details. Show
+  estimated total, my share, expense items, and per-member Share/Paid/Remaining.
+  Separate business payments from named reimbursements and keep currencies apart.
+- Expense setup follows the reference field order: expense name, per-person/group
+  price, included members, split, share preview, optional planned coverer. Custom
+  splitting opens a separate step with member amounts and **Use this split**.
+  Keep expense forms in the right drawer on desktop and full-screen on mobile,
+  with a 60% black backdrop, labels and sticky actions.
+- **View payments** opens a separate cost payment screen with Share/Paid/Left
+  columns, business total paid/remaining, and named reimbursements. **Update a
+  payment** selects a member. **Record reservation** previews own-share-first
+  coverage from the API before confirming. A member detail shows business
+  payments separately from reimbursements and their receiver-only confirmation.
+- Owners/editors plan per-person/group costs and equal/custom shares. Optional
+  planned coverage is explicitly not a payment. Record actual payments separately;
+  preview own-share-first allocation or exact member-specific coverage.
+- Only planners/editors confirm business payments. Only the recipient confirms a
+  new reimbursement received. Recipients and editors may correct/reverse an existing
+  receipt with a reason and visible history. Viewers cannot write. No approval queue.
+- Add/edit expenses while the activity is still a draft; **Save activity** commits
+  both in one transaction. Preserve drafts on errors,
+  submission keys across retries, and focus when dialogs close. Review paid-cost
+  balance changes before saving; retain payments and show resulting credits.
+- Preserve unassigned costs, removed activity names, former members, old loans and
+  unallocated historical receipts. New lending and covered-food entry are deferred.
 
-## Review and maintenance
-
-1. Identify the main task, primary action, affected views, and permission states.
-2. Reuse relevant components and tokens; keep approved changes within scope.
-3. Verify mobile and desktop, including 320px and 1440px, long text, zoom,
-   keyboard navigation, focus return, and relevant loading/error/empty states.
-4. For form/navigation changes, check sticky controls, short/landscape viewports,
-   safe areas, and keyboard overlap. For itinerary changes, check one-day/long
-   trips, date navigation, viewer controls, conflict editing, failed saves, and
-   unsaved-work protection.
-5. Run the completion checks in [AGENTS.md](../AGENTS.md). Token contrast checks
-   cover selected light-theme pairings, not complete accessibility or browser QA.
-6. Update this guide and the shared implementation when a design decision
-   changes. Report what was actually checked; old checklist marks are not proof
-   that a later change was verified.
-
-Physical iOS/Android keyboard and safe-area behavior still needs device testing.
-Mobile styling does not provide PWA installation, offline storage, or syncing;
-those capabilities remain outside this design refinement.
-Recheck dark-theme behavior if enabling/changing it; automated contrast coverage
-is light-theme only. Figma is a reference, not a prerequisite for ordinary UI work.
+The activity editor opens with Activity name, one expandable When field, the
+visible optional Expenses section, and Save activity. Other existing activity
+fields remain under Activity options → Edit other activity details, preserving
+the short default editor. Expense rows show per-person price
+and member/total metadata; equal reservation coverage uses one member list and
+“Each owes …” line. Payment dates and amounts use formatted reading values,
+with native input editing on focus.

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, type ApiUser, useApi } from "@/lib/api";
 import { permissions, useMembershipsApi } from "@/lib/memberships";
 import { Invitations, Participants } from "@/components/trips/memberships";
+import { Expenses } from "@/components/trips/expenses";
 import { Itinerary } from "@/components/trips/itinerary";
 import {
   formatTripDates,
@@ -17,7 +18,7 @@ import {
   validTripID,
 } from "@/lib/trips";
 import { formatActivityTime } from "@/lib/activity-time";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Settings2,
   Users,
@@ -49,10 +50,20 @@ import {
 export default function TripPage() {
   const { tripID } = useParams<{ tripID: string }>();
   const id = validTripID(tripID);
-  return id === null ? <TripNotFound /> : <TripDetail key={id} id={id} />;
+  return id === null ? (
+    <TripNotFound />
+  ) : (
+    <Suspense fallback={<TripLoading />}>
+      <TripDetail key={id} id={id} />
+    </Suspense>
+  );
 }
 
 function TripDetail({ id }: { id: number }) {
+  const searchParams = useSearchParams();
+  const expenseView =
+    searchParams.get("view") === "expenses" && !searchParams.has("activity");
+  const [itineraryDate, setItineraryDate] = useState<string>();
   const api = useTripsApi();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -138,15 +149,17 @@ function TripDetail({ id }: { id: number }) {
   ) {
     return <TripNotFound />;
   }
-  if (trip.isPending) return <TripLoading />;
-  if (trip.isError)
-    return (
+  if (!trip.data) {
+    return trip.isError ? (
       <TripError
         error={trip.error}
         retry={() => void trip.refetch()}
         pending={trip.isFetching}
       />
+    ) : (
+      <TripLoading />
     );
+  }
 
   return (
     <div className="trip-detail mx-auto flex w-full max-w-6xl flex-col gap-3">
@@ -160,7 +173,9 @@ function TripDetail({ id }: { id: number }) {
         >
           <ArrowLeft aria-hidden="true" />
         </Button>
-        <p className="min-w-0 flex-1 text-sm font-medium">Trip itinerary</p>
+        <p className="min-w-0 flex-1 text-sm font-medium">
+          {expenseView ? "Trip expenses" : "Trip itinerary"}
+        </p>
         <TripDialog
           title="Trip options"
           description={trip.data.name}
@@ -213,6 +228,13 @@ function TripDetail({ id }: { id: number }) {
         </TripDialog>
       </div>
       {accessError && <TripError error={accessError} />}
+      {trip.isError && (
+        <TripError
+          error={trip.error}
+          retry={() => void trip.refetch()}
+          pending={trip.isFetching}
+        />
+      )}
       {me.isError && (
         <TripError
           error={me.error}
@@ -220,12 +242,8 @@ function TripDetail({ id }: { id: number }) {
           pending={me.isFetching}
         />
       )}
-      <Itinerary
-        trip={trip.data}
-        participants={members.data}
-        canEdit={allowed.edit}
-        onFailure={handleFailure}
-        header={
+      <header className="planning-header">
+        <div className="min-w-0 flex-1">
           <div className="trip-summary">
             <div className="trip-summary-destination">
               <p className="flex min-w-0 items-start gap-2 text-sm text-muted-foreground">
@@ -286,8 +304,11 @@ function TripDetail({ id }: { id: number }) {
               )}
             </div>
           </div>
-        }
-        tools={
+        </div>
+        <nav
+          aria-label="Trip tools"
+          className="hidden shrink-0 flex-wrap gap-2 md:flex"
+        >
           <>
             <Button
               className="trip-back min-h-11"
@@ -405,7 +426,8 @@ function TripDetail({ id }: { id: number }) {
                           <AlertDialogTitle>Delete this trip?</AlertDialogTitle>
                           <AlertDialogDescription>
                             This permanently deletes the trip and all its
-                            activities. This cannot be undone.
+                            activities, expenses, and recorded payments. This
+                            cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         {remove.error && <TripError error={remove.error} />}
@@ -434,8 +456,51 @@ function TripDetail({ id }: { id: number }) {
               </TripDialog>
             )}
           </>
-        }
+        </nav>
+      </header>
+      <nav
+        aria-label="Trip views"
+        className="flex flex-wrap gap-2 border-b pb-3"
+      >
+        <Link
+          href={`/trips/${id}`}
+          scroll={false}
+          aria-current={!expenseView ? "page" : undefined}
+          className={buttonVariants({
+            variant: expenseView ? "ghost" : "secondary",
+          })}
+        >
+          Itinerary
+        </Link>
+        <Link
+          href={`/trips/${id}?view=expenses`}
+          scroll={false}
+          aria-current={expenseView ? "page" : undefined}
+          className={buttonVariants({
+            variant: expenseView ? "secondary" : "ghost",
+          })}
+        >
+          Expenses
+        </Link>
+      </nav>
+      <Expenses
+        active={expenseView}
+        trip={trip.data}
+        participants={members.data}
+        current={current}
+        onFailure={handleFailure}
       />
+      {!expenseView && (
+        <Itinerary
+          trip={trip.data}
+          participants={members.data}
+          canEdit={allowed.edit}
+          current={current}
+          onFailure={handleFailure}
+          initialDate={itineraryDate}
+          onDateChange={setItineraryDate}
+        />
+      )}
     </div>
   );
 }

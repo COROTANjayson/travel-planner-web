@@ -35,6 +35,43 @@ and returns to the same path, query, and fragment. An active Auth0 session can
 complete that redirect without asking for credentials. Expired sessions still
 require login; new visitors and failed callbacks do not trigger recovery.
 
+## Trip expenses
+
+Open Expenses (`?view=expenses`) for an itinerary-ordered activity list. Open an
+activity to manage its inline Expenses section. Existing activity expense links
+remain supported. Currency totals stay separate.
+
+Activity creation and editing include an optional Expenses section. Add or edit
+costs in a local draft, then **Save activity** commits the activity and cost
+changes atomically. Failed saves preserve the whole draft; retries reuse the
+same submission key.
+Editing after a failed save keeps that key too. If the original save completed,
+an edited retry returns a conflict; check the saved record before starting again.
+
+Owners/editors plan per-person or group costs, equal/custom shares, and an optional
+coverer/amount. Planned coverage creates no payment or debt. Editors separately
+confirm business payments, including deposits, multiple payers, and member-specific
+payments. Default coverage pays the payer's own share first, then other shares.
+
+Each cost opens its own payment screen; custom splitting also has a separate
+step. Reservation and paid-cost edit previews come from the API.
+Member tracking separates Share, Paid, and Remaining, including amounts still owed
+to a business and named members. Only the reimbursement recipient can **Mark
+received**. Owners/editors and recipients may correct/reverse existing receipts
+with a reason; Receipt history shows the actor and before/after amounts.
+Viewers remain read-only. There is no payment submission queue or payment provider.
+
+Paid-cost edits preview balance changes and preserve contributions; excess coverage
+is shown as credit. Unassigned costs, removed activity names, former members,
+existing loans, and historical unallocated receipts remain accessible. Editors can
+associate old receipts without recording another payment. New lending and covered
+food entry are deferred. Idempotency keys survive uncertain save failures.
+
+Money uses BigInt and integer minor-unit strings. Apply API migrations through
+`00013_activity_plan_requests.sql` before using this web version.
+`scripts/check-expenses.mjs` covers calculations, planned coverage, member-specific
+payments, permissions, adjustment previews, failed-save recovery and retries.
+
 ## Project map and conventions
 
 | Location               | Responsibility                                                                 |
@@ -52,8 +89,10 @@ There is no generated OpenAPI client. Update affected types, requests, and
 checks together when coordinating a contract change.
 
 Use access tokens, not ID tokens or decoded claims, for API access; `/api/v1/me`
-is the API user record. The API refreshes email/verification from access-token
-claims, while display name is initialized at creation. Handle nullable email
+is the API user record. The API refreshes email/verification from validated token
+claims or the issuer's subject-matched `/userinfo` response when `openid` tokens
+omit email claims. After verifying an email, sign out and sign in again to obtain
+fresh profile data. Display name is initialized at creation. Handle nullable email
 and empty display names. Auth0 callbacks return only to validated local paths.
 A 401 clears cached application data and starts reauthentication; logout also
 clears user data. A 204 has no JSON body. Show safe 403 permission feedback,

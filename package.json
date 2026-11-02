@@ -11,7 +11,7 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node scripts/check-auth.mjs && node scripts/check-memberships.mjs && node scripts/check-itinerary.mjs && node scripts/check-ui-contrast.mjs",
+    "test": "node scripts/check-auth.mjs && node scripts/check-memberships.mjs && node scripts/check-itinerary.mjs && node scripts/check-ui-contrast.mjs && node scripts/check-expenses.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build"
   },
