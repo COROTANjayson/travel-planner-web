@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ActivityExpenses } from "./expenses";
+import { ActivityExpenses, type ActivityExpenseView } from "./expenses";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
 import { TZDate } from "react-day-picker";
@@ -160,6 +160,45 @@ export function Itinerary({
   const [dayOptionsOpen, setDayOptionsOpen] = useState(false);
   const dayOptionsTrigger = useRef<HTMLButtonElement>(null);
   const dayToolTrigger = useRef<HTMLButtonElement | null>(null);
+  const [expenseView, setExpenseView] =
+    useState<ActivityExpenseView>("overview");
+  const [expenseActivity, setExpenseActivity] = useState(viewing);
+  const detailContent = useRef<HTMLDivElement>(null);
+  const financeScroll = useRef<Partial<Record<ActivityExpenseView, number>>>(
+    {},
+  );
+  const financeFocus = useRef<string | null>(null);
+  if (expenseActivity !== viewing) {
+    setExpenseActivity(viewing);
+    setExpenseView("overview");
+  }
+  function navigateExpenses(next: ActivityExpenseView) {
+    const reader = detailContent.current?.closest(
+      "[data-slot='trip-dialog-reader']",
+    );
+    financeScroll.current[expenseView] = reader?.scrollTop ?? 0;
+    financeFocus.current =
+      next === "overview"
+        ? "[data-finance-link='details']"
+        : expenseView === "loans" && next === "details"
+          ? "[data-finance-link='loans']"
+          : null;
+    setExpenseView(next);
+  }
+  useEffect(() => {
+    financeScroll.current = {};
+  }, [viewing]);
+  useEffect(() => {
+    const reader = detailContent.current?.closest(
+      "[data-slot='trip-dialog-reader']",
+    );
+    if (reader) reader.scrollTop = financeScroll.current[expenseView] ?? 0;
+    if (financeFocus.current)
+      detailContent.current
+        ?.querySelector<HTMLElement>(financeFocus.current)
+        ?.focus({ preventScroll: true });
+    financeFocus.current = null;
+  }, [expenseView, viewing]);
   function setSelected(date: string) {
     setViewing(null);
     setSelectedDate(date);
@@ -835,9 +874,32 @@ export function Itinerary({
             </div>
           )}
           <TripDialog
-            title={viewedActivity?.title ?? "Activity details"}
+            title={
+              expenseView === "overview"
+                ? (viewedActivity?.title ?? "Activity details")
+                : expenseView === "details" || expenseView === "personal"
+                  ? "Expenses"
+                  : "Borrow list"
+            }
+            focusTitleOnChange
+            backLabel={
+              expenseView === "overview"
+                ? "Back to itinerary"
+                : expenseView === "loans"
+                  ? "Back to expenses"
+                  : "Back to activity"
+            }
+            onBack={
+              expenseView === "overview"
+                ? undefined
+                : () =>
+                    navigateExpenses(
+                      expenseView === "loans" ? "details" : "overview",
+                    )
+            }
             titleAccessory={
-              viewedActivity && (
+              viewedActivity &&
+              expenseView === "overview" && (
                 <span className="activity-detail-category">
                   {viewedActivity.category}
                 </span>
@@ -848,7 +910,8 @@ export function Itinerary({
             mobilePresentation="fullscreen"
             headerAction={
               viewedActivity &&
-              canEdit && (
+              canEdit &&
+              expenseView === "overview" && (
                 <Button
                   variant="ghost"
                   disabled={api.pending || editing !== null}
@@ -866,7 +929,7 @@ export function Itinerary({
               )
             }
             description={
-              viewedActivity ? (
+              viewedActivity && expenseView === "overview" ? (
                 <span className="activity-detail-schedule">
                   <span>
                     <span className="activity-detail-date">
@@ -889,7 +952,7 @@ export function Itinerary({
                   </span>
                 </span>
               ) : (
-                "Activity details"
+                (viewedActivity?.title ?? "Activity details")
               )
             }
             open={!!viewedActivity}
@@ -905,7 +968,10 @@ export function Itinerary({
             }
           >
             {viewedActivity && (
-              <div className="activity-detail-sections text-sm leading-6">
+              <div
+                ref={detailContent}
+                className="activity-detail-sections text-sm leading-6"
+              >
                 <ActivityExpenses
                   key={viewedActivity.id}
                   trip={trip}
@@ -915,100 +981,97 @@ export function Itinerary({
                   activityTitle={viewedActivity.title}
                   onFailure={onFailure}
                   compact
+                  view={expenseView}
+                  onViewChange={navigateExpenses}
                 />
-                <div className="activity-detail-notes">
-                  {viewedActivity.place && (
-                    <section className="space-y-1">
-                      <h3 className="text-xs font-medium text-muted-foreground">
-                        Place
-                      </h3>
-                      <p className="break-words font-medium">
-                        {viewedActivity.place.name}
-                      </p>
-                      {viewedActivity.place.address && (
-                        <p className="break-words text-muted-foreground">
-                          {viewedActivity.place.address}
+                {expenseView === "overview" && (
+                  <div className="activity-detail-notes">
+                    {viewedActivity.place && (
+                      <section className="space-y-1">
+                        <h3 className="text-xs font-medium text-muted-foreground">
+                          Place
+                        </h3>
+                        <p className="break-words font-medium">
+                          {viewedActivity.place.name}
                         </p>
-                      )}
-                    </section>
-                  )}
-                  {viewedActivity.notes && (
-                    <section className="space-y-1">
-                      <h3>Notes</h3>
-                      <p className="whitespace-pre-wrap break-words">
-                        {viewedActivity.notes}
-                      </p>
-                    </section>
-                  )}
-                  {viewedActivity.checklist.length > 0 && (
-                    <section className="space-y-1">
-                      <h3>To do</h3>
-                      <ul className="space-y-1">
-                        {viewedActivity.checklist.map((item, index) => (
-                          <li
-                            key={index}
-                            className="whitespace-pre-wrap break-words"
-                          >
-                            {item.text}
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  )}
-                </div>
-                <details className="activity-management">
-                  <summary>Activity options</summary>{" "}
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="min-w-0 flex-1 break-words text-xs text-muted-foreground">
-                      {participants
-                        ? `Created by ${viewedCreator ? participantName(viewedCreator) : "Former participant"}`
-                        : "Creator unavailable"}
-                    </p>
-                    {canEdit && (
-                      <div className="flex shrink-0 justify-end gap-2">
-                        <Button
-                          variant="destructive"
-                          disabled={api.pending || editing !== null}
-                          aria-label={`Delete ${viewedActivity.title}`}
-                          onClick={() => {
-                            api.reset();
-                            setDeleting(viewedActivity);
-                            setViewing(null);
-                          }}
-                        >
-                          <Trash2 aria-hidden="true" />
-                          Delete
-                        </Button>
-                      </div>
+                        {viewedActivity.place.address && (
+                          <p className="break-words text-muted-foreground">
+                            {viewedActivity.place.address}
+                          </p>
+                        )}
+                      </section>
+                    )}
+                    {viewedActivity.notes && (
+                      <section className="space-y-1">
+                        <h3>Notes</h3>
+                        <p className="whitespace-pre-wrap break-words">
+                          {viewedActivity.notes}
+                        </p>
+                      </section>
+                    )}
+                    {viewedActivity.checklist.length > 0 && (
+                      <section className="space-y-1">
+                        <h3>To do</h3>
+                        <ul className="space-y-1">
+                          {viewedActivity.checklist.map((item, index) => (
+                            <li
+                              key={index}
+                              className="whitespace-pre-wrap break-words"
+                            >
+                              {item.text}
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
                     )}
                   </div>
-                  {canEdit && (
-                    <Button
-                      variant="link"
-                      onClick={() => {
-                        editTrigger.current = detailTrigger.current;
-                        api.reset();
-                        setEditDirty(false);
-                        setEditing({
-                          ...viewedActivity,
-                          showMoreDetails: true,
-                        });
-                        setViewing(null);
-                      }}
-                    >
-                      Edit other activity details
-                    </Button>
-                  )}
-                  <ActivityExpenses
-                    trip={trip}
-                    participants={participants}
-                    current={current}
-                    activityID={String(viewedActivity.id)}
-                    activityTitle={viewedActivity.title}
-                    onFailure={onFailure}
-                    managementOnly
-                  />
-                </details>
+                )}
+                {expenseView === "overview" && (
+                  <details className="activity-management">
+                    <summary>Activity options</summary>{" "}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="min-w-0 flex-1 break-words text-xs text-muted-foreground">
+                        {participants
+                          ? `Created by ${viewedCreator ? participantName(viewedCreator) : "Former participant"}`
+                          : "Creator unavailable"}
+                      </p>
+                      {canEdit && (
+                        <div className="flex shrink-0 justify-end gap-2">
+                          <Button
+                            variant="destructive"
+                            disabled={api.pending || editing !== null}
+                            aria-label={`Delete ${viewedActivity.title}`}
+                            onClick={() => {
+                              api.reset();
+                              setDeleting(viewedActivity);
+                              setViewing(null);
+                            }}
+                          >
+                            <Trash2 aria-hidden="true" />
+                            Delete
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    {canEdit && (
+                      <Button
+                        variant="link"
+                        onClick={() => {
+                          editTrigger.current = detailTrigger.current;
+                          api.reset();
+                          setEditDirty(false);
+                          setEditing({
+                            ...viewedActivity,
+                            showMoreDetails: true,
+                          });
+                          setViewing(null);
+                        }}
+                      >
+                        Edit other activity details
+                      </Button>
+                    )}
+                  </details>
+                )}
               </div>
             )}
           </TripDialog>

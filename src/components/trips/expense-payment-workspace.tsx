@@ -33,6 +33,7 @@ type Context = {
   current?: Participant;
   participants?: Participant[];
   onBack: () => void;
+  backLabel?: string;
   onFailure: (error: Error) => void | Promise<void>;
 };
 type Screen =
@@ -126,7 +127,16 @@ export function ExpensePaymentWorkspace(props: Context) {
       focusTitleOnChange
       presentation="detail"
       className="activity-details-dialog expense-flow-dialog"
-      backLabel="Back to activity"
+      backLabel={
+        screen.type === "list"
+          ? (props.backLabel ?? "Back to activity")
+          : "Back to payments"
+      }
+      onBack={
+        screen.type === "list"
+          ? props.onBack
+          : () => setScreen({ type: "list" })
+      }
       backdropClassName="bg-black/60"
       title={title}
       description={description}
@@ -584,7 +594,8 @@ function ExpensePaymentForm(
       focusTitleOnChange
       presentation="detail"
       className="activity-details-dialog expense-flow-dialog"
-      backLabel="Back to activity"
+      backLabel="Back to payments"
+      onBack={() => props.onSaved(user)}
       backdropClassName="bg-black/60"
       title={title}
       description={description}

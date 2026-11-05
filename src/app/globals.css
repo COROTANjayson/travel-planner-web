@@ -1040,7 +1040,8 @@ summary {
   cursor: pointer;
   border-radius: 0;
 }
-.figma-payment-row:focus-visible {
+.figma-payment-row:focus-visible,
+.personal-expense-row:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 3px;
 }
@@ -2620,93 +2621,221 @@ summary {
   padding-inline: 16px;
   font-weight: 700;
 }
-@media (min-width: 1024px) {
-  .reference-activity-dialog [data-slot="trip-dialog-header"] {
-    padding: 24px 32px;
+@media (min-width: 768px) {
+  .trip-dialog.reference-activity-dialog {
+    width: min(680px, 100%);
   }
-  .reference-activity-dialog [data-slot="trip-dialog-body"] {
-    padding-inline: 32px;
-  }
-  .reference-activity-dialog .activity-detail-category {
-    display: none;
-  }
-  .reference-activity-dialog [data-slot="trip-dialog-header"] h2 {
-    font-size: 32px;
-    max-width: none;
-    margin-bottom: 12px;
-  }
-  .reference-activity-dialog .activity-detail-date,
-  .reference-activity-dialog .activity-detail-time {
-    display: inline;
-    font-size: 16px;
-    line-height: 28px;
-    color: var(--muted-foreground);
-  }
-  .reference-activity-dialog .activity-detail-time::before {
-    content: " · ";
-  }
-  .reference-activity-dialog .activity-detail-sections {
-    display: grid;
-    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
-    gap: 24px 32px;
-  }
-  .reference-activity-dialog .activity-cost-section {
-    display: contents;
-  }
-  .reference-activity-dialog .activity-cost-heading {
-    grid-row: 1;
-    grid-column: 1/-1;
-    margin: 0;
-    padding-top: 18px;
-  }
-  .reference-activity-dialog .activity-cost-total {
-    grid-row: 2;
-    grid-column: 1/-1;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    border: 0;
-    padding: 0;
-  }
-  .reference-activity-dialog .activity-cost-total > div {
-    display: flex;
-    gap: 4px;
-  }
-  .reference-activity-dialog .activity-cost-total > div:first-child::after {
-    content: " · ";
-  }
-  .reference-activity-dialog .activity-cost-total p:first-child,
-  .reference-activity-dialog .activity-cost-total p:last-child {
-    font-size: 16px;
-    font-weight: 400;
-    line-height: 26px;
-    margin: 0;
-  }
-  .reference-activity-dialog .activity-cost-list {
-    grid-row: 3;
-    grid-column: 1;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 0 24px;
-  }
-  .reference-activity-dialog .activity-detail-notes {
-    grid-row: 3;
-    grid-column: 2;
-    padding: 0 24px;
-    background: var(--secondary);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-  }
-  .reference-activity-dialog .activity-detail-notes section {
-    border: 0;
-  }
-  .reference-activity-dialog .activity-view-payments {
-    width: auto;
-    border: 0;
-    padding: 0;
-    background: none;
-  }
+}
+.activity-finance .activity-cost-heading {
+  border: 0;
+  padding: 0;
+}
+.reference-activity-dialog:has(.activity-finance-tabs)
+  [data-slot="trip-dialog-header"] {
+  padding: 24px 24px 16px;
+}
+.reference-activity-dialog:has(.activity-finance-tabs)
+  [data-slot="trip-dialog-header"]
+  h2 {
+  margin: 0 0 4px;
+  font-size: 26px;
+  line-height: 34px;
+}
+.activity-finance:has(.activity-finance-tabs) {
+  border-top: 0;
+}
+.activity-finance-tabs [role="tablist"] {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid var(--input);
+}
+.activity-finance-tabs [role="tab"] {
+  position: relative;
+  min-height: 48px;
+  padding: 10px 4px 14px;
+  color: var(--muted-foreground);
+  font-size: 16px;
+  line-height: 24px;
+  cursor: pointer;
+}
+.activity-finance-tabs [role="tab"][data-active] {
+  color: var(--foreground);
+  font-weight: 700;
+}
+.activity-finance-tabs [role="tab"][data-active]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--primary);
+}
+.activity-finance-tabs [role="tab"]:hover {
+  color: var(--primary);
+}
+.activity-finance-tabs [role="tab"]:focus-visible,
+.activity-finance > [role="tabpanel"]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.activity-expense-list-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 4px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.activity-expense-list-heading h3 {
+  font-size: 18px;
+  font-weight: 700;
+}
+.reference-activity-dialog
+  .activity-detail-sections
+  > [data-finance-view="overview"] {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+}
+.activity-finance .activity-cost-total {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  border: 0;
+  padding: 0;
+}
+.activity-finance .activity-cost-total > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.activity-finance .activity-cost-total p {
+  font-size: 16px;
+  line-height: 26px;
+  font-weight: 400;
+  margin: 0;
+}
+.activity-finance .activity-cost-total p:first-child {
+  color: var(--muted-foreground);
+}
+.activity-finance[data-finance-view="details"] .activity-cost-total {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  padding: 20px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--secondary);
+}
+.activity-finance[data-finance-view="details"] .activity-cost-total > div {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.activity-finance[data-finance-view="details"]
+  .activity-cost-total
+  p:first-child {
+  font-size: 14px;
+  line-height: 22px;
+}
+.activity-finance[data-finance-view="details"]
+  .activity-cost-total
+  p:last-child {
+  margin-top: 4px;
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.activity-finance[data-finance-view="details"]
+  .activity-cost-list
+  > article:first-child {
+  padding-top: 0;
+}
+.activity-finance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.activity-finance-actions [data-slot="button"] {
+  white-space: normal;
+  min-height: 44px;
+  height: auto;
+}
+.activity-borrow-link[data-slot="button"] {
+  display: flex;
+  width: 100%;
+  height: auto;
+  min-height: 64px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  white-space: normal;
+  text-align: left;
+  border-radius: 12px;
+  gap: 8px 16px;
+  padding: 16px;
+}
+.personal-expense-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.personal-expense-summary dt {
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+.personal-expense-summary dd {
+  margin-top: 4px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.personal-expense-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 44px;
+  padding: 16px 0;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.personal-expense-row > :first-child {
+  min-width: 0;
+}
+.personal-expense-row > :last-child {
+  flex-shrink: 0;
+  max-width: 50%;
+}
+.personal-balance-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  font-weight: 600;
+}
+.personal-balance-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+  padding-block: 16px;
+}
+.personal-balance-actions {
+  text-align: right;
+}
+.personal-balance-action[data-slot="button"] {
+  height: auto;
+  min-height: 44px;
+  padding: 0;
+  font-size: 12px;
 }
 @media (max-width: 359px) {
   .figma-custom-shares > div {

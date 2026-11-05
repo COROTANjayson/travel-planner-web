@@ -38,8 +38,25 @@ require login; new visitors and failed callbacks do not trigger recovery.
 ## Trip expenses
 
 Open Expenses (`?view=expenses`) for an itinerary-ordered activity list. Open an
-activity to manage its inline Expenses section. Existing activity expense links
-remain supported. Currency totals stay separate.
+activity for a short overview: expense total, your share, Notes, and To do.
+**View expenses** opens one Expenses screen with **All expenses** and **My expenses** tabs:
+**All expenses** lists the activity's costs and their **View payments** screens;
+**My Expenses** shows your shares, settled-share Paid total, amounts to pay,
+reimbursements, and borrowed money for that activity. Back returns to the
+previous view inside the activity window. Existing activity expense links remain
+supported. Currency totals stay separate; trip-wide personal lists remain on the
+Expenses tab.
+
+Members, owners, and editors can **Record money lent** to one other active trip
+participant through **Add borrow** in the activity's **Borrow list**, always the
+last entry in detailed expenses. The signed-in user is always the lender; this
+list shows only their loans, with one row per loan, including paid loans.
+Loans do not increase activity spending, expense shares, or the personal Paid
+total. Only the recipient can **Mark as paid**, for the full outstanding balance
+or a partial amount. **Undo** reverses the latest active repayment with a reason
+and confirmation. Shared loan history and financial corrections remain under
+**History and corrections** in detailed expenses; reverse repayment receipts
+before removing a mistaken loan. Viewers cannot record loans or repayments.
 
 Activity creation and editing include an optional Expenses section. Add or edit
 costs in a local draft, then **Save activity** commits the activity and cost
@@ -64,8 +81,8 @@ Viewers remain read-only. There is no payment submission queue or payment provid
 Paid-cost edits preview balance changes and preserve contributions; excess coverage
 is shown as credit. Unassigned costs, removed activity names, former members,
 existing loans, and historical unallocated receipts remain accessible. Editors can
-associate old receipts without recording another payment. New lending and covered
-food entry are deferred. Idempotency keys survive uncertain save failures.
+associate old receipts without recording another payment. Covered-food entry is
+deferred. Idempotency keys survive uncertain save failures.
 
 Money uses BigInt and integer minor-unit strings. Apply API migrations through
 `00013_activity_plan_requests.sql` before using this web version.

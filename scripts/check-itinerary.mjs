@@ -2505,3 +2505,69 @@ assert.ok(
   activityAttempts.every((attempt) => attempt.key === activityAttempts[0].key),
   "Editing activity fields or costs after a failed save must not create a new submission",
 );
+
+// Activity finance steps replace the reader contents and keep the selected activity.
+queryMode = "success";
+boardActivities = [activity];
+uiState = [];
+uiRefs = [];
+openDetails();
+details();
+const financeSection = () =>
+  nodes(details().props.children).find(
+    (n) => typeof n.props.onViewChange === "function",
+  );
+assert.equal(financeSection().props.view, "overview");
+financeSection().props.onViewChange("details");
+assert.equal(details().props.title, "Expenses");
+assert.equal(details().props.open, true);
+assert.doesNotMatch(
+  renderToStaticMarkup(details().props.children),
+  /Reserve table|Order breakfast|Activity options/,
+);
+financeSection().props.onViewChange("loans");
+assert.equal(details().props.title, "Borrow list");
+assert.equal(details().props.backLabel, "Back to expenses");
+details().props.onBack();
+assert.equal(financeSection().props.view, "details");
+details().props.onBack();
+assert.equal(financeSection().props.view, "overview");
+financeSection().props.onViewChange("personal");
+assert.equal(details().props.title, "Expenses");
+assert.equal(details().props.backLabel, "Back to activity");
+assert.equal(details().props.headerAction, false);
+details().props.onBack();
+assert.equal(financeSection().props.view, "overview");
+details().props.onOpenChange(false);
+details();
+openDetails();
+details();
+assert.equal(
+  financeSection().props.view,
+  "overview",
+  "Reopening an activity starts with its short overview",
+);
+let backed = false;
+const stepDialog = TripDialog({
+  title: "Expenses",
+  description: "Activity",
+  presentation: "detail",
+  backLabel: "Back to activity",
+  onBack: () => {
+    backed = true;
+  },
+  children: "Expenses",
+});
+const backButton = nodes(stepDialog).find(
+  (n) => n.props.onClick && n.props.children === "Back to activity",
+);
+backButton.props.onClick();
+assert.equal(backed, true);
+assert.equal(
+  nodes(stepDialog).some((n) => n.type === dialogParts.Close),
+  false,
+  "A step Back button does not close the activity window",
+);
+console.log(
+  "Activity finance steps, contextual Back and overview reset passed.",
+);

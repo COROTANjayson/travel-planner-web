@@ -137,14 +137,16 @@ their existing layouts and behavior.
   can read details; owners/editors can edit or delete. Return focus to the card
   after dismissal, or the day heading if the card disappears. Keep optional place
   selection and plain-language search and save feedback.
-- Activity details use a modal 480px right drawer from 768px and a full-screen
+- Activity details use a modal 680px right drawer from 768px and a full-screen
   mobile view. Keep the itinerary behind the drawer, with the selected card
   outlined. Back to itinerary and permitted Edit stay at the top. The title,
   category, schedule and optional place, notes and plain to-do sections share one
-  scrolling reader. Creator, Delete and financial correction tools sit under
-  Activity options, after the main content. Follow the supplied November 1
-  reference: desktop pairs the cost list with a Notes/To do panel; mobile stacks
-  Notes and To do after expenses. Keep the desktop drawer attached to the right.
+  scrolling reader. Creator and Delete sit under
+  Activity options, after the main content. Follow the supplied November 2 flow:
+  both desktop and mobile stack a short Expenses summary, Notes, and To do.
+  The summary shows expense total and your share, with one View expenses action.
+  One Expenses screen uses underlined All expenses and My expenses tabs to switch views inside the activity window. Keep the desktop drawer attached to the right,
+  bounded at 680px from 768px; mobile remains full-screen.
   Show a plain category above the mobile title, followed by the weekday/date,
   time range and trip zone. Retain both dates for overnight activities.
   The full schedule retains both dates for overnight/multi-day activities and the
@@ -237,8 +239,39 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
   both in one transaction. Preserve drafts on errors,
   submission keys across retries, and focus when dialogs close. Review paid-cost
   balance changes before saving; retain payments and show resulting credits.
+- Keep trip-wide To pay and Owed to me lists on the Expenses tab. Inside an activity,
+  My Expenses shows every own expense share, including fully paid items, plus
+  money owed and receivable from reimbursements and loans. Paid means the settled
+  part of the signed-in person's expense shares, not their cash outlay or loans.
+  Keep currencies separate and credits explicitly labeled for review.
+  Personal balance rows put the person first, then the expense, with the amount
+  aligned right. Show each currency total once beside You owe or Owed to you.
+  Mark as paid is a compact text action with a 44px minimum touch target.
+- All expenses shows expense rows with View payments and permitted Add expense.
+  Use underlined All expenses and My expenses tabs with keyboard arrow navigation
+  on mobile and desktop. Show estimated total and your share in a pale sea panel,
+  labels above amounts. Below it, align the expense count and + Add expense action
+  in one row, with a divider before expense rows. Keep the financial header compact.
+  Borrow list is always the last entry, with a loan count and original amount lent
+  per currency. It opens only loans made by the signed-in person for that activity,
+  one row per loan, including paid loans. Show borrower, description, original and
+  outstanding amounts, status, and permitted Mark as paid/Undo actions.
+  Add borrow sits after the list and opens Record money lent.
+  Loans never increase activity spending, expense shares, or personal Paid totals.
+- Use contextual Back actions: payment screens return to their originating expense
+  or personal view; Borrow list returns to All expenses; both expense views
+  return to the overview's View expenses action. Restore focus and reader position on
+  return. Reopening or changing activity resets to the overview. Hide Notes, To do,
+  and activity editing controls in financial steps. Preserve the selected day.
+- Members, owners and editors record money they personally lent to one other active
+  participant. Only the recipient marks full/partial repayments as paid. Put loan
+  removal and receipt corrections under History and corrections in detailed expenses,
+  with loan-specific history also in Borrow list. Undo reverses only the latest
+  active repayment receipt, requiring the existing reason and confirmation;
+  earlier receipts stay accessible through history. Reverse repayment receipts
+  before removing a loan. Viewers remain read-only.
 - Preserve unassigned costs, removed activity names, former members, old loans and
-  unallocated historical receipts. New lending and covered-food entry are deferred.
+  unallocated historical receipts. Covered-food entry is deferred.
 
 The activity editor opens with Activity name, one expandable When field, the
 visible optional Expenses section, and Save activity. Other existing activity

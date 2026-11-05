@@ -26,6 +26,7 @@ export function TripDialog({
   presentation = "dialog",
   headerAction,
   backLabel = "Back to itinerary",
+  onBack,
   focusTitleOnChange = false,
 }: {
   trigger?: ReactElement;
@@ -45,6 +46,7 @@ export function TripDialog({
   presentation?: "dialog" | "detail";
   headerAction?: ReactNode;
   backLabel?: string;
+  onBack?: () => void;
   focusTitleOnChange?: boolean;
   initialFocus?: Dialog.Popup.Props["initialFocus"];
   finalFocus?: Dialog.Popup.Props["finalFocus"];
@@ -131,9 +133,18 @@ export function TripDialog({
         >
           {presentation === "detail" && (
             <div className="activity-detail-navigation">
-              <Dialog.Close disabled={busy} render={<Button variant="ghost" />}>
-                {backLabel}
-              </Dialog.Close>
+              {onBack ? (
+                <Button variant="ghost" disabled={busy} onClick={onBack}>
+                  {backLabel}
+                </Button>
+              ) : (
+                <Dialog.Close
+                  disabled={busy}
+                  render={<Button variant="ghost" />}
+                >
+                  {backLabel}
+                </Dialog.Close>
+              )}
               {headerAction}
             </div>
           )}

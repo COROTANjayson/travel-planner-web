@@ -316,6 +316,15 @@ export function ActivityExpenseForm({
             throw new Error("Choose an activity first.");
           if (editor.type === "loan" && (!borrower || borrower === payer))
             throw new Error("Choose a different borrower.");
+          if (editor.type === "loan" && !currentUserIDs.includes(borrower))
+            throw new Error("Choose a current trip participant.");
+          if (
+            editor.type === "repayment" &&
+            debt &&
+            !editor.receipt &&
+            BigInt(total) > BigInt(debt.amount_minor)
+          )
+            throw new Error("Enter an amount within the outstanding balance.");
           setValidation(null);
           if (
             isCost &&
@@ -754,7 +763,11 @@ export function ActivityExpenseForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="cost-date">
-                {isCost ? "Cost date" : "Date paid"}
+                {isCost
+                  ? "Cost date"
+                  : editor.type === "loan"
+                    ? "Date lent"
+                    : "Date paid"}
               </Label>
               <Input
                 id="cost-date"
@@ -968,10 +981,12 @@ export function ActivityExpenseForm({
                 : editor.receipt
                   ? "Save correction"
                   : editor.type === "repayment"
-                    ? "Mark received"
+                    ? "Mark as paid"
                     : editor.type === "payment"
                       ? "Confirm payment"
-                      : "Save expense"}
+                      : editor.type === "loan"
+                        ? "Record money lent"
+                        : "Save expense"}
           </Button>
         </div>
       </fieldset>
