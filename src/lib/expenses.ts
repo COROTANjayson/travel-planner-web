@@ -268,20 +268,18 @@ export function useExpensesApi(
       const failure =
         cause instanceof ApiError
           ? cause
-          : new Error(
+          : new ApiError(
+              500,
               "Saving may have completed. Retry this submission or refresh the ledger before creating another record.",
             );
       setError(failure);
-      if (failure instanceof ApiError && failure.status === 400) {
+      if (failure.status === 400) {
         await client.invalidateQueries({
           queryKey: ["trip", tripID, "members"],
         });
         await refresh();
       }
-      if (
-        failure instanceof ApiError &&
-        [403, 404, 409].includes(failure.status)
-      ) {
+      if ([403, 404, 409].includes(failure.status)) {
         await refresh();
         if (failure.status === 403) await onFailure(failure);
       }

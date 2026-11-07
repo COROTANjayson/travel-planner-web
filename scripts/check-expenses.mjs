@@ -156,7 +156,10 @@ failure = new Error("Connection lost");
 calls.length = 0;
 await assert.rejects(
   api.saveExpense(input, undefined, "stable-key"),
-  /Saving may have completed/,
+  (error) =>
+    error instanceof ApiError &&
+    /Saving may have completed/.test(error.message),
+  "TripError must be able to show the duplicate-record warning",
 );
 failure = null;
 await api.saveExpense(input, undefined, "stable-key");
@@ -333,9 +336,17 @@ const wrap = (tag) =>
     return React.createElement(tag, props, children);
   };
 const ExpenseSelect = (props) => React.createElement("div", null, props.label);
-const TripError = ({ error }) => React.createElement("p", null, error.message);
+// The real component hides non-ApiError text, so user-written messages must be ApiErrors.
+const { TripError } = load("src/components/trips/trip-states.tsx", {
+  "next/link": { default: wrap("a") },
+  "@/lib/api": apiMock,
+  "@/components/ui/alert": { Alert: wrap("div"), AlertDescription: wrap("p") },
+  "@/components/ui/button": { Button: wrap("button") },
+  "@/components/ui/skeleton": { Skeleton: wrap("div") },
+});
 const formModule = load("src/components/trips/activity-expense-form.tsx", {
   react: formReact,
+  "@/lib/api": apiMock,
   "@/lib/activity-expenses": activity,
   "@/lib/expenses": ledger,
   "@/lib/money": money,
@@ -379,7 +390,7 @@ const props = {
   onDirty() {},
   onCancel() {},
   async onSave(input) {
-    if (fail) throw new Error("Offline");
+    if (fail) throw new ApiError(503, "Offline");
     saved = input;
   },
 };
@@ -426,6 +437,37 @@ tree = render(formModule.ActivityExpenseForm, editProps);
 await tree.props.onSubmit({ preventDefault() {} });
 assert.equal(saved.amount_minor, "350000");
 assert.equal(saved.version, 1);
+
+// Local checks stay readable; unexpected failures never show their raw text.
+states = [];
+saved = undefined;
+const formMarkup = (formProps) =>
+  renderToStaticMarkup(render(formModule.ActivityExpenseForm, formProps));
+tree = render(formModule.ActivityExpenseForm, props);
+find(tree, "cost-amount").props.onChange({ target: { value: "0" } });
+tree = render(formModule.ActivityExpenseForm, props);
+find(tree, "cost-mode-exact").props.onChange();
+assert.match(formMarkup(props), /Enter a positive amount/);
+tree = render(formModule.ActivityExpenseForm, props);
+await tree.props.onSubmit({ preventDefault() {} });
+assert.match(formMarkup(props), /Enter a positive amount/);
+assert.doesNotMatch(formMarkup(props), /Something went wrong/);
+assert.equal(saved, undefined);
+states = [];
+const crashingProps = {
+  ...props,
+  async onSave() {
+    throw new TypeError("Failed to fetch");
+  },
+};
+tree = render(formModule.ActivityExpenseForm, crashingProps);
+find(tree, "cost-description").props.onChange({
+  target: { value: "Entrance" },
+});
+find(tree, "cost-amount").props.onChange({ target: { value: "400" } });
+tree = render(formModule.ActivityExpenseForm, crashingProps);
+await tree.props.onSubmit({ preventDefault() {} });
+assert.doesNotMatch(formMarkup(crashingProps), /Failed to fetch/);
 
 states = [];
 refs = [];
@@ -749,19 +791,22 @@ const approved = load(
     react: { ...formReact, useId: () => "expense" },
     "@/lib/api": apiMock,
     "@/lib/expenses": ledger,
+    "@/lib/memberships": {
+      participantInitials: (person) => `I${person.user_id}`,
+    },
     "@/lib/money": money,
     "@/components/ui/button": { Button: wrap("button") },
     "@/components/ui/input": { Input: wrap("input") },
     "@/components/ui/label": { Label: wrap("label") },
-    "@/components/ui/select": Object.fromEntries(
-      [
-        "Select",
-        "SelectContent",
-        "SelectItem",
-        "SelectTrigger",
-        "SelectValue",
-      ].map((n) => [n, wrap("div")]),
-    ),
+    "@/components/ui/select": {
+      ...Object.fromEntries(
+        ["Select", "SelectItem", "SelectTrigger", "SelectValue"].map((n) => [
+          n,
+          wrap("div"),
+        ]),
+      ),
+      SelectContent: ({ children }) => children,
+    },
     "./trip-dialog": { TripDialog: ({ children }) => children },
     "./expense-forms": { ExpenseSelect },
     "./trip-states": { TripError },
@@ -785,6 +830,52 @@ const submitCost = () =>
   nodes(costTree())
     .find((n) => n.type === "form")
     .props.onSubmit({ preventDefault() {}, stopPropagation() {} });
+states = [];
+refs = [];
+const costMarkup = renderToStaticMarkup(costTree());
+assert.match(costMarkup, /Group price/);
+assert.doesNotMatch(costMarkup, /Group price ·/);
+const membersControl = () => costTree().props.headerAction;
+assert.equal(
+  membersControl().props["aria-label"],
+  "Who is included? All 5 members",
+  "The initials announce their question and current value",
+);
+const initialsMarkup = renderToStaticMarkup(membersControl());
+assert.match(initialsMarkup, /I3/);
+assert.doesNotMatch(initialsMarkup, /I4/);
+assert.match(initialsMarkup, /\+2/);
+assert.equal(
+  render(approved.ExpenseCostEditor, { ...approvedProps, pending: true }).props
+    .headerAction.props.disabled,
+  true,
+  "The initials sit outside the disabled fieldset, so they block themselves",
+);
+membersControl().props.onClick();
+assert.equal(costTree().props.title, "Who is included?");
+assert.ok(!membersControl(), "Only the cost step shows the initials");
+states = [];
+refs = [];
+assert.equal(
+  find(costTree(), "expense-coverer").props["aria-labelledby"],
+  "expense-coverer-label expense-coverer",
+  "Step controls announce their question and current value",
+);
+for (const id of ["expense-name", "expense-price"])
+  assert.equal(
+    nodes(costTree()).find((n) => n.props.htmlFor === id).props.className,
+    "field-required",
+    "Required expense fields are marked",
+  );
+states = [];
+refs = [];
+assert.equal(
+  render(approved.ExpenseCostEditor, {
+    ...approvedProps,
+    people: people.slice(0, 1),
+  }).props.headerAction.props["aria-label"],
+  "Who is included? 1 member",
+);
 states = [];
 refs = [];
 saved = undefined;
@@ -820,6 +911,33 @@ assert.equal(
 console.log(
   "Approved expense/custom-split steps, planning-only save, exact shares and failed-draft recovery passed.",
 );
+
+// Errors sit below the step controls, so a blocked step must reach its message.
+// The real TripError only shows ApiError text.
+states = [];
+refs = [];
+costTree();
+let focusedErrors = 0;
+for (const ref of refs) ref.current = { focus: () => focusedErrors++ };
+const stepError = () =>
+  nodes(costTree()).find((n) => n.type === TripError)?.props.error;
+nodes(costTree())
+  .find((n) => n.props.label === "Split")
+  .props.onChange("exact");
+assert.equal(costTree().props.title, "Add expense");
+assert.ok(stepError() instanceof ApiError);
+assert.match(stepError().message, /Enter a valid price/);
+assert.equal(focusedErrors, 1);
+find(costTree(), "expense-coverer").props.onClick();
+assert.ok(stepError() instanceof ApiError);
+assert.match(stepError().message, /Enter a valid price and split first/);
+assert.equal(focusedErrors, 2);
+find(costTree(), "expense-price").props.onChange({ target: { value: "abc" } });
+await submitCost();
+assert.ok(stepError() instanceof ApiError, "Local save checks stay readable");
+assert.match(stepError().message, /digits and a decimal point/);
+assert.equal(focusedErrors, 3);
+console.log("Blocked expense steps show and focus their own message.");
 
 viewData = {
   ...reservationLedger,
@@ -996,16 +1114,7 @@ const paymentModule = load(
     },
     "./expense-forms": { ExpenseSelect },
     "./trip-dialog": { TripDialog: ({ children }) => children },
-    "./trip-states": {
-      TripError: ({ error }) =>
-        React.createElement(
-          "p",
-          null,
-          error instanceof ApiError
-            ? error.message
-            : "Something went wrong. Please try again.",
-        ),
-    },
+    "./trip-states": { TripError },
   },
   { crypto },
 );
@@ -1315,6 +1424,10 @@ viewApi.saveTransaction = async (...args) => {
   throw new Error("Offline");
 };
 const loanInput = { ...loans[0], payer_user_id: 1 };
+await assert.rejects(
+  loanForm.props.onSave({ ...loanInput, from_user_id: 999 }),
+  (error) => error instanceof ApiError && /personally lent/.test(error.message),
+);
 await assert.rejects(loanForm.props.onSave(loanInput), /Offline/);
 tree = render(view.ActivityExpenses, lenderProps);
 loanForm = nodes(tree).find((n) => n.type === formModule.ActivityExpenseForm);
@@ -1378,6 +1491,7 @@ const personalModule = load(
   "src/components/trips/personal-payments.tsx",
   {
     react: formReact,
+    "@/lib/api": apiMock,
     "@/lib/activity-expenses": activity,
     "@/lib/expenses": { ...ledger, useExpensesApi: () => viewApi },
     "@/lib/money": money,
@@ -1484,6 +1598,11 @@ const receiptInput = {
   paid_on: "2026-11-02",
   amount_minor: "10000",
 };
+await assert.rejects(
+  receiptForm.props.onSave({ ...receiptInput, to_user_id: 999 }),
+  (error) =>
+    error instanceof ApiError && /Only the recipient/.test(error.message),
+);
 await assert.rejects(receiptForm.props.onSave(receiptInput), /Offline/);
 tree = personal();
 receiptForm = nodes(tree).find(
@@ -1627,7 +1746,7 @@ assert.equal(
   false,
 );
 nodes(tree)
-  .find((n) => n.props.children === "View expenses")
+  .find((n) => n.props["data-finance-link"] === "details")
   .props.onClick();
 assert.deepEqual(selectedViews, ["details"]);
 assert.equal(

@@ -77,7 +77,8 @@ export function TripForm({
     const size = new TextEncoder().encode(term).length;
     if (size < 2 || size > 200) {
       setSearchError(
-        new Error(
+        new ApiError(
+          400,
           size < 2
             ? "Enter at least 2 characters to search."
             : "Use a shorter destination name.",
@@ -94,7 +95,8 @@ export function TripForm({
           `/api/v1/places/search?scope=destination&q=${encodeURIComponent(term)}`,
         )) ?? [];
       if (found.some((item) => !item.kind))
-        throw new Error(
+        throw new ApiError(
+          500,
           "Destination search is unavailable. Please try again later.",
         );
       setResults(found);
@@ -117,7 +119,8 @@ export function TripForm({
         }),
       });
       if (!selected || !selected.kind)
-        throw new Error(
+        throw new ApiError(
+          500,
           "Destination search is unavailable. Please try again later.",
         );
       if (selected.kind !== "city" && selected.kind !== "country")

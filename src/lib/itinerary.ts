@@ -1,10 +1,24 @@
 "use client";
 
+import {
+  Coffee,
+  Plane,
+  Sparkles,
+  Utensils,
+  type LucideIcon,
+} from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, useApi } from "@/lib/api";
 import { type Place } from "@/lib/places";
 import { toast } from "sonner";
+
+export const activityCategoryIcons: Record<string, LucideIcon> = {
+  Rest: Coffee,
+  Eating: Utensils,
+  Travel: Plane,
+  Activity: Sparkles,
+};
 
 export const activityCategories = [
   "Rest",

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, type ReactElement, type ReactNode } from "react";
 import { Dialog } from "@base-ui/react/dialog";
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "cn";
 
@@ -10,6 +10,8 @@ export function TripDialog({
   trigger,
   title,
   titleAccessory,
+  titleAction,
+  headerContent,
   description,
   children,
   footer,
@@ -32,7 +34,9 @@ export function TripDialog({
   trigger?: ReactElement;
   title: string;
   titleAccessory?: ReactNode;
-  description: ReactNode;
+  titleAction?: ReactNode;
+  headerContent?: ReactNode;
+  description?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
@@ -62,17 +66,33 @@ export function TripDialog({
         className="flex items-start justify-between gap-4 shrink-0 border-b px-6 py-4 md:p-6"
       >
         <div className="min-w-0 space-y-2">
-          {titleAccessory}
-          <Dialog.Title
-            ref={titleRef}
-            tabIndex={-1}
-            className="break-words text-xl leading-tight font-semibold tracking-tight"
-          >
-            {title}
-          </Dialog.Title>
-          <Dialog.Description className="break-words text-sm leading-6 text-muted-foreground">
-            {description}
-          </Dialog.Description>
+          {!headerContent && titleAccessory}
+          <div className="flex items-start justify-between gap-4">
+            <Dialog.Title
+              ref={titleRef}
+              tabIndex={-1}
+              className={
+                headerContent
+                  ? "sr-only"
+                  : "min-w-0 break-words text-xl leading-tight font-semibold tracking-tight"
+              }
+            >
+              {title}
+            </Dialog.Title>
+            {titleAction}
+          </div>
+          {description && (
+            <Dialog.Description
+              className={
+                headerContent
+                  ? "sr-only"
+                  : "break-words text-sm leading-6 text-muted-foreground"
+              }
+            >
+              {description}
+            </Dialog.Description>
+          )}
+          {headerContent}
         </div>
         {presentation !== "detail" && (
           <Dialog.Close
@@ -135,6 +155,7 @@ export function TripDialog({
             <div className="activity-detail-navigation">
               {onBack ? (
                 <Button variant="ghost" disabled={busy} onClick={onBack}>
+                  <ArrowLeft aria-hidden="true" className="size-3.5" />
                   {backLabel}
                 </Button>
               ) : (
@@ -142,6 +163,7 @@ export function TripDialog({
                   disabled={busy}
                   render={<Button variant="ghost" />}
                 >
+                  <ArrowLeft aria-hidden="true" className="size-3.5" />
                   {backLabel}
                 </Dialog.Close>
               )}

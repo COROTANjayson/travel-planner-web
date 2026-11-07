@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Temporal } from "@js-temporal/polyfill";
+import { ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -325,6 +326,12 @@ export function ActivityExpenseForm({
             BigInt(total) > BigInt(debt.amount_minor)
           )
             throw new Error("Enter an amount within the outstanding balance.");
+        } catch (cause) {
+          // TripError only shows ApiError text; these messages are written for the user.
+          setValidation(new ApiError(422, (cause as Error).message));
+          return;
+        }
+        try {
           setValidation(null);
           if (
             isCost &&
@@ -384,7 +391,7 @@ export function ActivityExpenseForm({
           setValidation(
             cause instanceof Error
               ? cause
-              : new Error("Unable to save. Retry this draft."),
+              : new ApiError(500, "Unable to save. Retry this draft."),
           );
         }
       }}
@@ -524,7 +531,7 @@ export function ActivityExpenseForm({
                       onChange={() => {
                         if (option.value === "exact") {
                           if (previewError) {
-                            setValidation(new Error(previewError));
+                            setValidation(new ApiError(422, previewError));
                             return;
                           }
                           if (basis === "per_person") {

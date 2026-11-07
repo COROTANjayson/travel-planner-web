@@ -32,6 +32,7 @@ export function DateTimeField({
   disabled,
   split = false,
   hideDate = false,
+  required = false,
 }: {
   id: string;
   label: string;
@@ -43,7 +44,9 @@ export function DateTimeField({
   disabled?: boolean;
   split?: boolean;
   hideDate?: boolean;
+  required?: boolean;
 }) {
+  const labelClass = required ? "field-required" : undefined;
   const [open, setOpen] = useState(false);
   const date = draft.value.slice(0, 10);
   const [year, month, day] = date.split("-").map(Number);
@@ -63,7 +66,7 @@ export function DateTimeField({
     >
       {!hideDate && (
         <div className="min-w-0 space-y-2">
-          <Label htmlFor={`${id}-date`}>
+          <Label htmlFor={`${id}-date`} className={labelClass}>
             {split ? `${label} date` : `${label} date and time`}
           </Label>
           <TripDialog
@@ -184,11 +187,14 @@ export function DateTimeField({
       )}
       {split && (
         <div className="min-w-0 space-y-2">
-          <Label htmlFor={`${id}-time`}>{label} time</Label>
+          <Label htmlFor={`${id}-time`} className={labelClass}>
+            {label} time
+          </Label>
           <Input
             id={`${id}-time`}
             type="time"
             className="min-h-11"
+            required={required}
             disabled={disabled || !date}
             value={time}
             onChange={(event) =>

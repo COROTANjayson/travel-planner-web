@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useApi } from "@/lib/api";
+import { Plus } from "lucide-react";
+import { ApiError, useApi } from "@/lib/api";
 import {
   type ActivityLedger,
   type CostChange,
@@ -105,10 +106,43 @@ export function ActivityExpenseDrafts({
     onChange([...changes.filter((c) => c.id !== id), { ...input, id }]);
     setEditing(undefined);
   }
+  // With nothing added yet, this is only a pill in the form's Add more row.
+  const compact = !costs.length && !ledger.error && !currencies.error;
+  const startAdding = (event: { currentTarget: HTMLElement }) => {
+    trigger.current = event.currentTarget;
+    setEditing(null);
+  };
+  const adding = pending || !ledger.data || !currencies.data;
   return (
-    <div className="activity-expense-drafts">
+    <div
+      className={
+        compact
+          ? undefined
+          : "activity-finance activity-plan-expenses space-y-5"
+      }
+      data-finance-view={compact ? undefined : "overview"}
+    >
+      {compact ? (
+        <Button
+          type="button"
+          variant="secondary"
+          className="min-h-11 rounded-full"
+          aria-label="Add expense"
+          disabled={adding}
+          onClick={startAdding}
+        >
+          <Plus aria-hidden="true" className="size-3.5" />
+          Expense
+        </Button>
+      ) : (
+        <div className="activity-section-heading">
+          <h3>Expenses</h3>
+        </div>
+      )}
       {(ledger.isPending || currencies.isPending) && (
-        <p role="status">Loading expenses…</p>
+        <p role="status" className={compact ? "sr-only" : undefined}>
+          Loading expenses…
+        </p>
       )}
       {(ledger.error || currencies.error) && (
         <TripError
@@ -119,55 +153,11 @@ export function ActivityExpenseDrafts({
           }}
         />
       )}
-      <div className="activity-plan-costs">
-        {costs.map((cost) => {
-          const equal = cost.shares.every(
-            (s) => s.amount_minor === cost.shares[0]?.amount_minor,
-          );
-          return (
-            <div key={cost.id} className="activity-plan-cost">
-              <div>
-                <Button
-                  type="button"
-                  variant="link"
-                  onClick={(event) => {
-                    trigger.current = event.currentTarget;
-                    setEditing(cost);
-                  }}
-                >
-                  {cost.description}
-                </Button>
-                <span>
-                  {equal && cost.shares[0]
-                    ? `${money(cost.shares[0].amount_minor, cost.currency)} each`
-                    : money(cost.amount_minor, cost.currency)}
-                </span>
-              </div>
-              <p>
-                {cost.shares.length} people ·{" "}
-                {money(cost.amount_minor, cost.currency)} total
-              </p>
-            </div>
-          );
-        })}
-      </div>
-      <Button
-        type="button"
-        variant="outline"
-        className="activity-add-another"
-        disabled={pending || !ledger.data || !currencies.data}
-        onClick={(event) => {
-          trigger.current = event.currentTarget;
-          setEditing(null);
-        }}
-      >
-        {costs.length ? "Add another expense" : "Add expense"}
-      </Button>
-      {!!costs.length &&
-        [...new Set(costs.map((c) => c.currency))].map((currency) => (
-          <div key={currency} className="activity-plan-total">
-            <h4>
-              Activity estimate:{" "}
+      {[...new Set(costs.map((c) => c.currency))].map((currency) => (
+        <div key={currency} className="activity-cost-total">
+          <div>
+            <p className="text-xs text-muted-foreground">Estimated total</p>
+            <p className="text-xl font-semibold">
               {money(
                 costs
                   .filter((c) => c.currency === currency)
@@ -175,9 +165,11 @@ export function ActivityExpenseDrafts({
                   .toString(),
                 currency,
               )}
-            </h4>
-            <p>
-              Your share:{" "}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Your share</p>
+            <p className="text-xl font-semibold">
               {money(
                 costs
                   .filter((c) => c.currency === currency)
@@ -195,14 +187,60 @@ export function ActivityExpenseDrafts({
               )}
             </p>
           </div>
-        ))}
-      <p className="activity-plan-help">
-        Add or change expenses here without leaving the activity.
-      </p>
+        </div>
+      ))}
+      {!!costs.length && (
+        <div className="activity-plan-costs">
+          {costs.map((cost) => {
+            const equal = cost.shares.every(
+              (s) => s.amount_minor === cost.shares[0]?.amount_minor,
+            );
+            return (
+              <div key={cost.id} className="activity-plan-cost">
+                <div>
+                  <Button
+                    type="button"
+                    variant="link"
+                    onClick={(event) => {
+                      trigger.current = event.currentTarget;
+                      setEditing(cost);
+                    }}
+                  >
+                    {cost.description}
+                  </Button>
+                  <span>
+                    {equal && cost.shares[0]
+                      ? `${money(cost.shares[0].amount_minor, cost.currency)} each`
+                      : money(cost.amount_minor, cost.currency)}
+                  </span>
+                </div>
+                <p>
+                  {cost.shares.length} people ·{" "}
+                  {money(cost.amount_minor, cost.currency)} total
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {!compact && (
+        <div className="activity-finance-actions">
+          <Button
+            type="button"
+            variant="link"
+            className="px-0"
+            disabled={adding}
+            onClick={startAdding}
+          >
+            <Plus aria-hidden="true" className="size-3.5" />
+            {costs.length ? "Add another expense" : "Add expense"}
+          </Button>
+        </div>
+      )}
       {editing !== undefined && currencies.data && (
         <ExpenseCostEditor
           tripID={tripID}
-          activity={{ id: activityID, title: title || "New activity" }}
+          activity={{ id: activityID, title: title.trim() }}
           initial={editing ?? undefined}
           people={allPeople.filter(
             (p) =>
@@ -220,7 +258,8 @@ export function ActivityExpenseDrafts({
                   const latest = await read<Expense>(
                     `/api/v1/trips/${tripID}/expenses/${editing.id}`,
                   );
-                  if (!latest) throw new Error("Unable to reload the expense.");
+                  if (!latest)
+                    throw new ApiError(500, "Unable to reload the expense.");
                   onChange(changes.filter((c) => c.id !== editing.id));
                   setRevision((n) => n + 1);
                   setEditing(latest);

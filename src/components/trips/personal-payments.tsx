@@ -16,6 +16,7 @@ import {
   type Expense,
   type TransactionInput,
 } from "@/lib/expenses";
+import { ApiError } from "@/lib/api";
 import type { Participant } from "@/lib/memberships";
 import type { Trip } from "@/lib/trips";
 import { expenseMoney } from "@/lib/money";
@@ -437,7 +438,8 @@ export function PersonalPayments({
                 current.role === "viewer" ||
                 current.user_id !== value.to_user_id
               )
-                throw new Error(
+                throw new ApiError(
+                  403,
                   "Only the recipient can confirm money received.",
                 );
               const saved = await api.saveSettlement(

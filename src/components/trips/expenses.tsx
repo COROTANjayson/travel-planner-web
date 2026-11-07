@@ -27,7 +27,7 @@ import { ExpenseCostEditor } from "./expense-cost-editor";
 import { ExpensePaymentWorkspace } from "./expense-payment-workspace";
 import { PersonalPayments } from "./personal-payments";
 import { Tabs } from "@base-ui/react/tabs";
-import { Plus } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import { TripDialog } from "./trip-dialog";
 import { TripError } from "./trip-states";
 import {
@@ -81,7 +81,7 @@ export function Expenses(props: Context & { active: boolean }) {
           `/api/v1/trips/${trip.id}/activities?limit=100&offset=${offset}`,
           { signal },
         );
-        if (!page) throw new Error("Unable to load activities.");
+        if (!page) throw new ApiError(500, "Unable to load activities.");
         all.push(...page);
         if (page.length < 100) break;
       }
@@ -326,11 +326,12 @@ export function ActivityExpenses(
   }
   async function save(input: ExpenseInput | TransactionInput) {
     if (!editing || !writable)
-      throw new Error("You no longer have permission to save.");
+      throw new ApiError(403, "You no longer have permission to save.");
     if (!key.current) key.current = crypto.randomUUID();
     let saved: FinancialRecord | true | undefined;
     if (editing.type === "cost") {
-      if (!isEditor) throw new Error("Only a planner/editor can manage costs.");
+      if (!isEditor)
+        throw new ApiError(403, "Only a planner/editor can manage costs.");
       saved = await api.saveExpense(
         input as ExpenseInput,
         editing.cost,
@@ -338,7 +339,10 @@ export function ActivityExpenses(
       );
     } else if (editing.type === "payment") {
       if (!isEditor)
-        throw new Error("Only a planner/editor can confirm business payments.");
+        throw new ApiError(
+          403,
+          "Only a planner/editor can confirm business payments.",
+        );
       saved = await api.saveTransaction(
         "expense_payments",
         input as TransactionInput,
@@ -348,7 +352,7 @@ export function ActivityExpenses(
     } else if (editing.type === "loan") {
       const value = input as TransactionInput;
       if (value.from_user_id !== current?.user_id)
-        throw new Error("Record only money you personally lent.");
+        throw new ApiError(403, "Record only money you personally lent.");
       saved = await api.saveTransaction(
         "expense_loans",
         value,
@@ -358,7 +362,10 @@ export function ActivityExpenses(
     } else if (editing.type === "repayment") {
       const value = input as TransactionInput;
       if (!editing.receipt && value.to_user_id !== current?.user_id)
-        throw new Error("Only the recipient can confirm money received.");
+        throw new ApiError(
+          403,
+          "Only the recipient can confirm money received.",
+        );
       saved = await api.saveSettlement(
         {
           currency: value.currency,
@@ -606,11 +613,13 @@ export function ActivityExpenses(
             {flow && props.view === "overview" && (
               <div className="activity-finance-actions">
                 <Button
-                  variant="outline"
+                  variant="link"
+                  className="px-0"
                   data-finance-link="details"
                   onClick={() => props.onViewChange?.("details")}
                 >
                   View expenses
+                  <ArrowRight aria-hidden="true" className="size-3.5" />
                 </Button>
               </div>
             )}

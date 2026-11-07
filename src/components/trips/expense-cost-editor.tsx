@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ApiError, useApi } from "@/lib/api";
 import { Temporal } from "@js-temporal/polyfill";
+import { ChevronRight, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ExpensePriceField } from "./expense-fields";
@@ -30,6 +31,7 @@ import {
   type ExpensePerson,
   type Share,
 } from "@/lib/expenses";
+import { participantInitials } from "@/lib/memberships";
 import { TripDialog } from "./trip-dialog";
 import { ExpenseSelect } from "./expense-forms";
 import { TripError } from "./trip-states";
@@ -138,6 +140,12 @@ export function ExpenseCostEditor({
     setValidation(null);
     onDirty?.();
   }
+  function fail(cause: Error) {
+    setValidation(cause);
+    requestAnimationFrame(() => feedback.current?.focus());
+  }
+  // TripError only shows ApiError text; these messages are written for the user.
+  const invalid = (message: string) => fail(new ApiError(422, message));
   function back() {
     if (busy) return;
     if (step !== "cost" && step !== "custom") {
@@ -183,9 +191,7 @@ export function ExpenseCostEditor({
   }
   function openCustomSplit() {
     if (!selected.length || BigInt(total) <= 0n || BigInt(total) > maxMinor) {
-      setValidation(
-        new Error("Enter a valid price and include at least one member first."),
-      );
+      invalid("Enter a valid price and include at least one member first.");
       return;
     }
     if (mode === "equal")
@@ -206,6 +212,7 @@ export function ExpenseCostEditor({
   }
   async function submit() {
     if (busy) return;
+    let input: ExpenseInput;
     try {
       if (step === "members") {
         if (!selected.length) throw new Error("Include at least one member.");
@@ -241,7 +248,7 @@ export function ExpenseCostEditor({
           BigInt(parseMoney(coverAmount, meta.decimals)) > BigInt(total))
       )
         throw new Error("Check the planned reservation amount.");
-      const input: ExpenseInput = {
+      input = {
         activity_id: activity.id,
         description: description.trim(),
         currency,
@@ -258,6 +265,11 @@ export function ExpenseCostEditor({
           : "",
         ...(initial?.id && initial.id > 0 ? { version: initial.version } : {}),
       };
+    } catch (cause) {
+      invalid((cause as Error).message);
+      return;
+    }
+    try {
       if (initial && initial.id > 0 && step !== "review") {
         setReviewing(true);
         const result = await read<CostPreview>(
@@ -269,7 +281,7 @@ export function ExpenseCostEditor({
           },
         );
         if (!result)
-          throw new Error("Unable to preview changes. Please retry.");
+          throw new ApiError(500, "Unable to preview changes. Please retry.");
         if (result.before.payments.length) {
           setReview(result);
           setStep("review");
@@ -278,8 +290,7 @@ export function ExpenseCostEditor({
       }
       await onSave(input);
     } catch (cause) {
-      setValidation(cause as Error);
-      requestAnimationFrame(() => feedback.current?.focus());
+      fail(cause as Error);
     } finally {
       setReviewing(false);
     }
@@ -332,6 +343,43 @@ export function ExpenseCostEditor({
       backdropClassName="bg-black/60"
       title={title}
       description={subtitle}
+      headerAction={
+        step === "cost" && (
+          // Outside the form's disabled fieldset, so it blocks itself while busy.
+          <Button
+            type="button"
+            variant="ghost"
+            className="trip-people"
+            disabled={busy}
+            aria-label={`Who is included? ${
+              selected.length === 1
+                ? "1 member"
+                : selected.length === people.length
+                  ? `All ${selected.length} members`
+                  : `${selected.length} members`
+            }`}
+            onClick={() => setStep("members")}
+          >
+            {selectedPeople.length ? (
+              <span aria-hidden="true" className="trip-people-avatars">
+                {selectedPeople.slice(0, 3).map((person) => (
+                  <span key={person.user_id}>
+                    {participantInitials(person)}
+                  </span>
+                ))}
+                {selectedPeople.length > 3 && (
+                  <span>+{selectedPeople.length - 3}</span>
+                )}
+              </span>
+            ) : (
+              <>
+                <Users aria-hidden="true" />
+                Members
+              </>
+            )}
+          </Button>
+        )
+      }
       busy={busy}
       disablePointerDismissal
       onOpenChange={(open) => {
@@ -359,7 +407,9 @@ export function ExpenseCostEditor({
           {step === "cost" && (
             <>
               <div className="space-y-2">
-                <Label htmlFor={`${formID}-name`}>Expense name</Label>
+                <Label htmlFor={`${formID}-name`} className="field-required">
+                  Expense name
+                </Label>
                 <Input
                   id={`${formID}-name`}
                   autoFocus
@@ -394,75 +444,60 @@ export function ExpenseCostEditor({
                   ))}
                 </div>
               </fieldset>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor={`${formID}-price`}>
-                    {basis === "group" ? "Group price" : "Price per person"} ·{" "}
-                    {currency}
+              <div className="expense-price-split">
+                <div className="min-w-0 space-y-2">
+                  <Label htmlFor={`${formID}-price`} className="field-required">
+                    {basis === "group" ? "Group price" : "Price per person"}
                   </Label>
-                  <Select
-                    value={currency}
-                    onValueChange={(value) => {
-                      if (value) {
-                        setCurrency(value);
-                        change();
-                      }
-                    }}
-                  >
-                    <SelectTrigger
-                      aria-label="Currency"
-                      className="min-h-9! w-auto! border-0! px-2!"
+                  <div className="price-with-currency">
+                    <ExpensePriceField
+                      currency={meta}
+                      id={`${formID}-price`}
+                      inputMode="decimal"
+                      required
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                    />
+                    <Select
+                      value={currency}
+                      onValueChange={(value) => {
+                        if (value) {
+                          setCurrency(value);
+                          change();
+                        }
+                      }}
                     >
-                      <SelectValue>{currency}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {currencies.map((c) => (
-                        <SelectItem key={c.code} value={c.code}>
-                          {c.code}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                      <SelectTrigger aria-label="Currency">
+                        <SelectValue>{currency}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent align="end" alignItemWithTrigger={false}>
+                        {currencies.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <ExpensePriceField
-                  currency={meta}
-                  id={`${formID}-price`}
-                  inputMode="decimal"
-                  required
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                <ExpenseSelect
+                  id={`${formID}-split`}
+                  label="Split"
+                  value={mode}
+                  options={[
+                    { value: "equal", label: "Split evenly" },
+                    { value: "exact", label: "Custom amounts" },
+                  ]}
+                  onChange={(value) => {
+                    if (value === "exact") {
+                      openCustomSplit();
+                    } else {
+                      setMode("equal");
+                      change();
+                    }
+                  }}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Who is included?</Label>
-                <Button
-                  variant="outline"
-                  className="figma-select-button"
-                  onClick={() => setStep("members")}
-                  type="button"
-                >
-                  {selected.length === people.length
-                    ? `All ${selected.length} members`
-                    : `${selected.length} members`}
-                </Button>
-              </div>
-              <ExpenseSelect
-                id={`${formID}-split`}
-                label="Split"
-                value={mode}
-                options={[
-                  { value: "equal", label: "Split evenly" },
-                  { value: "exact", label: "Custom amounts" },
-                ]}
-                onChange={(value) => {
-                  if (value === "exact") {
-                    openCustomSplit();
-                  } else {
-                    setMode("equal");
-                    change();
-                  }
-                }}
-              />
               {basis === "per_person" && (
                 <p className="text-sm text-muted-foreground">
                   Custom amounts keep the same group total and let you adjust
@@ -483,14 +518,14 @@ export function ExpenseCostEditor({
                 <p>
                   {amount
                     ? problem ||
-                      `${selected.length} shares add up to ${money(total)}`
+                      `${selected.length === 1 ? "1 share adds" : `${selected.length} shares add`} up to ${money(total)}`
                     : "Enter a price to preview the split."}
                 </p>
                 {mode === "exact" && (
                   <Button
                     type="button"
                     variant="link"
-                    className="px-0"
+                    className="figma-summary-action px-0"
                     onClick={openCustomSplit}
                   >
                     Change custom split
@@ -498,24 +533,29 @@ export function ExpenseCostEditor({
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Who will pay first? (optional)</Label>
+                <Label id={`${formID}-coverer-label`}>
+                  Who will pay first? (optional)
+                </Label>
                 <Button
+                  id={`${formID}-coverer`}
+                  aria-labelledby={`${formID}-coverer-label ${formID}-coverer`}
                   variant="outline"
                   className="figma-select-button"
                   type="button"
                   onClick={() => {
                     if (!amount || problem) {
-                      setValidation(
-                        new Error("Enter a valid price and split first."),
-                      );
+                      invalid("Enter a valid price and split first.");
                       return;
                     }
                     setStep("coverer");
                   }}
                 >
-                  {coverer
-                    ? `${expenseName(people.find((p) => p.user_id === coverer))} · reservation ${plannedLabel}`
-                    : "Decide later"}
+                  <span className="min-w-0 break-words">
+                    {coverer
+                      ? `${expenseName(people.find((p) => p.user_id === coverer))} · reservation ${plannedLabel}`
+                      : "Decide later"}
+                  </span>
+                  <ChevronRight aria-hidden="true" />
                 </Button>
               </div>
             </>

@@ -108,5 +108,14 @@ export function formatActivityRange(start: string, end: string, zone: string) {
 }
 
 export function formatActivityDuration(start: string, end: string) {
-  return `${Temporal.Instant.from(end).since(Temporal.Instant.from(start)).total("minutes").toLocaleString(undefined, { maximumFractionDigits: 2 })} min`;
+  const total = Math.round(
+    Temporal.Instant.from(end)
+      .since(Temporal.Instant.from(start))
+      .total("minutes"),
+  );
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  return [hours && `${hours} hr`, (minutes || !hours) && `${minutes} min`]
+    .filter(Boolean)
+    .join(" ");
 }

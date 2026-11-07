@@ -67,15 +67,16 @@ their existing layouts and behavior.
 - Create Trip links to `/trips/new`; it keeps the existing validated form and save
   behavior. Distinguish an empty account from empty search/status results. Provide
   reset, loading skeletons, safe errors and retry, pagination and visible focus.
-- Open trips into the existing itinerary. Itinerary/Expenses are native links
-  below the shared trip summary; Expenses uses `?view=expenses`. Preserve the
-  selected itinerary date across switches and browser history. People and
+- Open trips into the existing itinerary, directly below the shared trip summary,
+  with no view tabs or day-rail label. Expenses are reached from each activity;
+  the trip-wide list stays at `?view=expenses` but has no link for now. People and
   Settings remain secondary and available in both views.
   The following itinerary requirements describe the approved Step 2 implementation.
 - Activity cards use 16px mobile padding and 20px desktop padding with a 128px
-  desktop minimum height, 16px titles and 16px separation between entries. Put
+  desktop minimum height, semibold 18px mobile and 20px desktop titles and 16px
+  separation between entries. Put
   the category in a softly rounded rectangular badge at top left, elapsed
-  duration and chevron at top right, then title and optional place below. Place
+  duration (`45 min`, `4 hr`, `1 hr 30 min`) and chevron at top right, then title and optional place below. Place
   the complete activity time range outside the card. Badges pair soft
   colors with a coffee cup for Rest, cutlery for Eating, a plane for Travel, and
   sparkles for Activity; custom labels use a neutral tag. Keep labels readable
@@ -87,29 +88,33 @@ their existing layouts and behavior.
   optional in a secondary section. If a destination
   change requires clearing entered exact times, explain and confirm the change;
   preserve the dates as the existing form does.
-- Trip details use a bounded 72rem workspace. People, Settings and Back to trips
+- Trip details use a bounded 72rem workspace. Add activity is the only filled
+  action above the timeline. On desktop, plain muted Back to trips text, member
+  initials (up to three, then +N) for People and an icon-only Settings gear
   sit above a pale sea summary with the full destination, name, coordinated status,
   inclusive dates, day count, zone and optional exact bounds. Reuse the approved
   route geometry, without photos. Mobile keeps a compact back/options bar and a
   fully readable name in the summary; hide the covered shell header only while
   the trip bar exists, preserving navigation during loading/errors.
   On mobile, use 16px summary padding, 8px/12px title margins and 6px metadata
-  row gaps so the summary stays compact without reducing text sizes.
+  row gaps so the summary stays compact without reducing text sizes. From 768px,
+  use 24px/32px padding, a 28px title and 8px/12px title margins, with 24px
+  below the summary.
 - At 1024px and above, use a sticky 160px vertical day rail beside the timeline.
   Below that, use a horizontal native scrolling day selector; it stays beneath
   the mobile trip bar. Show weekday, date, Today where relevant, and loaded day
-  counts. Load seven trip-local dates at a time, bounded by the trip end; the
-  calendar provides access across long trips. Do not invent zero
+  counts. Load seven trip-local dates at a time, bounded by the trip end.
+  Do not invent zero
   counts while loading or unavailable. Keep the selected mobile date in view.
 - Below the day strip, show a full weekday/date heading and a compact day-position
-  and activity-count line. Put a secondary calendar action beside the heading
-  (icon-only on mobile, labeled Choose day on desktop) and Add activity on desktop.
+  and activity-count line. Put Add activity beside the heading on desktop.
   Do not show previous/next day arrows or an aggregate day-level time range.
   The zone is already visible in the trip summary. On mobile, put a
-  Day options settings icon beside the calendar. Its bottom sheet holds Today,
+  Day options settings icon beside the heading. Its bottom sheet holds Today,
   View map and Overlaps; selecting a tool closes the sheet and opens that tool,
   returning focus to the settings icon on dismissal. Hide the utility row on
-  mobile; desktop keeps the tools inline.
+  mobile; desktop keeps the tools inline in the heading row as muted text without icons. Overlaps
+  appears only when the selected day has overlaps or they cannot be loaded.
   The timeline has a desktop time rail and mobile time labels above full-width
   activity cards. Empty days remain brief and permission-aware.
 - The selected day's summary shows its activity count. Each activity's complete
@@ -139,30 +144,42 @@ their existing layouts and behavior.
   selection and plain-language search and save feedback.
 - Activity details use a modal 680px right drawer from 768px and a full-screen
   mobile view. Keep the itinerary behind the drawer, with the selected card
-  outlined. Back to itinerary and permitted Edit stay at the top. The title,
+  outlined. Back to itinerary stays at the top; permitted pencil buttons sit
+  beside the activity heading, Place, Notes, and To do. The title,
   category, schedule and optional place, notes and plain to-do sections share one
-  scrolling reader. Creator and Delete sit under
-  Activity options, after the main content. Follow the supplied November 2 flow:
+  scrolling reader. Creator and permitted Delete stay visible in a bottom footer,
+  outside the scrolling content. Follow the supplied November 2 flow:
   both desktop and mobile stack a short Expenses summary, Notes, and To do.
   The summary shows expense total and your share, with one View expenses action.
   One Expenses screen uses underlined All expenses and My expenses tabs to switch views inside the activity window. Keep the desktop drawer attached to the right,
-  bounded at 680px from 768px; mobile remains full-screen.
-  Show a plain category above the mobile title, followed by the weekday/date,
+  bounded at 680px from 768px; mobile remains full-screen. Add activity uses the
+  same drawer width.
+  Show the category badge above the title, followed by the weekday/date,
   time range and trip zone. Retain both dates for overnight activities.
   The full schedule retains both dates for overnight/multi-day activities and the
   explicit trip zone. Back, Escape and outside dismissal preserve selected day
   and return focus to the card
-  or selected-day heading. Edit opens the activity planner; Delete, under
-  Activity options, opens its confirmation.
+  or selected-day heading. Each pencil edits only its own section in place,
+  with local Save and Cancel actions. Keep all other activity content, expenses,
+  creator and Delete visible. There is no separate activity edit screen or global
+  Edit button. Show empty editable sections to owners/editors with one Add action
+  in place of the pencil. Delete in the bottom footer is a quiet destructive text
+  action that opens its confirmation.
 - Show an icon and text category badge on each activity card. Owners/editors use
   Add activity and select Rest, Eating, Travel, Activity, or Custom in the form.
   Custom labels are per activity; no category management screen.
-- Activity forms show Activity name, When and Expenses first. Category, Place, To do,
-  and Notes stay under More activity details, visible in every activity editor.
-  Activity options → Edit other activity details opens that section automatically.
+- Add activity is headed by its fixed day (Add activity stays the dialog's
+  accessible name) and starts with Activity name, outlined category chips that fill the
+  row, with only the selected chip taking its card badge color (default Activity), and
+  the fields for When. An Add more row of soft pills offers
+  Place, Notes, To do and Expense. Tapping one opens that section as in activity
+  details, and its pill goes; the Expenses card stays last. Cancel then Save activity
+  sit in a pinned footer. Required fields show a red asterisk; there is no explanatory
+  subtitle. When is never collapsible: one line under Start time gives the end time and trip zone,
+  and Start time and Duration share a row where they fit.
+  The title pencil's form uses the same chips and fields, with a date input.
+  Existing activities use section pencils.
   Notes holds the activity description and other free-form reminders.
-  Collapsing a section retains its draft. Native validation reveals collapsed
-  invalid fields before focus moves to them.
 - To-dos are simple text items: add, rename, or remove them in the existing
   activity form, then Save. Do not show checkboxes, completion counts, status
   labels, or strikethroughs. Preserve historical completion values in storage.
@@ -214,16 +231,23 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
 
 - Follow revised Figma sections [07](https://www.figma.com/design/fSnvj7wJlyAcAUGdWsGxFX/Travel-Planner?node-id=68-281)
   and [07b](https://www.figma.com/design/fSnvj7wJlyAcAUGdWsGxFX/Travel-Planner?node-id=69-102).
-  Keep Itinerary/Expenses navigation, Coastal Folio tokens, 44px touch targets,
+  Keep Coastal Folio tokens, 44px touch targets,
   full-screen mobile forms, and sticky opaque form actions.
 - Expenses is an activity list; management lives inside activity details. Show
   estimated total, my share, expense items, and per-member Share/Paid/Remaining.
   Separate business payments from named reimbursements and keep currencies apart.
 - Expense setup follows the reference field order: expense name, per-person/group
-  price, included members, split, share preview, optional planned coverer. Custom
-  splitting opens a separate step with member amounts and **Use this split**.
+  basis, price beside split where they fit, share preview, optional planned coverer.
+  Included members are an initials stack (up to three, then +N) at the right of the
+  Back row; it opens the members step. Custom splitting opens a separate step with
+  member amounts and **Use this split**; **Change custom split** sits at the right
+  of the preview's share line.
   Keep expense forms in the right drawer on desktop and full-screen on mobile,
-  with a 60% black backdrop, labels and sticky actions.
+  with a 60% black backdrop, labels and sticky actions. Expense drawers match the
+  activity drawer's 680px width so no clipped form shows behind them. The currency
+  picker sits inside the price field after a divider. Show blocked-step
+  messages in the form's error area and move focus there. Required fields show a red
+  asterisk; controls that open another step show a right chevron.
 - **View payments** opens a separate cost payment screen with Share/Paid/Left
   columns, business total paid/remaining, and named reimbursements. **Update a
   payment** selects a member. **Record reservation** previews own-share-first
@@ -239,7 +263,7 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
   both in one transaction. Preserve drafts on errors,
   submission keys across retries, and focus when dialogs close. Review paid-cost
   balance changes before saving; retain payments and show resulting credits.
-- Keep trip-wide To pay and Owed to me lists on the Expenses tab. Inside an activity,
+- Keep trip-wide To pay and Owed to me lists on the `?view=expenses` page. Inside an activity,
   My Expenses shows every own expense share, including fully paid items, plus
   money owed and receivable from reimbursements and loans. Paid means the settled
   part of the signed-in person's expense shares, not their cash outlay or loans.
@@ -273,10 +297,9 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
 - Preserve unassigned costs, removed activity names, former members, old loans and
   unallocated historical receipts. Covered-food entry is deferred.
 
-The activity editor opens with Activity name, one expandable When field, the
-visible optional Expenses section, and Save activity. Other existing activity
-fields remain under Activity options → Edit other activity details, preserving
-the short default editor. Expense rows show per-person price
+Activity creation starts with Activity name, category chips and the When fields.
+Existing activities edit one section at a time using
+pencil buttons in the detail drawer. Expense rows show per-person price
 and member/total metadata; equal reservation coverage uses one member list and
 “Each owes …” line. Payment dates and amounts use formatted reading values,
 with native input editing on focus.

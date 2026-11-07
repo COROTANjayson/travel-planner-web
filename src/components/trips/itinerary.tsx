@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ActivityExpenses, type ActivityExpenseView } from "./expenses";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
-import { TZDate } from "react-day-picker";
 import {
   MapPin,
   CalendarCheck,
@@ -14,17 +13,14 @@ import {
   SlidersHorizontal,
   ChevronRight,
   Plus,
-  Coffee,
-  Utensils,
-  Plane,
-  Sparkles,
   Tag,
   Trash2,
-  type LucideIcon,
+  Pencil,
 } from "lucide-react";
 import { TripDialog } from "./trip-dialog";
 import { ApiError } from "@/lib/api";
 import {
+  activityCategoryIcons,
   type Activity,
   type ActivityConflict,
   useItineraryApi,
@@ -36,7 +32,6 @@ import {
 import { participantName, type Participant } from "@/lib/memberships";
 import { type Trip } from "@/lib/trips";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   AlertDialog,
@@ -55,16 +50,9 @@ const TripMap = dynamic(() => import("./trip-map"), {
   loading: () => <p role="status">Loading map…</p>,
 });
 
-const categoryIcons: Record<string, LucideIcon> = {
-  Rest: Coffee,
-  Eating: Utensils,
-  Travel: Plane,
-  Activity: Sparkles,
-};
-
 function CategoryBadge({ category }: { category: string }) {
-  const Icon = Object.hasOwn(categoryIcons, category)
-    ? categoryIcons[category]
+  const Icon = Object.hasOwn(activityCategoryIcons, category)
+    ? activityCategoryIcons[category]
     : Tag;
   return (
     <span className="activity-category" data-category={category}>
@@ -74,8 +62,13 @@ function CategoryBadge({ category }: { category: string }) {
   );
 }
 
-const dateKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const fullDateLabel = (date: string) =>
+  new Intl.DateTimeFormat(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T12:00:00Z`));
 const dateLabel = (date: string) =>
   new Intl.DateTimeFormat(undefined, {
     weekday: "short",
@@ -141,12 +134,9 @@ export function Itinerary({
       ? today
       : trip.start_date;
   });
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [conflictsOpen, setConflictsOpen] = useState(false);
   const [editing, setEditing] = useState<
-    | (Activity & { showMoreDetails?: boolean })
-    | { date: string; startsAt?: string }
-    | null
+    Activity | { date: string; startsAt?: string } | null
   >(null);
   const [editDirty, setEditDirty] = useState(false);
   const titleInput = useRef<HTMLInputElement>(null);
@@ -168,11 +158,15 @@ export function Itinerary({
     {},
   );
   const financeFocus = useRef<string | null>(null);
+  const [editSection, setEditSection] = useState<
+    "details" | "place" | "notes" | "checklist"
+  >("details");
   if (expenseActivity !== viewing) {
     setExpenseActivity(viewing);
     setExpenseView("overview");
   }
   function navigateExpenses(next: ActivityExpenseView) {
+    if (editedActivity && !closeEditor()) return;
     const reader = detailContent.current?.closest(
       "[data-slot='trip-dialog-reader']",
     );
@@ -285,8 +279,15 @@ export function Itinerary({
       ? trigger
       : selectedHeading.current;
   const editedActivity = editing && "id" in editing ? editing : null;
+  const detailActivity = viewedActivity ?? editedActivity;
+  const focusSection = () =>
+    requestAnimationFrame(() =>
+      detailContent.current
+        ?.closest("[role=dialog]")
+        ?.querySelector<HTMLElement>(`[data-edit-section="${editSection}"]`)
+        ?.focus(),
+    );
   const newDate = editing && "date" in editing ? editing.date : undefined;
-  const [year, month, day] = selected.split("-").map(Number);
   const today = Temporal.Now.zonedDateTimeISO(trip.time_zone)
     .toPlainDate()
     .toString();
@@ -327,13 +328,15 @@ export function Itinerary({
     });
   }
   const closeEditor = () => {
-    if (api.pending) return;
+    if (api.pending) return false;
     if (editDirty && !window.confirm("Discard your unsaved activity changes?"))
-      return;
+      return false;
     api.reset();
     setEditDirty(false);
     if (editedActivity) setViewing(editedActivity.id);
     setEditing(null);
+    if (editedActivity) focusSection();
+    return true;
   };
 
   const dayTools = (
@@ -371,25 +374,25 @@ export function Itinerary({
         <MapPin aria-hidden="true" />
         View map
       </Button>
-      <Button
-        variant="ghost"
-        className="min-h-11 px-2"
-        onClick={(event) => {
-          dayToolTrigger.current = dayOptionsOpen
-            ? dayOptionsTrigger.current
-            : event.currentTarget;
-          setDayOptionsOpen(false);
-          setConflictsOpen(true);
-        }}
-      >
-        <CalendarCheck aria-hidden="true" />
-        Overlaps
-        {(conflicts.isError || dayConflicts.length > 0) && (
-          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+      {(conflicts.isError || dayConflicts.length > 0) && (
+        <Button
+          variant="ghost"
+          className="day-tool-overlaps min-h-11 px-2"
+          onClick={(event) => {
+            dayToolTrigger.current = dayOptionsOpen
+              ? dayOptionsTrigger.current
+              : event.currentTarget;
+            setDayOptionsOpen(false);
+            setConflictsOpen(true);
+          }}
+        >
+          <CalendarCheck aria-hidden="true" />
+          Overlaps
+          <span className="rounded-full px-2 py-0.5 text-xs">
             {conflicts.isError ? "Unavailable" : dayConflicts.length}
           </span>
-        )}
-      </Button>
+        </Button>
+      )}
     </nav>
   );
   const dayToolDialogs = (
@@ -460,6 +463,9 @@ export function Itinerary({
                       ? (activity) => {
                           setConflictsOpen(false);
                           setEditDirty(false);
+                          api.reset();
+                          setViewing(activity.id);
+                          setEditSection("details");
                           setEditing(activity);
                         }
                       : undefined
@@ -473,6 +479,104 @@ export function Itinerary({
     </>
   );
 
+  const activityForm = editing && (
+    <ActivityForm
+      titleRef={titleInput}
+      section={editedActivity ? editSection : undefined}
+      key={newDate ?? editedActivity?.id}
+      expensePeople={participants ?? []}
+      expenseUserID={current?.user_id}
+      initialValue={editedActivity ?? undefined}
+      initialDate={newDate}
+      initialStartsAt={
+        editing && "date" in editing ? editing.startsAt : undefined
+      }
+      initialPlace={editedActivity?.place ?? null}
+      tripZone={trip.time_zone}
+      tripID={trip.id}
+      tripStart={trip.start_date}
+      tripEnd={trip.end_date}
+      tripStartsAt={trip.starts_at}
+      tripEndsAt={trip.ends_at}
+      pending={api.pending || !canEdit}
+      error={api.error}
+      onDirty={() => setEditDirty(true)}
+      onCancel={closeEditor}
+      onSubmit={async (input, requestKey) => {
+        if (!canEdit || api.pending) return;
+        try {
+          const changes =
+            editSection === "details"
+              ? {
+                  title: input.title,
+                  category: input.category,
+                  starts_at: input.starts_at,
+                  ends_at: input.ends_at,
+                }
+              : editSection === "place"
+                ? { place_id: input.place_id }
+                : editSection === "notes"
+                  ? { notes: input.notes }
+                  : { checklist: input.checklist };
+          const payload = editedActivity
+            ? {
+                ...(detailActivity ?? editedActivity),
+                time_zone: trip.time_zone,
+                ...changes,
+              }
+            : input;
+          const saved = await api.save(payload, editedActivity?.id, requestKey);
+          if (saved) {
+            setEditDirty(false);
+            setEditing(null);
+            setSelected(localDate(payload.starts_at, trip.time_zone));
+            if (saved !== true) setViewing(saved.id);
+            else if (editedActivity) setViewing(editedActivity.id);
+            if (editedActivity) focusSection();
+          }
+        } catch {
+          /* The form retains its values and displays the API error. */
+        }
+      }}
+    />
+  );
+
+  const startSectionEdit = (section: typeof editSection) => {
+    if (!canEdit || api.pending || editing || !detailActivity) return;
+    api.reset();
+    setEditDirty(false);
+    setEditSection(section);
+    setEditing(detailActivity);
+  };
+  const sectionEditButton = (section: typeof editSection, label: string) =>
+    canEdit && (
+      <Button
+        type="button"
+        variant="ghost"
+        className="activity-section-edit size-11 min-h-11 shrink-0 text-muted-foreground hover:text-primary focus-visible:text-primary"
+        aria-label={label}
+        data-edit-section={section}
+        disabled={api.pending || editing !== null}
+        onClick={() => startSectionEdit(section)}
+      >
+        <Pencil aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
+      </Button>
+    );
+  const sectionAddButton = (section: typeof editSection, label: string) =>
+    canEdit && (
+      <Button
+        type="button"
+        variant="link"
+        className="min-h-11 px-0"
+        data-edit-section={section}
+        disabled={api.pending || editing !== null}
+        onClick={() => startSectionEdit(section)}
+      >
+        <Plus aria-hidden="true" className="size-3.5" />
+        {label}
+      </Button>
+    );
+
   return (
     <div className="coastal-itinerary flex min-w-0 flex-col gap-6">
       <section
@@ -480,7 +584,6 @@ export function Itinerary({
         className="itinerary-workspace"
       >
         <nav className="itinerary-days" aria-label="Choose itinerary day">
-          <p className="day-rail-label">Your days</p>
           <div className="day-rail" ref={dayRail}>
             {dates.map((date) => {
               const count = (activities.data ?? []).filter(
@@ -530,14 +633,7 @@ export function Itinerary({
                 tabIndex={-1}
                 className="day-summary outline-none focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-ring"
               >
-                <time dateTime={selected}>
-                  {new Intl.DateTimeFormat(undefined, {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                    timeZone: "UTC",
-                  }).format(new Date(`${selected}T12:00:00Z`))}
-                </time>
+                <time dateTime={selected}>{fullDateLabel(selected)}</time>
               </h3>
               <p
                 role="status"
@@ -552,62 +648,9 @@ export function Itinerary({
                     : `${selectedActivities.length} ${selectedActivities.length === 1 ? "activity" : "activities"} planned`}
               </p>
             </div>
-            <TripDialog
-              title="Choose a day"
-              description={`Day ${dayNumber} of ${dayCount}`}
-              mobilePresentation="sheet"
-              open={datePickerOpen}
-              onOpenChange={setDatePickerOpen}
-              trigger={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="day-picker"
-                  aria-label={`Choose day, ${dateLabel(selected)}, day ${dayNumber} of ${dayCount}`}
-                >
-                  <CalendarDays aria-hidden="true" className="size-4" />
-                  <span className="hidden md:inline">Choose day</span>
-                </Button>
-              }
-            >
-              <div className="flex justify-center">
-                <Calendar
-                  mode="single"
-                  timeZone={trip.time_zone}
-                  selected={new TZDate(year, month - 1, day, trip.time_zone)}
-                  defaultMonth={
-                    new TZDate(year, month - 1, day, trip.time_zone)
-                  }
-                  captionLayout="dropdown"
-                  startMonth={
-                    new TZDate(
-                      Number(trip.start_date.slice(0, 4)),
-                      Number(trip.start_date.slice(5, 7)) - 1,
-                      1,
-                      trip.time_zone,
-                    )
-                  }
-                  endMonth={
-                    new TZDate(
-                      Number(trip.end_date.slice(0, 4)),
-                      Number(trip.end_date.slice(5, 7)) - 1,
-                      1,
-                      trip.time_zone,
-                    )
-                  }
-                  disabled={(date) =>
-                    dateKey(date) < trip.start_date ||
-                    dateKey(date) > trip.end_date
-                  }
-                  onSelect={(date) => {
-                    if (date) {
-                      setSelected(dateKey(date));
-                      setDatePickerOpen(false);
-                    }
-                  }}
-                />
-              </div>
-            </TripDialog>
+            <div className="itinerary-day-summary">
+              <div className="hidden md:block">{dayTools}</div>
+            </div>
             <div className="md:hidden">
               <TripDialog
                 title="Day options"
@@ -644,23 +687,17 @@ export function Itinerary({
               </Button>
             )}
           </div>
-          <div className="itinerary-day-summary">
-            <div className="hidden md:block">{dayTools}</div>
-          </div>
           {dayToolDialogs}
           {api.error && !editing && !deleting && (
             <TripError error={api.error} />
           )}
           <TripDialog
-            open={!!editing && canEdit}
+            open={!!editing && !editedActivity && canEdit}
             presentation="detail"
-            className="activity-details-dialog expense-flow-dialog activity-planning-dialog"
-            backLabel={
-              editedActivity ? "Back to activity" : "Back to itinerary"
-            }
-            backdropClassName="bg-black/60"
-            title={editedActivity ? "Edit activity" : "Add activity"}
-            description="Add costs while planning your day."
+            className="activity-details-dialog reference-activity-dialog activity-planning-dialog"
+            backLabel="Back to itinerary"
+            title="Add activity"
+            headerContent={<h2>{fullDateLabel(newDate ?? selected)}</h2>}
             busy={api.pending}
             disablePointerDismissal
             initialFocus={titleInput}
@@ -669,51 +706,7 @@ export function Itinerary({
               if (!open) closeEditor();
             }}
           >
-            {editing && (
-              <ActivityForm
-                titleRef={titleInput}
-                key={newDate ?? editedActivity?.id}
-                expensePeople={participants ?? []}
-                expenseUserID={current?.user_id}
-                showMoreDetails={
-                  editedActivity ? !!editedActivity.showMoreDetails : true
-                }
-                initialValue={editedActivity ?? undefined}
-                initialDate={newDate}
-                initialStartsAt={
-                  editing && "date" in editing ? editing.startsAt : undefined
-                }
-                initialPlace={editedActivity?.place ?? null}
-                tripZone={trip.time_zone}
-                tripID={trip.id}
-                tripStart={trip.start_date}
-                tripEnd={trip.end_date}
-                tripStartsAt={trip.starts_at}
-                tripEndsAt={trip.ends_at}
-                pending={api.pending || !canEdit}
-                error={api.error}
-                onDirty={() => setEditDirty(true)}
-                onCancel={closeEditor}
-                onSubmit={async (input, requestKey) => {
-                  if (!canEdit || api.pending) return;
-                  try {
-                    const saved = await api.save(
-                      input,
-                      editedActivity?.id,
-                      requestKey,
-                    );
-                    if (saved) {
-                      setEditDirty(false);
-                      setEditing(null);
-                      setSelected(localDate(input.starts_at, trip.time_zone));
-                      if (saved !== true) setViewing(saved.id);
-                    }
-                  } catch {
-                    /* The form retains its values and displays the API error. */
-                  }
-                }}
-              />
-            )}
+            {!editedActivity && activityForm}
           </TripDialog>
           {!unavailable &&
             (activities.isPending ? (
@@ -802,7 +795,7 @@ export function Itinerary({
                                       <CardContent className="px-3">
                                         <button
                                           type="button"
-                                          className="absolute inset-0 cursor-pointer rounded-2xl outline-none transition-colors duration-150 hover:bg-muted/30 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                                          className="absolute inset-0 cursor-pointer rounded-2xl outline-none transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                                           aria-label={`View details for ${activity.title}`}
                                           aria-haspopup="dialog"
                                           data-selected={
@@ -832,7 +825,7 @@ export function Itinerary({
                                               />
                                             </span>
                                           </div>
-                                          <h4 className="break-words text-base leading-6 font-semibold">
+                                          <h4 className="break-words text-lg leading-7 font-semibold md:text-xl">
                                             {activity.title}
                                           </h4>
                                           {activity.place && (
@@ -876,7 +869,7 @@ export function Itinerary({
           <TripDialog
             title={
               expenseView === "overview"
-                ? (viewedActivity?.title ?? "Activity details")
+                ? (detailActivity?.title ?? "Activity details")
                 : expenseView === "details" || expenseView === "personal"
                   ? "Expenses"
                   : "Borrow list"
@@ -898,38 +891,31 @@ export function Itinerary({
                     )
             }
             titleAccessory={
-              viewedActivity &&
+              detailActivity &&
               expenseView === "overview" && (
-                <span className="activity-detail-category">
-                  {viewedActivity.category}
-                </span>
+                <CategoryBadge category={detailActivity.category} />
               )
             }
             className="activity-details-dialog reference-activity-dialog"
+            busy={api.pending}
+            disablePointerDismissal={!!editedActivity}
             presentation="detail"
             mobilePresentation="fullscreen"
-            headerAction={
-              viewedActivity &&
-              canEdit &&
-              expenseView === "overview" && (
-                <Button
-                  variant="ghost"
-                  disabled={api.pending || editing !== null}
-                  aria-label={`Edit ${viewedActivity.title}`}
-                  onClick={() => {
-                    editTrigger.current = detailTrigger.current;
-                    api.reset();
-                    setEditDirty(false);
-                    setEditing(viewedActivity);
-                    setViewing(null);
-                  }}
-                >
-                  Edit
-                </Button>
-              )
+            headerContent={
+              editedActivity && editSection === "details"
+                ? activityForm
+                : undefined
+            }
+            titleAction={
+              expenseView === "overview" &&
+              editSection === "details" &&
+              editedActivity
+                ? undefined
+                : expenseView === "overview" &&
+                  sectionEditButton("details", "Edit activity details")
             }
             description={
-              viewedActivity && expenseView === "overview" ? (
+              detailActivity && expenseView === "overview" ? (
                 <span className="activity-detail-schedule">
                   <span>
                     <span className="activity-detail-date">
@@ -939,25 +925,26 @@ export function Itinerary({
                         month: "long",
                         timeZone: trip.time_zone,
                       }).formatRange(
-                        new Date(viewedActivity.starts_at),
-                        new Date(viewedActivity.ends_at),
+                        new Date(detailActivity.starts_at),
+                        new Date(detailActivity.ends_at),
                       )}
                     </span>
                     <span className="activity-detail-time">
-                      {timeLabel(viewedActivity.starts_at, trip.time_zone)} –{" "}
-                      {timeLabel(viewedActivity.ends_at, trip.time_zone)}
+                      {timeLabel(detailActivity.starts_at, trip.time_zone)} –{" "}
+                      {timeLabel(detailActivity.ends_at, trip.time_zone)}
                       {" · "}
                       {trip.time_zone}
                     </span>
                   </span>
                 </span>
               ) : (
-                (viewedActivity?.title ?? "Activity details")
+                (detailActivity?.title ?? "Activity details")
               )
             }
-            open={!!viewedActivity}
+            open={!!detailActivity || !!editedActivity}
             onOpenChange={(open) => {
               if (!open) {
+                if (editing && !closeEditor()) return;
                 setViewing(null);
                 if (params.has("activity"))
                   router.replace(`/trips/${trip.id}`, { scroll: false });
@@ -966,19 +953,53 @@ export function Itinerary({
             finalFocus={() =>
               editing || deleting ? false : returnFocus(detailTrigger.current)
             }
+            footer={
+              detailActivity &&
+              expenseView === "overview" && (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="min-w-0 flex-1 break-words text-xs text-muted-foreground">
+                    {participants
+                      ? `Created by ${viewedCreator ? participantName(viewedCreator) : "Former participant"}`
+                      : "Creator unavailable"}
+                  </p>
+                  {canEdit && (
+                    <Button
+                      className="activity-delete shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      variant="ghost"
+                      disabled={api.pending || editing !== null}
+                      aria-label={`Delete ${detailActivity.title}`}
+                      onClick={() => {
+                        api.reset();
+                        setDeleting(detailActivity);
+                        setViewing(null);
+                      }}
+                    >
+                      <Trash2 aria-hidden="true" />
+                      Delete
+                    </Button>
+                  )}
+                </div>
+              )
+            }
           >
-            {viewedActivity && (
+            {detailActivity && (
               <div
                 ref={detailContent}
                 className="activity-detail-sections text-sm leading-6"
               >
+                {editedActivity && !canEdit && (
+                  <p role="alert" className="text-sm text-destructive">
+                    Your edit permission has changed. Cancel to return to
+                    reading.
+                  </p>
+                )}
                 <ActivityExpenses
-                  key={viewedActivity.id}
+                  key={detailActivity.id}
                   trip={trip}
                   participants={participants}
                   current={current}
-                  activityID={String(viewedActivity.id)}
-                  activityTitle={viewedActivity.title}
+                  activityID={String(detailActivity.id)}
+                  activityTitle={detailActivity.title}
                   onFailure={onFailure}
                   compact
                   view={expenseView}
@@ -986,91 +1007,93 @@ export function Itinerary({
                 />
                 {expenseView === "overview" && (
                   <div className="activity-detail-notes">
-                    {viewedActivity.place && (
+                    {(detailActivity.place ||
+                      canEdit ||
+                      (editedActivity && editSection === "place")) && (
                       <section className="space-y-1">
-                        <h3 className="text-xs font-medium text-muted-foreground">
-                          Place
-                        </h3>
-                        <p className="break-words font-medium">
-                          {viewedActivity.place.name}
-                        </p>
-                        {viewedActivity.place.address && (
-                          <p className="break-words text-muted-foreground">
-                            {viewedActivity.place.address}
-                          </p>
+                        {editedActivity && editSection === "place" ? (
+                          activityForm
+                        ) : (
+                          <>
+                            <div className="activity-section-heading">
+                              <h3>Place</h3>
+                              {detailActivity.place &&
+                                sectionEditButton("place", "Edit place")}
+                            </div>
+                            {detailActivity.place ? (
+                              <>
+                                <p className="break-words font-medium">
+                                  {detailActivity.place.name}
+                                </p>
+                                {detailActivity.place.address && (
+                                  <p className="break-words text-muted-foreground">
+                                    {detailActivity.place.address}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              sectionAddButton("place", "Add place")
+                            )}
+                          </>
                         )}
                       </section>
                     )}
-                    {viewedActivity.notes && (
+                    {(detailActivity.notes ||
+                      canEdit ||
+                      (editedActivity && editSection === "notes")) && (
                       <section className="space-y-1">
-                        <h3>Notes</h3>
-                        <p className="whitespace-pre-wrap break-words">
-                          {viewedActivity.notes}
-                        </p>
+                        {editedActivity && editSection === "notes" ? (
+                          activityForm
+                        ) : (
+                          <>
+                            <div className="activity-section-heading">
+                              <h3>Notes</h3>
+                              {detailActivity.notes &&
+                                sectionEditButton("notes", "Edit notes")}
+                            </div>
+                            {detailActivity.notes ? (
+                              <p className="whitespace-pre-wrap break-words">
+                                {detailActivity.notes}
+                              </p>
+                            ) : (
+                              sectionAddButton("notes", "Add notes")
+                            )}
+                          </>
+                        )}
                       </section>
                     )}
-                    {viewedActivity.checklist.length > 0 && (
+                    {(detailActivity.checklist.length > 0 ||
+                      canEdit ||
+                      (editedActivity && editSection === "checklist")) && (
                       <section className="space-y-1">
-                        <h3>To do</h3>
-                        <ul className="space-y-1">
-                          {viewedActivity.checklist.map((item, index) => (
-                            <li
-                              key={index}
-                              className="whitespace-pre-wrap break-words"
-                            >
-                              {item.text}
-                            </li>
-                          ))}
-                        </ul>
+                        {editedActivity && editSection === "checklist" ? (
+                          activityForm
+                        ) : (
+                          <>
+                            <div className="activity-section-heading">
+                              <h3>To do</h3>
+                              {detailActivity.checklist.length > 0 &&
+                                sectionEditButton("checklist", "Edit to do")}
+                            </div>
+                            {detailActivity.checklist.length > 0 ? (
+                              <ul className="space-y-1">
+                                {detailActivity.checklist.map((item, index) => (
+                                  <li
+                                    key={index}
+                                    className="whitespace-pre-wrap break-words"
+                                  >
+                                    {item.text}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              sectionAddButton("checklist", "Add to-do")
+                            )}
+                          </>
+                        )}
                       </section>
                     )}
                   </div>
-                )}
-                {expenseView === "overview" && (
-                  <details className="activity-management">
-                    <summary>Activity options</summary>{" "}
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="min-w-0 flex-1 break-words text-xs text-muted-foreground">
-                        {participants
-                          ? `Created by ${viewedCreator ? participantName(viewedCreator) : "Former participant"}`
-                          : "Creator unavailable"}
-                      </p>
-                      {canEdit && (
-                        <div className="flex shrink-0 justify-end gap-2">
-                          <Button
-                            variant="destructive"
-                            disabled={api.pending || editing !== null}
-                            aria-label={`Delete ${viewedActivity.title}`}
-                            onClick={() => {
-                              api.reset();
-                              setDeleting(viewedActivity);
-                              setViewing(null);
-                            }}
-                          >
-                            <Trash2 aria-hidden="true" />
-                            Delete
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                    {canEdit && (
-                      <Button
-                        variant="link"
-                        onClick={() => {
-                          editTrigger.current = detailTrigger.current;
-                          api.reset();
-                          setEditDirty(false);
-                          setEditing({
-                            ...viewedActivity,
-                            showMoreDetails: true,
-                          });
-                          setViewing(null);
-                        }}
-                      >
-                        Edit other activity details
-                      </Button>
-                    )}
-                  </details>
                 )}
               </div>
             )}

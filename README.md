@@ -37,15 +37,14 @@ require login; new visitors and failed callbacks do not trigger recovery.
 
 ## Trip expenses
 
-Open Expenses (`?view=expenses`) for an itinerary-ordered activity list. Open an
-activity for a short overview: expense total, your share, Notes, and To do.
+Open an activity from the itinerary for a short overview: expense total, your share, Notes, and To do.
 **View expenses** opens one Expenses screen with **All expenses** and **My expenses** tabs:
 **All expenses** lists the activity's costs and their **View payments** screens;
 **My Expenses** shows your shares, settled-share Paid total, amounts to pay,
 reimbursements, and borrowed money for that activity. Back returns to the
 previous view inside the activity window. Existing activity expense links remain
-supported. Currency totals stay separate; trip-wide personal lists remain on the
-Expenses tab.
+supported. Currency totals stay separate; trip-wide personal lists remain at
+`?view=expenses`, an itinerary-ordered activity list with no link for now.
 
 Members, owners, and editors can **Record money lent** to one other active trip
 participant through **Add borrow** in the activity's **Borrow list**, always the

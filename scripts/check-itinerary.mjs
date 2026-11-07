@@ -41,11 +41,23 @@ function load(file, mocks = {}) {
 const time = load("src/lib/activity-time.ts");
 assert.equal(
   time.formatActivityDuration("2026-10-24T02:00:00Z", "2026-10-24T03:30:00Z"),
-  "90 min",
+  "1 hr 30 min",
+);
+assert.equal(
+  time.formatActivityDuration("2026-10-24T02:00:00Z", "2026-10-24T02:45:00Z"),
+  "45 min",
+);
+assert.equal(
+  time.formatActivityDuration("2026-10-24T01:00:00Z", "2026-10-24T05:00:00Z"),
+  "4 hr",
+);
+assert.equal(
+  time.formatActivityDuration("2026-10-24T01:00:00Z", "2026-10-24T01:00:00Z"),
+  "0 min",
 );
 assert.equal(
   time.formatActivityDuration("2026-03-08T06:30:00Z", "2026-03-08T07:30:00Z"),
-  "60 min",
+  "1 hr",
   "Duration measures elapsed time across DST",
 );
 const sameDayRange = time.formatActivityRange(
@@ -830,6 +842,8 @@ const formModule = load("src/components/trips/activity-form.tsx", {
     ].map((key) => [key, wrap("div")]),
   ),
 });
+let tripFormState = null,
+  tripFormHookIndex = 0;
 const tripFormModule = load("src/components/trips/trip-form.tsx", {
   ...primitiveMocks,
   "@/lib/api": apiMock,
@@ -839,10 +853,18 @@ const tripFormModule = load("src/components/trips/trip-form.tsx", {
     Input: (props) => React.createElement("input", props),
   },
   react: {
-    useState: (value) => [
-      typeof value === "function" ? value() : value,
-      () => {},
-    ],
+    useState: (value) => {
+      const initial = typeof value === "function" ? value() : value;
+      if (!tripFormState) return [initial, () => {}];
+      const index = tripFormHookIndex++;
+      if (!(index in tripFormState)) tripFormState[index] = initial;
+      return [
+        tripFormState[index],
+        (next) => {
+          tripFormState[index] = next;
+        },
+      ];
+    },
   },
   "./date-time-field": { DateTimeField: () => null },
   "@/components/ui/alert": { Alert: wrap("div"), AlertDescription: wrap("p") },
@@ -940,54 +962,182 @@ const optionalProps = {
   onCancel() {},
   pending: false,
 };
-const optionalSections = nodes(formModule.ActivityForm(optionalProps)).filter(
-  (node) => node.type === "details",
+const newActivityForm = nodes(formModule.ActivityForm(optionalProps));
+assert.equal(
+  newActivityForm.some((node) => node.type === "details"),
+  false,
+  "When is not collapsible",
+);
+assert.deepEqual(
+  newActivityForm.filter((node) => node.type === "h3"),
+  [],
+  "Empty optional sections show no headings",
+);
+assert.deepEqual(
+  newActivityForm
+    .filter((node) => node.type === "input" && node.props.type === "radio")
+    .map((node) => [node.props.value, node.props.checked]),
+  [
+    ["Rest", false],
+    ["Eating", false],
+    ["Travel", false],
+    ["Activity", true],
+    ["custom", false],
+  ],
+  "Category chips default to Activity",
 );
 assert.ok(
-  optionalSections.every((section) => !section.props.open),
-  "New activities start with optional sections collapsed",
+  newActivityForm.some((node) => node.type?.name === "ActivityExpenseDrafts"),
+  "The Expenses card stays on new activities",
 );
-const savedOptional = nodes(
+const collapsedHtml = renderToStaticMarkup(
   formModule.ActivityForm({
     ...optionalProps,
-    initialValue: activity,
-    initialPlace: { id: 1, name: "Museum" },
+    initialStartsAt: "2026-10-02T07:00:00Z",
   }),
-).filter((node) => node.type === "details");
-assert.ok(
-  savedOptional.length >= 4 &&
-    savedOptional.some(
-      (section) => section.props.className === "activity-more-details",
-    ),
-  "Saved place, notes and to-dos stay available under More activity details",
 );
-for (const showMoreDetails of [undefined, false, true]) {
-  const details = nodes(
-    formModule.ActivityForm({
-      ...optionalProps,
-      initialValue: activity,
-      showMoreDetails,
-    }),
-  ).find((node) => node.props.className === "activity-more-details");
-  assert.ok(
-    !details.props.hidden,
-    "Every edit entry exposes the notes and to-do controls",
-  );
+assert.deepEqual(
+  newActivityForm
+    .filter((node) => node.props.variant === "secondary")
+    .map((node) => node.props["aria-label"]),
+  ["Add place", "Add notes", "Add to do"],
+  "Optional sections start as Add more pills",
+);
+assert.match(collapsedHtml, /Add more/);
+for (const input of [/Search for a place/, /Activity notes/, /To-do item 1/]) {
+  assert.doesNotMatch(collapsedHtml, input, "Optional inputs start hidden");
 }
-let openedInvalidSection = false;
-form.props.onInvalidCapture({
-  target: {
-    closest: () => ({
-      setAttribute: () => {
-        openedInvalidSection = true;
-      },
-    }),
-  },
-});
+activityFormState = [];
+activityHookIndex = 0;
+nodes(formModule.ActivityForm(optionalProps))
+  .find((node) => node.props["aria-label"] === "Add place")
+  .props.onClick();
+activityHookIndex = 0;
+const placeOpened = nodes(formModule.ActivityForm(optionalProps));
+
+// Search messages are written for the user, and TripError only shows ApiError text.
+const StubTripError = primitiveMocks["./trip-states"].TripError;
+const placeForm = () => {
+  activityHookIndex = 0;
+  return nodes(formModule.ActivityForm(optionalProps));
+};
+const placeError = () =>
+  placeForm().find((node) => node.type === StubTripError)?.props.error;
+const searchPlaces = () =>
+  placeForm()
+    .find((node) => ["Search", "Loading…"].includes(node.props.children))
+    .props.onClick();
+const typePlace = (value) =>
+  placeForm()
+    .find((node) => node.props.id === "activity-place-search")
+    .props.onChange({ target: { value } });
+typePlace("a");
+searchPlaces();
+assert.ok(placeError() instanceof ApiError);
+assert.match(placeError().message, /at least 2 characters/);
+typePlace("x".repeat(201));
+searchPlaces();
+assert.ok(placeError() instanceof ApiError);
+assert.match(placeError().message, /shorter place name/);
+// A repeat click during a search is not a validation failure.
+const placeResponse = response;
+let finishPlaceSearch;
+response = () => new Promise((resolve) => (finishPlaceSearch = resolve));
+typePlace("Cebu");
+searchPlaces();
+assert.equal(placeError(), undefined);
+searchPlaces();
 assert.equal(
-  openedInvalidSection,
+  placeError(),
+  undefined,
+  "Searching twice must not blame the term",
+);
+finishPlaceSearch([]);
+await new Promise((resolve) => setTimeout(resolve));
+response = placeResponse;
+activityFormState = null;
+
+tripFormState = [];
+const destinationForm = () => {
+  tripFormHookIndex = 0;
+  return nodes(
+    tripFormModule.TripForm({
+      onSubmit() {},
+      pending: false,
+      submitLabel: "Create trip",
+    }),
+  );
+};
+const destinationError = () =>
+  destinationForm().find((node) => node.type === StubTripError)?.props.error;
+const searchDestinations = () =>
+  destinationForm()
+    .find((node) => node.props.children === "Search")
+    .props.onClick();
+const typeDestination = (value) =>
+  destinationForm()
+    .find((node) => node.props.id === "trip-destination-search")
+    .props.onChange({ target: { value } });
+typeDestination("a");
+searchDestinations();
+assert.ok(destinationError() instanceof ApiError);
+assert.match(destinationError().message, /at least 2 characters/);
+const destinationResponse = response;
+response = () => [{ provider_place_id: "no-kind" }];
+typeDestination("Cebu");
+searchDestinations();
+await new Promise((resolve) => setTimeout(resolve));
+assert.ok(destinationError() instanceof ApiError);
+assert.match(destinationError().message, /search is unavailable/);
+response = destinationResponse;
+tripFormState = null;
+console.log("Place and destination searches show their own messages.");
+assert.deepEqual(
+  placeOpened
+    .filter((node) => node.type === "h3")
+    .map((node) => node.props.children),
+  ["Place"],
+  "A pill opens only its own section",
+);
+assert.equal(
+  placeOpened.some((node) => node.props["aria-label"] === "Add place"),
+  false,
+  "An opened section's pill goes away",
+);
+assert.deepEqual(
+  newActivityForm
+    .filter((node) => node.props.className === "field-required")
+    .map((node) => node.props.children),
+  ["Activity name", "Duration"],
+  "Required fields are marked",
+);
+assert.equal(
+  newActivityForm.find((node) => node.props.label === "Start").props.required,
   true,
-  "Native validation reveals a collapsed optional field before focusing it",
+  "Start time is marked required",
+);
+assert.match(
+  collapsedHtml,
+  /Friday, October 2/,
+  "A new activity names its fixed day",
+);
+assert.match(
+  collapsedHtml,
+  /Ends [^<]* · Asia\/Manila/,
+  "One line gives the end time and trip zone",
+);
+assert.ok(
+  collapsedHtml.search(/readonly/i) <
+    collapsedHtml.search(/Ends [^<]* · Asia\/Manila/) &&
+    collapsedHtml.search(/Ends [^<]* · Asia\/Manila/) <
+      collapsedHtml.search(/Duration/),
+  "A new activity shows its end time under Start time, before Duration",
+);
+assert.ok(
+  !newActivityForm
+    .find((node) => node.props.children === "Cancel")
+    .props.className.includes("sr-only"),
+  "Cancel is visible beside Save activity",
 );
 assert.doesNotMatch(newFormHtml, />60</);
 assert.match(newFormHtml, /Save activity/);
@@ -1136,13 +1286,13 @@ const checklistField = (label) =>
   nodes(checklistForm()).find((node) => node.props["aria-label"] === label);
 activityFormState = [];
 nodes(checklistForm())
-  .find((node) => node.props.value === "Activity" && node.props.onValueChange)
-  .props.onValueChange("custom");
+  .find((node) => node.props.type === "radio" && node.props.value === "custom")
+  .props.onChange();
 assert.match(renderToStaticMarkup(checklistForm()), /Custom category/);
 nodes(checklistForm())
   .find((node) => node.props.id === "activity-custom-category")
   .props.onChange({ target: { value: " Shopping " } });
-checklistButton("Add to-do item").props.onClick();
+checklistButton("To do").props.onClick();
 checklistField("To-do item 1").props.onChange({
   target: { value: " Buy tickets " },
 });
@@ -1160,7 +1310,7 @@ assert.doesNotMatch(
   renderToStaticMarkup(checklistForm()),
   /type="checkbox"|Complete checklist|Sleeping/,
 );
-assert.match(renderToStaticMarkup(checklistForm()), /To do \(optional\)/);
+assert.match(renderToStaticMarkup(checklistForm()), />To do</);
 assert.equal(
   submitted.starts_at,
   durationProps.initialStartsAt,
@@ -1257,6 +1407,21 @@ activityFormState = null;
 console.log(
   "Custom/legacy categories, plain to-dos, validation, clearing and draft recovery passed.",
 );
+for (const section of ["details", "place", "notes", "checklist"]) {
+  const markup = renderToStaticMarkup(
+    formModule.ActivityForm({
+      ...optionalProps,
+      section,
+      initialValue: activity,
+    }),
+  );
+  assert.doesNotMatch(markup, /More activity details|Expenses \(optional\)/);
+  assert.equal(markup.includes("Activity name"), section === "details");
+  assert.equal(markup.includes("Search for a place"), section === "place");
+  assert.equal(markup.includes("Activity notes"), section === "notes");
+  assert.equal(markup.includes("Add to-do item"), section === "checklist");
+  assert.match(markup, /Cancel/);
+}
 const membership = load("src/lib/memberships.ts", {
   react: {},
   "@/lib/api": apiMock,
@@ -1549,7 +1714,13 @@ function board(tripValue = trip, canEdit = true) {
     }),
   );
 }
-const dialog = () => board().find((node) => node.props.disablePointerDismissal);
+const dialog = () =>
+  board().find((node) => node.props.title === "Add activity");
+const inlineForm = (canEdit = true) =>
+  [
+    ...nodes(details(canEdit).props.children),
+    ...nodes(details(canEdit).props.headerContent),
+  ].find((node) => node.props.section);
 const trigger = {
   isConnected: true,
   disabled: false,
@@ -1581,12 +1752,17 @@ const addButton = () =>
 const dayPanel = (date) =>
   board().find((node) => node.props.id === `day-${date}-details`);
 const details = (canEdit = true) =>
-  board(trip, canEdit).find((node) =>
-    node.props.className?.includes("reference-activity-dialog"),
+  board(trip, canEdit).find(
+    (node) =>
+      node.props.className?.includes("reference-activity-dialog") &&
+      !node.props.className.includes("activity-planning-dialog"),
   );
 const detailActions = (canEdit = true) => [
   ...nodes(details(canEdit).props.headerAction),
+  ...nodes(details(canEdit).props.titleAction),
+  ...nodes(details(canEdit).props.headerContent),
   ...nodes(details(canEdit).props.children),
+  ...nodes(details(canEdit).props.footer),
 ];
 const openDetails = (canEdit = true) =>
   board(trip, canEdit)
@@ -1607,15 +1783,20 @@ for (const role of ["owner", "editor", "member", "viewer"]) {
   assert.match(html, /Reserve table/);
   assert.match(html, /Order breakfast/);
   assert.match(
-    renderToStaticMarkup(details(canEdit).props.children),
+    renderToStaticMarkup(details(canEdit).props.footer),
     /Former participant/,
+  );
+  assert.doesNotMatch(
+    html,
+    /Created by|Activity options|Edit other activity details/,
+    "Management stays in the footer without duplicate editing controls",
   );
   assert.match(html, /Notes/);
   assert.match(html, /To do/);
   assert.doesNotMatch(html, /complete|Done|line-through|type="checkbox"/);
   assert.equal(
     detailActions(canEdit).some(
-      (node) => node.props["aria-label"] === `Edit ${activity.title}`,
+      (node) => node.props["aria-label"] === "Edit activity details",
     ),
     canEdit,
   );
@@ -1675,9 +1856,9 @@ assert.match(
 );
 boardActivities = [{ ...activity, notes: "", checklist: [] }, overnight];
 assert.doesNotMatch(
-  renderToStaticMarkup(details().props.children),
+  renderToStaticMarkup(details(false).props.children),
   /Notes|To do|Place/,
-  "Empty optional sections are omitted",
+  "Empty optional sections are omitted for readers",
 );
 boardActivities = [overnight];
 assert.equal(
@@ -1697,17 +1878,108 @@ assert.equal(details().props.open, false, "Changing days closes details");
 chooseRelativeDay(-1);
 openDetails();
 detailActions()
-  .find((node) => node.props["aria-label"] === `Edit ${activity.title}`)
+  .find((node) => node.props["aria-label"] === "Edit activity details")
   .props.onClick();
-assert.equal(details().props.open, false);
 assert.equal(
-  details().props.finalFocus(),
-  false,
-  "Opening the editor does not steal its focus",
+  details().props.open,
+  true,
+  "Editing keeps the activity drawer open",
 );
-assert.equal(dialog().props.children.props.initialValue, activity);
-assert.equal(dialog().props.finalFocus(), trigger);
-dialog().props.children.props.onCancel();
+assert.equal(dialog().props.open, false, "No separate edit screen opens");
+assert.equal(inlineForm().props.initialValue, activity);
+assert.equal(
+  inlineForm(false).props.pending,
+  true,
+  "Lost permission disables editing",
+);
+queryMode = "error";
+assert.equal(
+  details().props.open,
+  true,
+  "A background refresh failure preserves the draft",
+);
+assert.equal(inlineForm().props.initialValue, activity);
+queryMode = "success";
+let unauthorizedSave = false;
+const originalSave = uiApi.save;
+uiApi.save = async () => {
+  unauthorizedSave = true;
+  return true;
+};
+await inlineForm(false).props.onSubmit(activity);
+assert.equal(unauthorizedSave, false, "Lost permission prevents saves");
+uiApi.save = originalSave;
+inlineForm().props.onCancel();
+assert.equal(
+  details().props.open,
+  true,
+  "Cancel returns to the activity reader",
+);
+assert.equal(inlineForm(), undefined);
+openDetails();
+assert.match(
+  renderToStaticMarkup(details().props.titleAccessory),
+  /data-category="Eating"/,
+  "Details reuse the card's category badge",
+);
+const emptyPlace = detailActions().filter(
+  (node) => node.props["data-edit-section"] === "place",
+);
+assert.equal(emptyPlace.length, 1, "An empty section has one action");
+assert.equal(emptyPlace[0].props["aria-label"], undefined);
+assert.match(renderToStaticMarkup(emptyPlace[0]), /Add place/);
+assert.ok(
+  detailActions().some((node) => node.props["aria-label"] === "Edit notes"),
+  "A filled section keeps its pencil",
+);
+for (const section of ["place", "notes", "checklist"]) {
+  openDetails();
+  detailActions()
+    .find((node) => node.props["data-edit-section"] === section)
+    .props.onClick();
+  assert.equal(inlineForm().props.section, section);
+  assert.equal(
+    details().props.headerContent,
+    undefined,
+    "Section editing preserves the activity header",
+  );
+  assert.ok(
+    nodes(details().props.children).some(
+      (node) => typeof node.props.onViewChange === "function",
+    ),
+    "Expenses remain on the page",
+  );
+  assert.ok(details().props.footer, "Creator and Delete remain visible");
+  let sent;
+  uiApi.save = async (input) => {
+    sent = input;
+    return true;
+  };
+  await inlineForm().props.onSubmit({
+    ...activity,
+    title: "Must not rename other sections",
+    notes: "Edited notes",
+    place_id: 9,
+    checklist: [{ text: "Changed task", done: true }],
+  });
+  assert.equal(
+    sent.title,
+    activity.title,
+    "A section save preserves the activity title",
+  );
+  assert.equal(
+    sent.notes,
+    section === "notes" ? "Edited notes" : activity.notes,
+  );
+  assert.equal(sent.place_id, section === "place" ? 9 : activity.place_id);
+  assert.equal(
+    sent.checklist[0].text,
+    section === "checklist" ? "Changed task" : activity.checklist[0].text,
+  );
+  assert.equal(details().props.open, true);
+  assert.equal(inlineForm(), undefined);
+}
+uiApi.save = originalSave;
 openDetails();
 detailActions()
   .find((node) => node.props["aria-label"] === `Delete ${activity.title}`)
@@ -1784,20 +2056,6 @@ assert.equal(
 chooseRelativeDay(-1);
 assert.ok(dayPanel("2026-10-02"));
 chooseRelativeDay(-1);
-const datePicker = (tripValue = trip) =>
-  board(tripValue).find((node) => node.props.title === "Choose a day");
-assert.ok(
-  datePicker().props.children.props.children.props.disabled(
-    new Date("2026-09-30T12:00:00"),
-  ),
-);
-datePicker().props.children.props.children.props.onSelect(
-  new Date("2026-10-03T12:00:00"),
-);
-assert.equal(uiState[0], "2026-10-03");
-assert.ok(dayPanel(trip.end_date));
-chooseRelativeDay(-1);
-chooseRelativeDay(-1);
 const singleDay = { ...trip, end_date: trip.start_date };
 assert.deepEqual(
   board(singleDay)
@@ -1806,21 +2064,15 @@ assert.deepEqual(
   [trip.start_date],
   "A one-day trip has one selectable date",
 );
-const longTrip = { ...trip, end_date: "2027-01-31" };
-datePicker(longTrip).props.children.props.children.props.onSelect(
-  new Date("2027-01-15T12:00:00"),
-);
-assert.ok(
-  board(longTrip).some((node) => node.props.id === "day-2027-01-15-details"),
-  "Calendar jumps across a long trip",
-);
-datePicker(longTrip).props.children.props.children.props.onSelect(
-  new Date("2026-10-01T12:00:00"),
-);
 boardConflicts = [];
 addButton().props.onClick({ currentTarget: trigger });
 assert.equal(dialog().props.open, true);
 assert.equal(dialog().props.children.props.initialDate, "2026-10-01");
+assert.equal(
+  dialog().props.headerContent.props.children,
+  "Thursday, October 1",
+  "Add activity is headed by its fixed day",
+);
 assert.equal(
   dialog().props.initialFocus,
   dialog().props.children.props.titleRef,
@@ -1830,39 +2082,38 @@ dialog().props.children.props.onCancel();
 assert.equal(dialog().props.open, false);
 openDetails();
 detailActions()
-  .find((node) => node.props["aria-label"] === `Edit ${activity.title}`)
+  .find((node) => node.props["aria-label"] === "Edit activity details")
   .props.onClick();
-assert.equal(dialog().props.children.props.initialValue, activity);
-dialog().props.children.props.onDirty();
-dialog().props.children.props.onCancel();
-assert.equal(
-  dialog().props.open,
-  true,
-  "Unsaved edits require discard confirmation",
-);
+assert.equal(inlineForm().props.initialValue, activity);
+inlineForm().props.onDirty();
+inlineForm().props.onCancel();
+assert.ok(inlineForm(), "Unsaved edits require discard confirmation");
+details().props.onOpenChange(false);
+assert.ok(inlineForm(), "Dismissal also protects unsaved edits");
 confirmDiscard = true;
-dialog().props.children.props.onCancel();
-assert.equal(dialog().props.open, false, "Confirmed discard closes the editor");
+inlineForm().props.onCancel();
+assert.equal(inlineForm(), undefined, "Confirmed discard returns to reading");
+assert.equal(details().props.open, true);
 openDetails();
 detailActions()
-  .find((node) => node.props["aria-label"] === `Edit ${activity.title}`)
+  .find((node) => node.props["aria-label"] === "Edit activity details")
   .props.onClick();
 uiApi.pending = true;
-dialog().props.onOpenChange(false);
-assert.equal(dialog().props.open, true, "Saving blocks dismissal");
+details().props.onOpenChange(false);
+assert.ok(inlineForm(), "Saving blocks dismissal");
 uiApi.pending = false;
 uiApi.save = async () => {
   throw new Error("Save failed");
 };
-await dialog().props.children.props.onSubmit(activity);
-assert.equal(dialog().props.open, true, "Failed save retains the editor");
-assert.equal(dialog().props.children.props.initialValue, activity);
+await inlineForm().props.onSubmit(activity);
+assert.ok(inlineForm(), "Failed save retains the inline editor");
+assert.equal(inlineForm().props.initialValue, activity);
 uiApi.save = async () => true;
-await dialog().props.children.props.onSubmit({
+await inlineForm().props.onSubmit({
   ...activity,
   starts_at: "2026-10-02T01:00:00Z",
 });
-assert.equal(dialog().props.open, false);
+assert.equal(inlineForm(), undefined);
 assert.equal(uiState[0], "2026-10-02", "Save selects the destination day");
 assert.equal(
   board().some((node) => node.props.children === "Activity updated."),
@@ -1995,7 +2246,7 @@ assert.equal(
   "2026-10-01T13:50:00Z",
   "Use latest scheduled end regardless of list order",
 );
-assert.equal(dialog().props.description, "Add costs while planning your day.");
+assert.equal(dialog().props.description, undefined);
 const prefilled = formModule.ActivityForm(addProps);
 const startField = nodes(prefilled).find(
   (node) => node.props.label === "Start",
@@ -2074,11 +2325,6 @@ assert.ok(todayButton(), "An active trip offers Today after navigating away");
 todayButton().props.onClick();
 assert.equal(uiState[0], "2026-10-02", "Today returns to the trip-local date");
 assert.equal(todayButton(), undefined);
-const calendarDialog = datePicker();
-assert.match(
-  calendarDialog.props.trigger.props["aria-label"],
-  /Choose day, Fri, Oct 2, day 2 of 3/,
-);
 const mapDialog = () =>
   board().find((node) => node.props.title?.startsWith("Places on"));
 assert.equal(mapDialog().props.children.props.activities.length, 1);
@@ -2126,19 +2372,32 @@ assert.equal(
 );
 mapDialog().props.onOpenChange(false);
 optionsDialog().props.onOpenChange(true);
-board()
-  .find(
+const overlapsButton = () =>
+  board().find(
     (node) =>
       node.props.onClick &&
       React.Children.toArray(node.props.children).includes("Overlaps"),
-  )
-  .props.onClick({ currentTarget: trigger });
+  );
+assert.equal(
+  overlapsButton(),
+  undefined,
+  "Overlaps stays hidden on a day without overlaps",
+);
+boardConflicts = [
+  {
+    activity_ids: [1, 2],
+    overlap_starts_at: "2026-01-01T00:00:00Z",
+    overlap_ends_at: "2027-01-01T00:00:00Z",
+  },
+];
+overlapsButton().props.onClick({ currentTarget: trigger });
 const overlapsDialog = () =>
   board().find((node) => node.props.title?.startsWith("Conflicts on"));
 assert.equal(optionsDialog().props.open, false);
 assert.equal(overlapsDialog().props.open, true);
 assert.equal(overlapsDialog().props.finalFocus(), optionsTrigger);
 overlapsDialog().props.onOpenChange(false);
+boardConflicts = [];
 assert.equal(
   board().some((node) => node.type === "aside"),
   false,
@@ -2164,9 +2423,7 @@ assert.equal(railDays()[0].props["aria-current"], "date");
 assert.equal(railDays()[6].props["aria-label"], "Wed, Oct 7");
 railDays()[6].props.onClick();
 assert.equal(uiState[0], "2026-10-07");
-datePicker(railTrip).props.children.props.children.props.onSelect(
-  new Date("2026-10-08T12:00:00"),
-);
+uiState[0] = "2026-10-08";
 assert.equal(railDays()[0].props["aria-label"], "Thu, Oct 8");
 const windowQuery = boardQueries
   .filter((key) => key[2] === "activities" && key[3] === "board")
@@ -2237,7 +2494,17 @@ const detailRoute = load("src/app/trips/[tripID]/page.tsx", {
       queryKey[0] === "me"
         ? { isSuccess: true, data: { id: 11 } }
         : queryKey[2] === "members"
-          ? { isSuccess: true, data: [{ user_id: 11, role: detailRole }] }
+          ? {
+              isSuccess: true,
+              data: [
+                {
+                  user_id: 11,
+                  role: detailRole,
+                  display_name: "Ana Reyes",
+                  email: null,
+                },
+              ],
+            }
           : detailQuery,
   },
   "@/lib/api": apiMock,
@@ -2285,7 +2552,11 @@ for (detailRole of ["owner", "editor", "viewer"]) {
   ).props;
   assert.equal(itineraryProps.canEdit, detailRole !== "viewer");
   const tools = nodes(tree);
-  assert.ok(tools.some((node) => node.props.title === "People & invitations"));
+  const peopleDialog = tools.find(
+    (node) => node.props.title === "People & invitations",
+  );
+  assert.equal(peopleDialog.props.trigger.props["aria-label"], "People, 1");
+  assert.match(renderToStaticMarkup(peopleDialog.props.trigger), />AR</);
   assert.equal(
     tools.some((node) => node.props.title === "Trip settings"),
     detailRole !== "viewer",
@@ -2535,7 +2806,13 @@ assert.equal(financeSection().props.view, "overview");
 financeSection().props.onViewChange("personal");
 assert.equal(details().props.title, "Expenses");
 assert.equal(details().props.backLabel, "Back to activity");
-assert.equal(details().props.headerAction, false);
+assert.equal(details().props.headerAction, undefined);
+assert.equal(details().props.titleAction, false);
+assert.equal(
+  details().props.footer,
+  false,
+  "Expenses hide activity management",
+);
 details().props.onBack();
 assert.equal(financeSection().props.view, "overview");
 details().props.onOpenChange(false);
@@ -2559,7 +2836,8 @@ const stepDialog = TripDialog({
   children: "Expenses",
 });
 const backButton = nodes(stepDialog).find(
-  (n) => n.props.onClick && n.props.children === "Back to activity",
+  (n) =>
+    n.props.onClick && [n.props.children].flat().includes("Back to activity"),
 );
 backButton.props.onClick();
 assert.equal(backed, true);

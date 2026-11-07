@@ -5,7 +5,11 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, type ApiUser, useApi } from "@/lib/api";
-import { permissions, useMembershipsApi } from "@/lib/memberships";
+import {
+  participantInitials,
+  permissions,
+  useMembershipsApi,
+} from "@/lib/memberships";
 import { Invitations, Participants } from "@/components/trips/memberships";
 import { Expenses } from "@/components/trips/expenses";
 import { Itinerary } from "@/components/trips/itinerary";
@@ -18,9 +22,9 @@ import {
   validTripID,
 } from "@/lib/trips";
 import { formatActivityTime } from "@/lib/activity-time";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
-  Settings2,
+  Settings,
   Users,
   ArrowLeft,
   MoreHorizontal,
@@ -220,7 +224,7 @@ function TripDetail({ id }: { id: number }) {
                   setEditing(true);
                 }}
               >
-                <Settings2 aria-hidden="true" />
+                <Settings aria-hidden="true" />
                 Settings
               </Button>
             )}
@@ -327,13 +331,29 @@ function TripDetail({ id }: { id: number }) {
               open={peopleOpen}
               onOpenChange={setPeopleOpen}
               trigger={
-                <Button variant="outline" className="min-h-11">
-                  <Users aria-hidden="true" />
-                  People
-                  {members.data && (
-                    <span className="text-muted-foreground">
-                      {members.data.length}
+                <Button
+                  variant="ghost"
+                  className="trip-people min-h-11"
+                  aria-label={
+                    members.data ? `People, ${members.data.length}` : "People"
+                  }
+                >
+                  {members.data?.length ? (
+                    <span aria-hidden="true" className="trip-people-avatars">
+                      {members.data.slice(0, 3).map((person) => (
+                        <span key={person.user_id}>
+                          {participantInitials(person)}
+                        </span>
+                      ))}
+                      {members.data.length > 3 && (
+                        <span>+{members.data.length - 3}</span>
+                      )}
                     </span>
+                  ) : (
+                    <>
+                      <Users aria-hidden="true" />
+                      People
+                    </>
                   )}
                 </Button>
               }
@@ -376,9 +396,12 @@ function TripDetail({ id }: { id: number }) {
                   }
                 }}
                 trigger={
-                  <Button variant="outline" className="min-h-11">
-                    <Settings2 aria-hidden="true" />
-                    Settings
+                  <Button
+                    variant="ghost"
+                    className="trip-settings size-11 min-h-11"
+                    aria-label="Trip settings"
+                  >
+                    <Settings aria-hidden="true" className="size-5" />
                   </Button>
                 }
               >
@@ -458,31 +481,6 @@ function TripDetail({ id }: { id: number }) {
           </>
         </nav>
       </header>
-      <nav
-        aria-label="Trip views"
-        className="flex flex-wrap gap-2 border-b pb-3"
-      >
-        <Link
-          href={`/trips/${id}`}
-          scroll={false}
-          aria-current={!expenseView ? "page" : undefined}
-          className={buttonVariants({
-            variant: expenseView ? "ghost" : "secondary",
-          })}
-        >
-          Itinerary
-        </Link>
-        <Link
-          href={`/trips/${id}?view=expenses`}
-          scroll={false}
-          aria-current={expenseView ? "page" : undefined}
-          className={buttonVariants({
-            variant: expenseView ? "secondary" : "ghost",
-          })}
-        >
-          Expenses
-        </Link>
-      </nav>
       <Expenses
         active={expenseView}
         trip={trip.data}

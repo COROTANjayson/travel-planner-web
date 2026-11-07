@@ -83,6 +83,17 @@ assert.equal(
   membership.participantName({ ...owner, display_name: " ", email: null }),
   "Traveler",
 );
+for (const [display_name, email, initials] of [
+  ["Ana Maria Reyes", null, "AR"],
+  ["  cher  ", null, "C"],
+  [" ", "sam@example.com", "S"],
+  [" ", null, "T"],
+  ["😀 Lee", null, "😀L"],
+])
+  assert.equal(
+    membership.participantInitials({ ...owner, display_name, email }),
+    initials,
+  );
 assert.equal(membership.invitationStatus(invitation, 0), "pending");
 assert.equal(
   membership.invitationStatus(

@@ -39,8 +39,15 @@ export interface ReceivedInvitation {
 }
 export const acceptanceError =
   "This invitation is no longer available. Refresh your invitations and try again.";
-export const participantName = (person: Participant) =>
+type NamedPerson = Pick<Participant, "display_name" | "email">;
+export const participantName = (person: NamedPerson) =>
   person.display_name.trim() || person.email || "Traveler";
+export const participantInitials = (person: NamedPerson) => {
+  const words = participantName(person).split(/\s+/);
+  const first = Array.from(words[0])[0] ?? "";
+  const last = words.length > 1 ? Array.from(words.at(-1)!)[0] : "";
+  return `${first}${last}`.toUpperCase();
+};
 export function invitationStatus(invitation: Invitation, now = Date.now()) {
   return invitation.revoked_at
     ? "revoked"
