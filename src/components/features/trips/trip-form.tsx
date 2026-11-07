@@ -14,13 +14,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  DateTimeField,
-  type LocalDraft,
-} from "@/components/shared/date-time-field";
+import { type LocalDraft } from "@/components/shared/date-time-field";
 import { TripError } from "@/components/shared/trip-states";
+import { DestinationSearch } from "@/components/features/trips/destination-search";
+import { ExactTimesSection } from "@/components/features/trips/exact-times-section";
 
-type Destination = Pick<
+export type Destination = Pick<
   Place,
   "id" | "name" | "address" | "kind" | "time_zone"
 >;
@@ -206,98 +205,16 @@ export function TripForm({
         disabled={pending || searchPending}
         className="min-w-0 space-y-5"
       >
-        <div className="space-y-3">
-          <Label htmlFor="trip-destination-search">Where are you going?</Label>
-          <p
-            id="trip-destination-help"
-            className="text-sm text-muted-foreground"
-          >
-            Search for a city or country, then choose your destination.
-          </p>
-          {destination && (
-            <div className="rounded-xl border bg-secondary/40 p-4 text-sm">
-              <p className="font-medium">{destination.name}</p>
-              {destination.address && (
-                <p className="break-words text-muted-foreground">
-                  {destination.address}
-                </p>
-              )}
-              <p className="text-muted-foreground">
-                Trip time zone: {destination.time_zone}
-              </p>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <Input
-              id="trip-destination-search"
-              aria-describedby="trip-destination-help"
-              className="min-h-11 min-w-0 flex-1"
-              placeholder="e.g. Tokyo, Japan or Japan"
-              enterKeyHint="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.nativeEvent.isComposing) {
-                  event.preventDefault();
-                  void search();
-                }
-              }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              disabled={searchPending}
-              onClick={() => void search()}
-            >
-              {searchPending ? "Loading…" : "Search"}
-            </Button>
-          </div>
-          {results && (
-            <div aria-live="polite">
-              {results.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No destinations found.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {results.map((candidate) => (
-                    <li key={candidate.provider_place_id}>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-auto min-h-11 w-full justify-start whitespace-normal text-left"
-                        disabled={searchPending}
-                        onClick={() => void choose(candidate)}
-                      >
-                        <span>
-                          <strong>{candidate.name}</strong>
-                          <br />
-                          <span className="text-muted-foreground">
-                            {candidate.address} · {candidate.time_zone}
-                          </span>
-                        </span>
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-          {!!searchError && <TripError error={searchError} />}
-          <p className="text-xs text-muted-foreground">
-            Place data ©{" "}
-            <a
-              className="underline"
-              href="https://www.openstreetmap.org/copyright"
-              target="_blank"
-              rel="noreferrer"
-            >
-              OpenStreetMap contributors
-            </a>
-            .
-          </p>
-        </div>
+        <DestinationSearch
+          destination={destination}
+          query={query}
+          setQuery={setQuery}
+          search={search}
+          choose={choose}
+          results={results}
+          searchPending={searchPending}
+          searchError={searchError}
+        />
         <div className="form-section grid gap-5 sm:grid-cols-2">
           {(["start", "end"] as const).map((field) => (
             <div key={field} className="min-w-0 space-y-2">
@@ -342,61 +259,15 @@ export function TripForm({
             onChange={(event) => setName(event.target.value)}
           />
         </div>
-        <div className="optional-times space-y-3">
-          <Label className="flex min-h-11 cursor-pointer items-center gap-3 leading-6">
-            <input
-              type="checkbox"
-              className="size-5 shrink-0 accent-primary"
-              checked={exactTimes}
-              onChange={(event) => {
-                setExactTimes(event.target.checked);
-                setValidationError(undefined);
-              }}
-            />
-            Add exact start and end times (optional)
-          </Label>
-          {!exactTimes && (
-            <p className="text-sm text-muted-foreground">
-              Dates are enough to get started. Add exact times later if you need
-              them.
-            </p>
-          )}
-          {exactTimes && !destination && (
-            <p className="text-sm text-muted-foreground">
-              Choose a destination to enter times in its local time zone.
-            </p>
-          )}
-          {exactTimes && destination && (
-            <div className="grid gap-5 sm:grid-cols-2">
-              <DateTimeField
-                id="trip-start"
-                label="Start"
-                split
-                hideDate
-                zone={destination.time_zone}
-                draft={times.start}
-                disabled={pending}
-                onChange={(start) => {
-                  setTimes((current) => ({ ...current, start }));
-                  setValidationError(undefined);
-                }}
-              />
-              <DateTimeField
-                id="trip-end"
-                label="End"
-                split
-                hideDate
-                zone={destination.time_zone}
-                draft={times.end}
-                disabled={pending}
-                onChange={(end) => {
-                  setTimes((current) => ({ ...current, end }));
-                  setValidationError(undefined);
-                }}
-              />
-            </div>
-          )}
-        </div>
+        <ExactTimesSection
+          exactTimes={exactTimes}
+          setExactTimes={setExactTimes}
+          destination={destination}
+          times={times}
+          setTimes={setTimes}
+          pending={pending}
+          setValidationError={setValidationError}
+        />
       </fieldset>
       {validationError && (
         <Alert variant="destructive">

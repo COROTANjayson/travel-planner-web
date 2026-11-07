@@ -1,5 +1,7 @@
 "use client";
 
+import { TripSummary } from "@/components/features/trips/trip-summary";
+
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
@@ -8,16 +10,9 @@ import { ApiError, type ApiUser, useApi } from "@/lib/api";
 import { permissions, useMembershipsApi } from "@/lib/memberships";
 import { Expenses } from "@/components/features/expenses/expenses";
 import { Itinerary } from "@/components/features/itinerary/itinerary";
-import {
-  formatTripDates,
-  tripDayCount,
-  tripStatus,
-  type TripInput,
-  useTripsApi,
-} from "@/lib/trips";
-import { formatActivityTime } from "@/lib/activity-time";
+import { type TripInput, useTripsApi } from "@/lib/trips";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, CalendarDays, Clock3 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { TripOptionsDialog } from "@/components/features/trips/dialogs/trip-options-dialog";
 import { TripPeopleDialog } from "@/components/features/trips/dialogs/trip-people-dialog";
 import { TripSettingsDialog } from "@/components/features/trips/dialogs/trip-settings-dialog";
@@ -173,66 +168,7 @@ export function TripDetail({ id }: { id: number }) {
       )}
       <header className="planning-header">
         <div className="min-w-0 flex-1">
-          <div className="trip-summary">
-            <div className="trip-summary-destination">
-              <p className="flex min-w-0 items-start gap-2 text-sm text-muted-foreground">
-                <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                <span className="min-w-0 break-words">
-                  {trip.data.destination}
-                </span>
-              </p>
-              <span
-                className="trip-status"
-                data-status={tripStatus(
-                  trip.data.start_date,
-                  trip.data.end_date,
-                  trip.data.time_zone,
-                )}
-              >
-                {tripStatus(
-                  trip.data.start_date,
-                  trip.data.end_date,
-                  trip.data.time_zone,
-                )}
-              </span>
-            </div>
-            <h1 className="trip-summary-title">{trip.data.name}</h1>
-            <div className="trip-summary-meta">
-              <p className="flex items-start gap-2">
-                <CalendarDays
-                  aria-hidden="true"
-                  className="mt-0.5 size-4 shrink-0"
-                />
-                <span>
-                  {formatTripDates(trip.data.start_date, trip.data.end_date)}
-                </span>
-              </p>
-              <p>
-                {tripDayCount(trip.data.start_date, trip.data.end_date)}{" "}
-                {tripDayCount(trip.data.start_date, trip.data.end_date) === 1
-                  ? "day"
-                  : "days"}
-              </p>
-              <p className="flex min-w-0 items-start gap-2">
-                <Clock3 aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                <span className="break-words">{trip.data.time_zone}</span>
-              </p>
-              {trip.data.starts_at && trip.data.ends_at && (
-                <p>
-                  <time dateTime={trip.data.starts_at}>
-                    {formatActivityTime(
-                      trip.data.starts_at,
-                      trip.data.time_zone,
-                    )}
-                  </time>{" "}
-                  &ndash;{" "}
-                  <time dateTime={trip.data.ends_at}>
-                    {formatActivityTime(trip.data.ends_at, trip.data.time_zone)}
-                  </time>
-                </p>
-              )}
-            </div>
-          </div>
+          <TripSummary trip={trip.data} />
         </div>
         <nav
           aria-label="Trip tools"
