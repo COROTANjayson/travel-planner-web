@@ -14,9 +14,7 @@ import {
   type Currency,
   type Debt,
   type Expense,
-  type TransactionInput,
 } from "@/lib/expenses";
-import { ApiError } from "@/lib/api";
 import type { Participant } from "@/lib/memberships";
 import type { Trip } from "@/lib/trips";
 import { expenseMoney } from "@/lib/money";
