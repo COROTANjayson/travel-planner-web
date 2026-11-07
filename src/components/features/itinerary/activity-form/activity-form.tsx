@@ -15,6 +15,7 @@ import {
   endAfterMinutes,
   instantToLocal,
   localToInstant,
+  timeLabel,
   type Occurrence,
 } from "@/lib/activity-time";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -37,10 +38,7 @@ export type Duration = keyof typeof durations | "custom";
 
 function formatEndTime(instant: string, zone: string, startDate: string) {
   const local = instantToLocal(instant, zone).value;
-  const time = new Intl.DateTimeFormat(undefined, {
-    timeZone: zone,
-    timeStyle: "short",
-  }).format(new Date(instant));
+  const time = timeLabel(instant, zone);
   return `${time}${local.slice(0, 10) > startDate ? ` on ${local.slice(0, 10)}` : ""}`;
 }
 

@@ -7,6 +7,7 @@ import {
   type LocalDraft,
 } from "@/components/shared/date-time-field";
 import { Input } from "@/components/ui/input";
+import { fullDateLabel } from "@/lib/activity-time";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -63,14 +64,7 @@ export function WhenEditor({
         id={`${prefix}-when`}
         className={hideDate ? "sr-only" : "activity-when-label"}
       >
-        {hideDate
-          ? new Intl.DateTimeFormat(undefined, {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-              timeZone: "UTC",
-            }).format(new Date(`${initialDate}T12:00:00Z`))
-          : "When"}
+        {hideDate ? fullDateLabel(initialDate!) : "When"}
       </p>
       <div className="activity-when-fields space-y-5">
         <div className="min-w-0 space-y-2">
