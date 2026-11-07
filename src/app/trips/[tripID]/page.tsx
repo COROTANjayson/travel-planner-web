@@ -10,7 +10,11 @@ import {
   permissions,
   useMembershipsApi,
 } from "@/lib/memberships";
-import { Invitations, Participants } from "@/components/trips/memberships";
+import {
+  InviteForm,
+  Participants,
+  PendingInvitations,
+} from "@/components/trips/memberships";
 import { Expenses } from "@/components/trips/expenses";
 import { Itinerary } from "@/components/trips/itinerary";
 import {
@@ -325,8 +329,8 @@ function TripDetail({ id }: { id: number }) {
               Back to trips
             </Button>
             <TripDialog
-              title="People & invitations"
-              description="See who is joining and manage access to this trip."
+              title="People"
+              className="[&_[data-slot=trip-dialog-header]]:items-center"
               keepMounted
               open={peopleOpen}
               onOpenChange={setPeopleOpen}
@@ -358,7 +362,10 @@ function TripDetail({ id }: { id: number }) {
                 </Button>
               }
             >
-              <div className="space-y-6">
+              <div className="space-y-8">
+                {allowed.manage && (
+                  <InviteForm id={id} onFailure={handleFailure} />
+                )}
                 {members.isPending ? (
                   <p role="status">Loading participants...</p>
                 ) : members.isError ? (
@@ -380,7 +387,7 @@ function TripDetail({ id }: { id: number }) {
                   />
                 )}
                 {allowed.manage && (
-                  <Invitations id={id} onFailure={handleFailure} />
+                  <PendingInvitations id={id} onFailure={handleFailure} />
                 )}
               </div>
             </TripDialog>

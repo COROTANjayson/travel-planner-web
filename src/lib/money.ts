@@ -2,9 +2,10 @@ export const maxMinor = 9223372036854775807n;
 
 export function parseMoney(text: string, decimals: number): string {
   const value = text.trim();
-  if (!/^\d+(?:\.\d*)?$/.test(value))
+  // Only well-formed thousands groups, so "1,50" is rejected rather than read as 150.
+  if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d*)?$/.test(value))
     throw new Error("Enter an amount using digits and a decimal point.");
-  const [whole, fraction = ""] = value.split(".");
+  const [whole, fraction = ""] = value.replaceAll(",", "").split(".");
   if (fraction.length > decimals)
     throw new Error(`This currency allows ${decimals} decimal places.`);
   const minor =

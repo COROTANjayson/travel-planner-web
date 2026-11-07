@@ -184,7 +184,10 @@ their existing layouts and behavior.
   activity form, then Save. Do not show checkboxes, completion counts, status
   labels, or strikethroughs. Preserve historical completion values in storage.
   Existing Sleeping activities retain their label and edit as a custom category.
-- Explain role capabilities beside role selection. Invitations appear in the
+- The People dialog shows the owner's invite form, then one row per person, then
+  pending invitations only, omitting that section when there are none. Explain role
+  capabilities inside the role dropdown rather than on every row. Transfer ownership
+  and Remove sit behind each row's More options button. Invitations appear in the
   recipient's account; do not imply email delivery.
 
 ## Components, forms, and accessibility
@@ -241,7 +244,14 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
   Included members are an initials stack (up to three, then +N) at the right of the
   Back row; it opens the members step. Custom splitting opens a separate step with
   member amounts and **Use this split**; **Change custom split** sits at the right
-  of the preview's share line.
+  of the preview's share line. On that step, Back returns to the expense and asks
+  before dropping typed amounts; nothing changes until **Use this split**, including
+  a per-person price. **Reset to even** sits beside the title. The footer pins the
+  running total above the action, stating the amount left or over on a sand surface
+  until it matches, plus a link that splits the remainder among rows not yet edited.
+  Blank or unreadable amounts count as nothing in that total; unreadable ones show
+  their error on the row. Applying requires every row, and amount fields accept
+  well-formed thousands separators.
   Keep expense forms in the right drawer on desktop and full-screen on mobile,
   with a 60% black backdrop, labels and sticky actions. Expense drawers match the
   activity drawer's 680px width so no clipped form shows behind them. The currency

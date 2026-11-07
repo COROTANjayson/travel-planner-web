@@ -86,6 +86,8 @@ for (const surface of ["trip-sea", "trip-sand", "trip-mist"]) {
   check(token("foreground"), token(surface));
   check(token("muted-foreground"), token(surface));
 }
+// The custom split's balancing link sits on the sand mismatch surface.
+check(token("primary"), token("trip-sand"));
 check("#625333", "#e5ddbf");
 check("#405a69", "#d9e3e9");
 check("#526258", "#e9ede8");

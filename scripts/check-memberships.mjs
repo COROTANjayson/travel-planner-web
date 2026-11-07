@@ -121,6 +121,21 @@ assert.equal(
   }),
   "revoked",
 );
+for (const [hoursLeft, text] of [
+  [168, "Expires in 7 days"],
+  [167.99, "Expires in 7 days"],
+  [145, "Expires in 6 days"],
+  [24, "Expires in 1 day"],
+  [8, "Expires in 8 hours"],
+  [0.5, "Expires in 1 hour"],
+])
+  assert.equal(
+    membership.invitationExpiry(
+      invitation,
+      Date.parse(invitation.expires_at) - hoursLeft * 3_600_000,
+    ),
+    text,
+  );
 for (const [role, expected] of [
   ["owner", [true, true, false]],
   ["editor", [false, true, true]],
@@ -136,7 +151,14 @@ const wrap = (tag) =>
   function Primitive({ children }) {
     return React.createElement(tag, null, children);
   };
+let invitationQuery;
 const components = load("src/components/trips/memberships.tsx", {
+  "@tanstack/react-query": { useQuery: () => invitationQuery },
+  "@/components/ui/popover": Object.fromEntries(
+    ["Popover", "PopoverContent", "PopoverTitle", "PopoverTrigger"].map(
+      (key) => [key, wrap("div")],
+    ),
+  ),
   "@/lib/memberships": {
     ...membership,
     useMembershipsApi: () => ({ pending: false }),
@@ -179,6 +201,58 @@ for (const role of ["owner", "editor", "member", "viewer", undefined]) {
   assert.equal(html.includes("Leave trip"), !!role && role !== "owner");
   if (role === "owner") assert.equal((html.match(/>Remove</g) || []).length, 1);
 }
+
+const waitingHtml = (query) => {
+  invitationQuery = query;
+  return renderToStaticMarkup(
+    React.createElement(components.PendingInvitations, {
+      id: 7,
+      onFailure: () => {},
+    }),
+  );
+};
+const waitingInvitation = {
+  ...invitation,
+  expires_at: new Date(Date.now() + 6 * 86_400_000).toISOString(),
+};
+const closedInvitations = [
+  { accepted_at: "2029-01-01" },
+  { declined_at: "2029-01-01" },
+  { revoked_at: "2029-01-01" },
+  { expires_at: "2020-01-01T00:00:00Z" },
+].map((change, index) => ({
+  ...waitingInvitation,
+  id: 10 + index,
+  email: `closed${index}@example.com`,
+  ...change,
+}));
+const waiting = waitingHtml({
+  isSuccess: true,
+  data: [waitingInvitation, ...closedInvitations],
+});
+assert.match(waiting, /Waiting to join \(1\)/);
+assert.match(waiting, /sam@example\.com/);
+assert.match(waiting, /Expires in 6 days/);
+assert.equal((waiting.match(/>Revoke</g) || []).length, 1);
+assert.doesNotMatch(
+  waiting,
+  /closed\d@example\.com/,
+  "Only pending invitations are listed",
+);
+assert.equal(
+  waitingHtml({ isSuccess: true, data: closedInvitations }),
+  "",
+  "Without pending invitations the section disappears",
+);
+assert.match(waitingHtml({ isPending: true }), /Loading invitations/);
+invitationQuery = undefined;
+assert.match(
+  renderToStaticMarkup(
+    React.createElement(components.InviteForm, { id: 7, onFailure: () => {} }),
+  ),
+  /No email is sent/,
+  "The invite form never implies email delivery",
+);
 
 const api = membership.useMembershipsApi(7);
 response = [owner, other];

@@ -2207,19 +2207,56 @@ summary {
   line-height: 30px;
 }
 .figma-custom-shares {
-  gap: 36px;
-  margin-top: 60px;
-  margin-bottom: 64px;
+  gap: 16px;
 }
 .figma-custom-shares > div {
   grid-template-columns: minmax(0, 1fr) minmax(0, 158px);
+  row-gap: 4px;
 }
 .figma-custom-shares label {
   font-size: 16px;
   font-weight: 400;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 .figma-custom-shares input {
-  padding-inline: 20px;
+  padding-inline: 12px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.figma-share-error {
+  grid-column: 1 / -1;
+}
+/* Pinned above Use this split, so the running total stays visible while typing. */
+.expense-split-status {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--secondary);
+  overflow-wrap: anywhere;
+}
+.expense-split-status[data-balanced="false"] {
+  background: var(--trip-sand);
+}
+.expense-split-status .figma-summary-value {
+  font-size: 18px;
+  line-height: 24px;
+}
+.expense-split-status p:not(.figma-summary-value) {
+  font-size: 14px;
+  line-height: 20px;
+}
+.expense-flow-dialog
+  [data-slot="trip-dialog-footer"]
+  .expense-split-status
+  [data-slot="button"] {
+  min-height: 44px;
+  padding: 0;
+  text-align: left;
+  white-space: normal;
 }
 .expense-payment-list {
   display: grid;
@@ -2991,7 +3028,9 @@ summary {
   opacity: 1;
 }
 .figma-custom-shares .reference-field > span {
-  padding-inline: 20px;
+  justify-content: flex-end;
+  padding-inline: 12px;
+  font-variant-numeric: tabular-nums;
 }
 .reference-activity-dialog [data-slot="trip-dialog-header"] {
   padding-bottom: 18px;

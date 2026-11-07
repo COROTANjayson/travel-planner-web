@@ -2515,7 +2515,8 @@ const detailRoute = load("src/app/trips/[tripID]/page.tsx", {
   "@/components/trips/expenses": { Expenses: detailExpenses },
   "@/components/trips/memberships": {
     Participants: wrap("div"),
-    Invitations: wrap("div"),
+    InviteForm: wrap("div"),
+    PendingInvitations: wrap("div"),
   },
   "@/components/trips/trip-form": { TripForm: wrap("div") },
   "@/components/trips/trip-dialog": {
@@ -2552,9 +2553,7 @@ for (detailRole of ["owner", "editor", "viewer"]) {
   ).props;
   assert.equal(itineraryProps.canEdit, detailRole !== "viewer");
   const tools = nodes(tree);
-  const peopleDialog = tools.find(
-    (node) => node.props.title === "People & invitations",
-  );
+  const peopleDialog = tools.find((node) => node.props.title === "People");
   assert.equal(peopleDialog.props.trigger.props["aria-label"], "People, 1");
   assert.match(renderToStaticMarkup(peopleDialog.props.trigger), />AR</);
   assert.equal(
@@ -2619,7 +2618,7 @@ nodes(mobileOptions.props.children)
   .find((node) => node.props.onClick)
   .props.onClick();
 const peopleDialog = nodes(detailTree()).find(
-  (node) => node.props.title === "People & invitations",
+  (node) => node.props.title === "People",
 );
 assert.equal(
   peopleDialog.props.open,
@@ -2653,11 +2652,7 @@ assert.equal(
 assert.ok(
   nodes(expenseTree).some((node) => node.props.children === "Trip expenses"),
 );
-assert.ok(
-  nodes(expenseTree).some(
-    (node) => node.props.title === "People & invitations",
-  ),
-);
+assert.ok(nodes(expenseTree).some((node) => node.props.title === "People"));
 detailView = "view=unknown";
 assert.equal(
   nodes(detailTree()).find((node) => node.type === detailExpenses).props.active,

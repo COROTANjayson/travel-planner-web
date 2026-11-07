@@ -116,8 +116,13 @@ export function ExpenseCostEditor({
   );
   const [validation, setValidation] = useState<Error | null>(null);
   const [dirty, setDirty] = useState(false);
+  // What the custom step restores on Back, and which rows were edited on it.
+  const [customEntry, setCustomEntry] = useState<Record<number, string>>({});
+  const [editedShares, setEditedShares] = useState<number[]>([]);
   const feedback = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
+  const firstClickSelects = useRef(false);
   useEffect(() => {
     (
       formRef.current?.querySelector<HTMLElement>("input,button,[tabindex]") ??
@@ -148,16 +153,50 @@ export function ExpenseCostEditor({
   const invalid = (message: string) => fail(new ApiError(422, message));
   function back() {
     if (busy) return;
-    if (step !== "cost" && step !== "custom") {
+    if (step === "custom") {
+      if (
+        selected.some((id) => (exact[id] ?? "") !== (customEntry[id] ?? "")) &&
+        !window.confirm("Discard the amounts you entered?")
+      )
+        return;
+      setExact(customEntry);
+      setValidation(null);
+      setStep("cost");
+      return;
+    }
+    if (step !== "cost") {
       setStep("cost");
       return;
     }
     if (dirty && !window.confirm("Discard this expense draft?")) return;
     onBack();
   }
+  const selectedPeople = people.filter((p) => selected.includes(p.user_id));
+  // A blank or unreadable share counts as nothing, so it can't wipe the running total.
+  function readShare(id: number) {
+    try {
+      const minor = parseMoney(exact[id]?.trim() || "0", meta.decimals);
+      return { minor: BigInt(minor), problem: "" };
+    } catch (cause) {
+      return { minor: 0n, problem: (cause as Error).message };
+    }
+  }
+  const assigned = selected.reduce((n, id) => n + readShare(id).minor, 0n);
   let total = "0",
     shares: Share[] = [],
     problem = "";
+  function checkCustomShares() {
+    for (const id of selected) {
+      const name = expenseName(people.find((p) => p.user_id === id));
+      if (!exact[id]?.trim()) throw new Error(`Add an amount for ${name}.`);
+      const share = readShare(id);
+      if (share.problem) throw new Error(`${name}: ${share.problem}`);
+    }
+    const short = BigInt(total) - assigned;
+    if (short > 0n) throw new Error(`${money(short)} is still left to assign.`);
+    if (short < 0n)
+      throw new Error(`Custom shares are ${money(-short)} over the total.`);
+  }
   try {
     total = parseMoney(amount, meta.decimals);
     if (BigInt(total) <= 0n) throw new Error("Enter a positive price.");
@@ -166,49 +205,66 @@ export function ExpenseCostEditor({
       total = (BigInt(total) * BigInt(selected.length)).toString();
       if (BigInt(total) > maxMinor) throw new Error("This total is too large.");
     }
-    shares =
-      mode === "equal"
-        ? equalShares(total, selected)
-        : selected.map((user_id) => ({
-            user_id,
-            amount_minor: parseMoney(exact[user_id] ?? "", meta.decimals),
-          }));
-    if (
-      shares.reduce((n, s) => n + BigInt(s.amount_minor), 0n) !== BigInt(total)
-    )
-      throw new Error("Custom shares must match the expense total.");
+    if (mode === "equal") shares = equalShares(total, selected);
+    else {
+      checkCustomShares();
+      shares = selected.map((user_id) => ({
+        user_id,
+        amount_minor: readShare(user_id).minor.toString(),
+      }));
+    }
   } catch (cause) {
     problem = (cause as Error).message;
   }
-  let assigned = 0n;
-  try {
-    assigned = selected.reduce(
-      (n, id) => n + BigInt(parseMoney(exact[id] ?? "0", meta.decimals)),
-      0n,
+  const unassigned = BigInt(total) - assigned;
+  // Rows nobody has edited yet take whatever the edited rows leave over.
+  const untouched = selectedPeople
+    .map((p) => p.user_id)
+    .filter((id) => !editedShares.includes(id));
+  const remaining = untouched.reduce(
+    (n, id) => n + readShare(id).minor,
+    unassigned,
+  );
+  const canBalance =
+    unassigned !== 0n &&
+    editedShares.length > 0 &&
+    editedShares.every((id) => exact[id]?.trim() && !readShare(id).problem) &&
+    untouched.length > 0 &&
+    remaining > 0n;
+  const evenInputs = (amountMinor: string, ids: number[]) =>
+    Object.fromEntries(
+      equalShares(amountMinor, ids).map((s) => [
+        s.user_id,
+        moneyInput(s.amount_minor, meta.decimals),
+      ]),
     );
-  } catch {
-    /* Display the validation message when applying the split. */
-  }
   function openCustomSplit() {
     if (!selected.length || BigInt(total) <= 0n || BigInt(total) > maxMinor) {
       invalid("Enter a valid price and include at least one member first.");
       return;
     }
-    if (mode === "equal")
-      setExact(
-        Object.fromEntries(
-          equalShares(total, selected).map((s) => [
-            s.user_id,
-            moneyInput(s.amount_minor, meta.decimals),
-          ]),
-        ),
-      );
-    if (basis === "per_person") {
-      setBasis("group");
-      setAmount(moneyInput(total, meta.decimals));
-    }
-    change();
+    const entry = mode === "equal" ? evenInputs(total, selected) : exact;
+    setExact(entry);
+    setCustomEntry(entry);
+    setEditedShares([]);
+    setValidation(null);
     setStep("custom");
+  }
+  function balanceShares() {
+    setExact((v) => ({ ...v, ...evenInputs(remaining.toString(), untouched) }));
+    change();
+    // This button is about to disappear; don't drop keyboard focus with it.
+    submitRef.current?.focus();
+  }
+  function resetShares() {
+    if (
+      editedShares.length &&
+      !window.confirm("Replace the amounts you entered with an even split?")
+    )
+      return;
+    setExact(evenInputs(total, selected));
+    setEditedShares([]);
+    change();
   }
   async function submit() {
     if (busy) return;
@@ -220,9 +276,11 @@ export function ExpenseCostEditor({
         return;
       }
       if (step === "custom") {
-        if (assigned !== BigInt(total))
-          throw new Error("Custom shares must match the expense total.");
-        for (const id of selected) parseMoney(exact[id] ?? "", meta.decimals);
+        checkCustomShares();
+        if (basis === "per_person") {
+          setBasis("group");
+          setAmount(moneyInput(total, meta.decimals));
+        }
         setMode("exact");
         change();
         setStep("cost");
@@ -303,7 +361,6 @@ export function ExpenseCostEditor({
     /* Keep an invalid draft editable. */
   }
   const failure = validation ?? error;
-  const selectedPeople = people.filter((p) => selected.includes(p.user_id));
   const title =
     step === "review"
       ? "Review expense changes"
@@ -335,14 +392,24 @@ export function ExpenseCostEditor({
       focusTitleOnChange
       presentation="detail"
       className="activity-details-dialog expense-flow-dialog"
-      backLabel={
-        step === "cost" || step === "custom"
-          ? "Back to activity"
-          : "Back to expense"
-      }
+      backLabel={step === "cost" ? "Back to activity" : "Back to expense"}
       backdropClassName="bg-black/60"
       title={title}
       description={subtitle}
+      titleAction={
+        step === "custom" && (
+          // Outside the form's disabled fieldset, so it blocks itself while busy.
+          <Button
+            type="button"
+            variant="link"
+            className="figma-summary-action px-0"
+            disabled={busy}
+            onClick={resetShares}
+          >
+            Reset to even
+          </Button>
+        )
+      }
       headerAction={
         step === "cost" && (
           // Outside the form's disabled fieldset, so it blocks itself while busy.
@@ -386,9 +453,48 @@ export function ExpenseCostEditor({
         if (!open) back();
       }}
       footer={
-        <Button className="w-full" type="submit" form={formID} disabled={busy}>
-          {reviewing ? "Reviewing…" : pending ? "Saving…" : footerLabel}
-        </Button>
+        <>
+          {step === "custom" && (
+            <div
+              className="expense-split-status"
+              data-balanced={unassigned === 0n}
+            >
+              <div aria-live="polite">
+                <p className="figma-summary-value">
+                  {unassigned === 0n
+                    ? "Matches the total"
+                    : unassigned > 0n
+                      ? `${money(unassigned)} left to assign`
+                      : `${money(-unassigned)} over`}
+                </p>
+                <p>
+                  {money(assigned)} of {money(total)} assigned
+                </p>
+              </div>
+              {canBalance && (
+                <Button
+                  type="button"
+                  variant="link"
+                  disabled={busy}
+                  onClick={balanceShares}
+                >
+                  {untouched.length === 1
+                    ? `Give the remaining ${money(remaining)} to the other person`
+                    : `Split the remaining ${money(remaining)} between the other ${untouched.length}`}
+                </Button>
+              )}
+            </div>
+          )}
+          <Button
+            ref={submitRef}
+            className="w-full"
+            type="submit"
+            form={formID}
+            disabled={busy}
+          >
+            {reviewing ? "Reviewing…" : pending ? "Saving…" : footerLabel}
+          </Button>
+        </>
       }
     >
       <form
@@ -630,57 +736,61 @@ export function ExpenseCostEditor({
             </div>
           )}
           {step === "custom" && (
-            <>
-              <ExpenseSelect
-                id={`${formID}-custom-mode`}
-                label="Split"
-                value="exact"
-                options={[
-                  { value: "exact", label: "Custom amounts" },
-                  { value: "equal", label: "Split evenly" },
-                ]}
-                onChange={(value) => {
-                  if (value === "equal") {
-                    setMode("equal");
-                    change();
-                    setStep("cost");
-                  }
-                }}
-              />
-              <div className="figma-custom-shares">
-                {selectedPeople.map((person) => (
+            <div className="figma-custom-shares">
+              {selectedPeople.map((person) => {
+                const shareID = `${formID}-share-${person.user_id}`;
+                const shareProblem = readShare(person.user_id).problem;
+                return (
                   <div key={person.user_id}>
-                    <Label htmlFor={`${formID}-share-${person.user_id}`}>
-                      {expenseName(person)}
-                    </Label>
+                    <Label htmlFor={shareID}>{expenseName(person)}</Label>
                     <ExpensePriceField
                       currency={meta}
-                      id={`${formID}-share-${person.user_id}`}
+                      id={shareID}
                       aria-label={`Share for ${expenseName(person)}`}
+                      aria-invalid={shareProblem ? true : undefined}
+                      aria-describedby={
+                        shareProblem ? `${shareID}-error` : undefined
+                      }
                       inputMode="decimal"
                       value={exact[person.user_id] ?? ""}
+                      onFocus={(e) => {
+                        e.target.select();
+                        firstClickSelects.current = true;
+                      }}
+                      onClick={(e) => {
+                        if (firstClickSelects.current) {
+                          const input = e.currentTarget;
+                          // Browsers collapse a clicked selection after this event.
+                          requestAnimationFrame(() => input.select());
+                        }
+                        firstClickSelects.current = false;
+                      }}
                       onChange={(e) => {
                         setExact((v) => ({
                           ...v,
                           [person.user_id]: e.target.value,
                         }));
+                        setEditedShares((ids) =>
+                          ids.includes(person.user_id)
+                            ? ids
+                            : [...ids, person.user_id],
+                        );
                         change();
                       }}
                     />
+                    {shareProblem && (
+                      <p
+                        id={`${shareID}-error`}
+                        role="alert"
+                        className="figma-share-error text-sm text-destructive"
+                      >
+                        {shareProblem}
+                      </p>
+                    )}
                   </div>
-                ))}
-              </div>
-              <div className="figma-money-summary" aria-live="polite">
-                <p className="figma-summary-value">
-                  {money(assigned)} assigned
-                </p>
-                <p>
-                  {assigned === BigInt(total)
-                    ? "Matches the expense total"
-                    : `Expense total ${money(total)}`}
-                </p>
-              </div>
-            </>
+                );
+              })}
+            </div>
           )}
           {step === "coverer" && (
             <>

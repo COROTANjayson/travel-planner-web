@@ -3,10 +3,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { MoreHorizontal } from "lucide-react";
 import {
   type AssignableRole,
   type Participant,
+  invitationExpiry,
   invitationStatus,
+  participantInitials,
   participantName,
   permissions,
   useMembershipsApi,
@@ -30,56 +33,119 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { TripError } from "@/components/trips/trip-states";
 import { ApiError } from "@/lib/api";
 
+const roleHelp: Record<AssignableRole, string> = {
+  editor: "Can change the trip, activities, and all expenses",
+  member: "Can view plans and record expenses and payments",
+  viewer: "Can view the trip but can't change anything",
+};
+
 function RoleSelect({
   id,
+  label,
   value,
   disabled,
   onChange,
 }: {
   id: string;
+  label?: string;
   value: AssignableRole;
   disabled: boolean;
   onChange: (role: AssignableRole) => void;
 }) {
   return (
-    <div className="space-y-2">
-      <Select
-        value={value}
+    <Select
+      value={value}
+      disabled={disabled}
+      onValueChange={(role) => {
+        if (role === "editor" || role === "member" || role === "viewer")
+          onChange(role);
+      }}
+    >
+      <SelectTrigger id={id} aria-label={label} className="w-full sm:w-32">
+        <SelectValue className="capitalize" />
+      </SelectTrigger>
+      <SelectContent
+        align="end"
+        alignItemWithTrigger={false}
+        className="w-88 max-w-(--available-width) p-1"
+      >
+        {(["editor", "member", "viewer"] as const).map((role) => (
+          <SelectItem className="min-h-11 py-2" key={role} value={role}>
+            <span className="flex flex-col whitespace-normal">
+              <span className="font-medium capitalize">{role}</span>
+              <span className="text-xs leading-5 text-muted-foreground">
+                {roleHelp[role]}
+              </span>
+            </span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function PersonOptions({
+  name,
+  disabled,
+  onTransfer,
+  onRemove,
+}: {
+  name: string;
+  disabled: boolean;
+  onTransfer: () => void;
+  onRemove: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
         disabled={disabled}
-        onValueChange={(role) => {
-          if (role === "editor" || role === "member" || role === "viewer")
-            onChange(role);
-        }}
+        render={
+          <Button
+            variant="ghost"
+            className="size-11 min-h-11"
+            aria-label={`More options for ${name}`}
+          />
+        }
       >
-        <SelectTrigger
-          id={id}
-          aria-describedby={`${id}-help`}
-          className="min-h-11 w-full sm:w-36"
+        <MoreHorizontal aria-hidden="true" />
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-56 max-w-[calc(100vw-3rem)] gap-0 p-1"
+      >
+        <PopoverTitle className="sr-only">Options for {name}</PopoverTitle>
+        <Button
+          variant="ghost"
+          className="min-h-11 w-full justify-start"
+          onClick={() => {
+            setOpen(false);
+            onTransfer();
+          }}
         >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {(["editor", "member", "viewer"] as const).map((role) => (
-            <SelectItem className="min-h-11" key={role} value={role}>
-              {role}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <p
-        id={`${id}-help`}
-        className="max-w-xs text-xs leading-5 text-muted-foreground"
-      >
-        {value === "editor"
-          ? "Can edit the trip, activities, and all expenses and payments."
-          : value === "member"
-            ? "Can view plans, record expenses and payments, and manage their own financial records."
-            : "Can view plans, people, expenses, and balances; cannot make changes."}
-      </p>
-    </div>
+          Transfer ownership
+        </Button>
+        <Button
+          variant="ghost"
+          className="min-h-11 w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={() => {
+            setOpen(false);
+            onRemove();
+          }}
+        >
+          Remove
+        </Button>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -155,76 +221,64 @@ export function Participants({
     setConfirm(null);
   }
   return (
-    <section className="space-y-4" aria-label="Participants">
-      <h3 className="font-semibold">Participants ({participants.length})</h3>
-      <ul className="space-y-4">
+    <section className="space-y-3" aria-label="On this trip">
+      <h3 className="font-semibold">On this trip ({participants.length})</h3>
+      <ul>
         {participants.map((person) => (
           <li
             key={person.user_id}
-            className="space-y-3 border-b pb-4 last:border-0 last:pb-0"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b py-3 first:pt-0 last:border-0 last:pb-0"
           >
-            <div className="participant-row">
+            <div className="participant-row min-w-0 flex-1">
               <span className="participant-avatar" aria-hidden="true">
                 {Array.from(participantName(person))[0].toLocaleUpperCase()}
               </span>
-              <div className="min-w-0 break-words">
-                <p className="font-medium">
-                  {participantName(person)}
-                  {person.user_id === current?.user_id && " (you)"}
-                </p>
-                <p className="mt-1 text-xs font-medium text-muted-foreground">
-                  {person.role}
-                </p>
-              </div>
+              <p className="min-w-0 font-medium break-words">
+                {participantName(person)}
+                {person.user_id === current?.user_id && (
+                  <span className="font-normal text-muted-foreground">
+                    {" "}
+                    (you)
+                  </span>
+                )}
+              </p>
             </div>
-            {allowed.manage && person.role !== "owner" && (
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="w-full space-y-2 sm:w-auto">
-                  <Label htmlFor={`role-${person.user_id}`}>
-                    Role for {participantName(person)}
-                  </Label>
-                  <RoleSelect
-                    id={`role-${person.user_id}`}
-                    value={person.role}
-                    disabled={api.pending}
-                    onChange={(role) => {
-                      if (role !== person.role)
-                        void api
-                          .updateRole(person.user_id, role)
-                          .catch(() => {});
-                    }}
-                  />
-                </div>
-                <Button
-                  className="min-h-11"
-                  variant="destructive"
+            {allowed.manage && person.role !== "owner" ? (
+              <div className="flex w-full items-center gap-2 pl-14 sm:w-auto sm:pl-0">
+                <RoleSelect
+                  id={`role-${person.user_id}`}
+                  label={`Role for ${participantName(person)}`}
+                  value={person.role}
                   disabled={api.pending}
-                  onClick={() => {
-                    api.reset();
-                    setConfirm({ action: "remove", person });
+                  onChange={(role) => {
+                    if (role !== person.role)
+                      void api.updateRole(person.user_id, role).catch(() => {});
                   }}
-                >
-                  Remove
-                </Button>
-                <Button
-                  className="min-h-11"
-                  variant="outline"
+                />
+                <PersonOptions
+                  name={participantName(person)}
                   disabled={api.pending}
-                  onClick={() => {
+                  onTransfer={() => {
                     api.reset();
                     setConfirm({ action: "transfer", person });
                   }}
-                >
-                  Transfer ownership
-                </Button>
+                  onRemove={() => {
+                    api.reset();
+                    setConfirm({ action: "remove", person });
+                  }}
+                />
               </div>
+            ) : (
+              <span className="shrink-0 text-sm text-muted-foreground capitalize">
+                {person.role}
+              </span>
             )}
           </li>
         ))}
       </ul>
       {allowed.leave && current && (
         <Button
-          className="min-h-11"
+          className="mt-3 min-h-11"
           variant="outline"
           disabled={api.pending}
           onClick={() => {
@@ -262,19 +316,102 @@ export function Participants({
   );
 }
 
-export function Invitations({
+function useInvitationsApi(
+  id: number,
+  onFailure: (error: Error) => void | Promise<void>,
+) {
+  return useMembershipsApi(id, (error) => {
+    if (!(error instanceof ApiError && error.status === 404))
+      return onFailure(error);
+  });
+}
+
+function InvitationError({ error }: { error: Error }) {
+  return (
+    <TripError
+      error={
+        error instanceof ApiError && error.status === 404
+          ? new ApiError(404, "This invitation is unavailable.")
+          : error
+      }
+    />
+  );
+}
+
+export function InviteForm({
   id,
   onFailure,
 }: {
   id: number;
   onFailure: (error: Error) => void | Promise<void>;
 }) {
-  const api = useMembershipsApi(id, (error) => {
-    if (!(error instanceof ApiError && error.status === 404))
-      return onFailure(error);
-  });
+  const api = useInvitationsApi(id, onFailure);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<AssignableRole>("member");
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (api.pending) return;
+    try {
+      const invitation = await api.create(email, role);
+      if (invitation) {
+        setEmail("");
+      }
+    } catch {
+      /* The hook exposes a safe error below. */
+    }
+  }
+  return (
+    <section className="space-y-3" aria-label="Invite someone">
+      <h3 className="font-semibold">Invite someone</h3>
+      <form
+        onSubmit={(event) => void create(event)}
+        className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end sm:gap-x-2"
+      >
+        <div className="space-y-2">
+          <Label htmlFor="invite-email">Email they sign in with</Label>
+          <Input
+            id="invite-email"
+            type="email"
+            required
+            maxLength={320}
+            disabled={api.pending}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="invite-role">Role</Label>
+          <RoleSelect
+            id="invite-role"
+            value={role}
+            disabled={api.pending}
+            onChange={setRole}
+          />
+        </div>
+        <Button
+          className="w-full sm:w-auto md:min-h-11"
+          type="submit"
+          disabled={api.pending}
+        >
+          {api.pending ? "Inviting…" : "Invite"}
+        </Button>
+      </form>
+      <p className="text-sm leading-6 text-muted-foreground">
+        They&apos;ll find it in their Invitations. No email is sent.
+      </p>
+      {api.error && <InvitationError error={api.error} />}
+    </section>
+  );
+}
+
+export function PendingInvitations({
+  id,
+  onFailure,
+}: {
+  id: number;
+  onFailure: (error: Error) => void | Promise<void>;
+}) {
+  const api = useInvitationsApi(id, onFailure);
   const [revoke, setRevoke] = useState<{ id: number; email: string } | null>(
     null,
   );
@@ -290,66 +427,18 @@ export function Invitations({
     )
       onFailure(invitations.error);
   }, [invitations.error, onFailure]);
-  async function create(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (api.pending) return;
-    try {
-      const invitation = await api.create(email, role);
-      if (invitation) {
-        setEmail("");
-      }
-    } catch {
-      /* The hook exposes a safe error below. */
-    }
-  }
+  const waiting =
+    invitations.data?.filter(
+      (invitation) => invitationStatus(invitation) === "pending",
+    ) ?? [];
+  if (invitations.isSuccess && !waiting.length && !api.error && !revoke)
+    return null;
   return (
-    <section className="space-y-6 border-t pt-6" aria-label="Invitations">
-      <h3 className="font-semibold">Invite someone</h3>
-      <p className="text-sm leading-6 text-muted-foreground">
-        Invite them using the email address they sign in with. The invitation
-        will appear in their Invitations after they verify that email. It
-        expires after seven days. No email is sent.
-      </p>
-      <form onSubmit={(event) => void create(event)} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="invite-email">Email address</Label>
-          <Input
-            className="min-h-11"
-            id="invite-email"
-            type="email"
-            required
-            maxLength={320}
-            disabled={api.pending}
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="invite-role">Invitation role</Label>
-          <RoleSelect
-            id="invite-role"
-            value={role}
-            disabled={api.pending}
-            onChange={setRole}
-          />
-        </div>
-        <Button
-          className="min-h-12 w-full md:w-auto"
-          type="submit"
-          disabled={api.pending}
-        >
-          {api.pending ? "Saving…" : "Create invitation"}
-        </Button>
-      </form>
-      {api.error && (
-        <TripError
-          error={
-            api.error instanceof ApiError && api.error.status === 404
-              ? new ApiError(404, "This invitation is unavailable.")
-              : api.error
-          }
-        />
+    <section className="space-y-3" aria-label="Waiting to join">
+      {waiting.length > 0 && (
+        <h3 className="font-semibold">Waiting to join ({waiting.length})</h3>
       )}
+      {api.error && <InvitationError error={api.error} />}
       {invitations.isPending ? (
         <p role="status">Loading invitations…</p>
       ) : invitations.isError ? (
@@ -358,29 +447,29 @@ export function Invitations({
           retry={() => void invitations.refetch()}
           pending={invitations.isFetching}
         />
-      ) : invitations.data.length === 0 ? (
-        <p className="text-muted-foreground">No invitations yet.</p>
       ) : (
-        <ul className="space-y-4">
-          {invitations.data.map((invitation) => (
-            <li
-              key={invitation.id}
-              className="space-y-2 border-b pb-4 last:border-0"
-            >
-              <p className="break-words font-medium">{invitation.email}</p>
-              <p className="text-sm text-muted-foreground">
-                {invitation.role} ·{" "}
-                <span className="capitalize">
-                  {invitationStatus(invitation)}
+        waiting.length > 0 && (
+          <ul>
+            {waiting.map((invitation) => (
+              <li
+                key={invitation.id}
+                className="flex items-center gap-3 border-b py-3 first:pt-0 last:border-0 last:pb-0"
+              >
+                <span className="participant-avatar" aria-hidden="true">
+                  {participantInitials({
+                    display_name: "",
+                    email: invitation.email,
+                  })}
                 </span>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Expires{" "}
-                <time dateTime={invitation.expires_at}>
-                  {new Date(invitation.expires_at).toLocaleString()}
-                </time>
-              </p>
-              {invitationStatus(invitation) === "pending" && (
+                <div className="min-w-0 flex-1 break-words">
+                  <p className="font-medium">{invitation.email}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    <span className="capitalize">{invitation.role}</span> ·{" "}
+                    <time dateTime={invitation.expires_at}>
+                      {invitationExpiry(invitation)}
+                    </time>
+                  </p>
+                </div>
                 <Button
                   className="min-h-11"
                   variant="outline"
@@ -392,10 +481,10 @@ export function Invitations({
                 >
                   Revoke
                 </Button>
-              )}
-            </li>
-          ))}
-        </ul>
+              </li>
+            ))}
+          </ul>
+        )
       )}
       {revoke && (
         <Confirmation

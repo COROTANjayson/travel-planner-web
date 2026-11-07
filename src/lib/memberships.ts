@@ -59,6 +59,20 @@ export function invitationStatus(invitation: Invitation, now = Date.now()) {
           ? "expired"
           : "pending";
 }
+const relativeTime = new Intl.RelativeTimeFormat("en");
+export function invitationExpiry(
+  invitation: Pick<Invitation, "expires_at">,
+  now = Date.now(),
+) {
+  const hours = Math.ceil(
+    (Date.parse(invitation.expires_at) - now) / 3_600_000,
+  );
+  return `Expires ${
+    hours < 24
+      ? relativeTime.format(hours, "hour")
+      : relativeTime.format(Math.round(hours / 24), "day")
+  }`;
+}
 export function permissions(role?: TripRole) {
   return {
     manage: role === "owner",

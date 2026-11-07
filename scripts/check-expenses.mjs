@@ -28,6 +28,10 @@ const money = load("src/lib/money.ts");
 assert.equal(money.parseMoney("123.45", 2), "12345");
 assert.equal(money.parseMoney("001.2", 2), "120");
 assert.equal(money.parseMoney("1", 0), "1");
+// Amount fields display thousands separators, so people type them too.
+assert.equal(money.parseMoney("1,000", 2), "100000");
+assert.equal(money.parseMoney("1,000,000.50", 2), "100000050");
+assert.equal(money.parseMoney("1,000", 0), "1000");
 assert.equal(
   money.parseMoney("92233720368547758.07", 2),
   "9223372036854775807",
@@ -35,7 +39,12 @@ assert.equal(
 for (const value of [
   "-1",
   "1e3",
-  "1,000",
+  "1,50",
+  "12,34,567",
+  "1000,000",
+  ",100",
+  "1,,000",
+  "1,000,",
   "NaN",
   "Infinity",
   "",
@@ -784,6 +793,8 @@ console.log(
 );
 
 // The approved form keeps custom splitting in a separate step and preserves failed drafts.
+const confirms = [];
+let confirmAnswer = true;
 const approved = load(
   "src/components/trips/expense-cost-editor.tsx",
   {
@@ -812,7 +823,12 @@ const approved = load(
     "./trip-states": { TripError },
   },
   {
-    window: { confirm: () => true },
+    window: {
+      confirm(message) {
+        confirms.push(message);
+        return confirmAnswer;
+      },
+    },
     requestAnimationFrame: (callback) => callback(),
   },
 );
@@ -938,6 +954,317 @@ assert.ok(stepError() instanceof ApiError, "Local save checks stay readable");
 assert.match(stepError().message, /digits and a decimal point/);
 assert.equal(focusedErrors, 3);
 console.log("Blocked expense steps show and focus their own message.");
+
+// Custom split journey: five people share ₱4,000, so an even split is ₱800 each.
+let editorsClosed = 0;
+approvedProps.onBack = () => editorsClosed++;
+const startExpense = (price = "4000") => {
+  find(costTree(), "expense-name").props.onChange({ target: { value: "Inn" } });
+  find(costTree(), "expense-price").props.onChange({
+    target: { value: price },
+  });
+};
+const openSplit = () =>
+  nodes(costTree())
+    .find((n) => n.props.label === "Split")
+    .props.onChange("exact");
+const startSplit = () => {
+  startExpense();
+  openSplit();
+};
+const typeShare = (id, value) =>
+  find(costTree(), `expense-share-${id}`).props.onChange({ target: { value } });
+const shareValues = () =>
+  JSON.stringify(
+    [1, 2, 3, 4, 5].map(
+      (id) => find(costTree(), `expense-share-${id}`).props.value,
+    ),
+  );
+const typeAllShares = (values) =>
+  values.forEach((value, i) => typeShare(i + 1, value));
+const dismiss = () => costTree().props.onOpenChange(false);
+const stepTitle = () => costTree().props.title;
+const footerNodes = () => nodes(costTree().props.footer);
+const footerText = () => renderToStaticMarkup(costTree().props.footer);
+const splitStatus = () =>
+  footerNodes().find((n) => "data-balanced" in n.props).props["data-balanced"];
+const balanceButton = () =>
+  footerNodes().find((n) =>
+    /^(Split|Give) the remaining/.test(n.props.children),
+  );
+const perPersonRadio = () =>
+  nodes(costTree()).find(
+    (n) => n.props.type === "radio" && n.props.name === "expense-basis",
+  );
+const memberBoxes = () =>
+  nodes(costTree()).filter((n) => n.props.type === "checkbox");
+const changeSplitButton = () =>
+  nodes(costTree()).find((n) => n.props.children === "Change custom split");
+const savedShares = () =>
+  JSON.stringify(saved.shares.map((s) => s.amount_minor));
+
+const splitFailures = [];
+async function splitScenario(name, run) {
+  states = [];
+  refs = [];
+  confirms.length = 0;
+  confirmAnswer = true;
+  editorsClosed = 0;
+  saved = undefined;
+  try {
+    await run();
+  } catch (cause) {
+    splitFailures.push(`${name}: ${cause.message}`);
+  }
+}
+
+await splitScenario("Back from an untouched split", () => {
+  startSplit();
+  assert.equal(costTree().props.backLabel, "Back to expense");
+  dismiss();
+  assert.equal(stepTitle(), "Add expense");
+  assert.equal(editorsClosed, 0, "Back must not close the whole expense");
+  assert.equal(confirms.length, 0, "Nothing typed, so nothing to confirm");
+  assert.equal(find(costTree(), "expense-name").props.value, "Inn");
+  assert.equal(find(costTree(), "expense-price").props.value, "4000");
+});
+await splitScenario("Back after typing asks first", () => {
+  startSplit();
+  typeShare(1, "2000");
+  confirmAnswer = false;
+  dismiss();
+  assert.equal(stepTitle(), "Custom split");
+  assert.equal(find(costTree(), "expense-share-1").props.value, "2000");
+  assert.equal(confirms.length, 1);
+  confirmAnswer = true;
+  dismiss();
+  assert.equal(stepTitle(), "Add expense");
+  assert.equal(editorsClosed, 0);
+  openSplit();
+  assert.equal(
+    shareValues(),
+    JSON.stringify(["800.00", "800.00", "800.00", "800.00", "800.00"]),
+  );
+});
+await splitScenario("Abandoned edits keep the applied split", async () => {
+  startSplit();
+  typeAllShares(["1000", "900", "800", "700", "600"]);
+  await submitCost();
+  assert.equal(stepTitle(), "Add expense");
+  changeSplitButton().props.onClick();
+  typeShare(1, "1");
+  dismiss();
+  assert.equal(stepTitle(), "Add expense");
+  await submitCost();
+  assert.equal(saved.split_mode, "exact");
+  assert.equal(
+    savedShares(),
+    JSON.stringify(["100000", "90000", "80000", "70000", "60000"]),
+  );
+});
+await splitScenario("Per-person holds until the split is used", async () => {
+  startExpense("400");
+  perPersonRadio().props.onChange();
+  openSplit();
+  assert.match(costTree().props.description, /₱2,000 total/);
+  dismiss();
+  assert.equal(perPersonRadio().props.checked, true);
+  assert.equal(find(costTree(), "expense-price").props.value, "400");
+  openSplit();
+  await submitCost();
+  assert.equal(stepTitle(), "Add expense");
+  assert.equal(perPersonRadio().props.checked, false);
+  assert.equal(find(costTree(), "expense-price").props.value, "2000.00");
+  await submitCost();
+  assert.equal(saved.amount_basis, "group");
+  assert.equal(saved.amount_minor, "200000");
+});
+await splitScenario("Running total survives bad fields", () => {
+  startSplit();
+  typeShare(1, "");
+  assert.match(footerText(), /₱800 left to assign/);
+  assert.match(footerText(), /₱3,200 of ₱4,000 assigned/);
+  assert.equal(find(costTree(), "expense-share-1-error"), undefined);
+  assert.equal(
+    find(costTree(), "expense-share-1").props["aria-invalid"],
+    undefined,
+  );
+  typeShare(1, "abc");
+  assert.match(footerText(), /₱800 left to assign/);
+  assert.equal(find(costTree(), "expense-share-1").props["aria-invalid"], true);
+  assert.equal(
+    find(costTree(), "expense-share-1").props["aria-describedby"],
+    "expense-share-1-error",
+  );
+  assert.match(
+    renderToStaticMarkup(find(costTree(), "expense-share-1-error")),
+    /digits and a decimal point/,
+  );
+  typeShare(1, "1,000");
+  assert.match(footerText(), /₱200 over/);
+  assert.equal(find(costTree(), "expense-share-1-error"), undefined);
+});
+await splitScenario("Status says how far off the split is", () => {
+  startSplit();
+  assert.match(footerText(), /Matches the total/);
+  assert.match(footerText(), /₱4,000 of ₱4,000 assigned/);
+  assert.equal(splitStatus(), true);
+  typeShare(1, "700");
+  assert.match(footerText(), /₱100 left to assign/);
+  assert.equal(splitStatus(), false);
+  typeShare(1, "900");
+  assert.match(footerText(), /₱100 over/);
+  assert.equal(splitStatus(), false);
+});
+await splitScenario("A blocked split names the fix", async () => {
+  startSplit();
+  for (const [value, message] of [
+    ["700", /₱100 is still left to assign/],
+    ["900", /₱100 over/],
+    ["", /Add an amount for Person 1/],
+    ["abc", /Person 1.*digits and a decimal point/],
+  ]) {
+    typeShare(1, value);
+    await submitCost();
+    assert.equal(stepTitle(), "Custom split");
+    assert.ok(stepError() instanceof ApiError);
+    assert.match(stepError().message, message);
+  }
+});
+await splitScenario("One tap splits the rest", () => {
+  startSplit();
+  assert.ok(!balanceButton(), "Nothing to balance before an edit");
+  typeShare(1, "999.99");
+  assert.equal(
+    balanceButton().props.children,
+    "Split the remaining ₱3,000.01 between the other 4",
+  );
+  let focused = 0;
+  footerNodes().find((n) => n.props.type === "submit").props.ref.current = {
+    focus: () => focused++,
+  };
+  balanceButton().props.onClick();
+  assert.equal(
+    shareValues(),
+    JSON.stringify(["999.99", "750.01", "750.00", "750.00", "750.00"]),
+  );
+  assert.match(footerText(), /Matches the total/);
+  assert.ok(!balanceButton(), "A balanced split has nothing left to balance");
+  assert.equal(focused, 1, "Focus must not vanish with the button");
+  typeShare(2, "1000");
+  assert.equal(
+    balanceButton().props.children,
+    "Split the remaining ₱2,000.01 between the other 3",
+  );
+  typeShare(3, "1000");
+  typeShare(4, "1000");
+  assert.equal(
+    balanceButton().props.children,
+    "Give the remaining ₱0.01 to the other person",
+  );
+  typeShare(5, "1");
+  assert.ok(!balanceButton(), "Everyone was edited, so nobody is left to fill");
+});
+await splitScenario("No balancing once edits use up the total", () => {
+  startSplit();
+  typeShare(1, "1000");
+  assert.ok(balanceButton());
+  typeShare(1, "4000");
+  assert.ok(!balanceButton(), "Nothing remains for the others");
+  typeShare(1, "5000");
+  assert.ok(!balanceButton(), "A negative remainder cannot be split");
+});
+await splitScenario("No balancing while an edited row is unfinished", () => {
+  startSplit();
+  typeShare(1, "1000");
+  assert.ok(balanceButton());
+  typeShare(1, "");
+  assert.ok(!balanceButton(), "A blank row can't be applied afterwards");
+  typeShare(1, "abc");
+  assert.ok(!balanceButton(), "An unreadable row can't be applied afterwards");
+  typeShare(1, "1000");
+  assert.ok(balanceButton());
+});
+await splitScenario("Reset to even replaces the dropdown", () => {
+  assert.ok(!costTree().props.titleAction, "Only the custom step offers reset");
+  startSplit();
+  assert.ok(!nodes(costTree()).some((n) => n.props.label === "Split"));
+  const reset = () => costTree().props.titleAction;
+  assert.equal(reset().props.children, "Reset to even");
+  assert.equal(
+    render(approved.ExpenseCostEditor, { ...approvedProps, pending: true })
+      .props.titleAction.props.disabled,
+    true,
+  );
+  typeShare(1, "1");
+  confirmAnswer = false;
+  reset().props.onClick();
+  assert.equal(find(costTree(), "expense-share-1").props.value, "1");
+  confirmAnswer = true;
+  reset().props.onClick();
+  assert.equal(
+    shareValues(),
+    JSON.stringify(["800.00", "800.00", "800.00", "800.00", "800.00"]),
+  );
+  assert.equal(stepTitle(), "Custom split");
+  assert.equal(confirms.length, 2);
+  reset().props.onClick();
+  assert.equal(confirms.length, 2, "No typed amounts left to warn about");
+});
+await splitScenario("Focusing an amount selects it", () => {
+  startSplit();
+  let selections = 0;
+  find(costTree(), "expense-share-1").props.onFocus({
+    target: { select: () => selections++ },
+  });
+  assert.equal(selections, 1);
+});
+// Browsers collapse a clicked selection, and the step focuses its first amount
+// itself, so the first click after any focus must select again.
+await splitScenario("First click after focus selects the amount", () => {
+  startSplit();
+  let selections = 0;
+  const input = { select: () => selections++ };
+  const field = () => find(costTree(), "expense-share-1").props;
+  field().onFocus({ target: input });
+  assert.equal(selections, 1);
+  field().onClick({ currentTarget: input });
+  assert.equal(selections, 2, "The first tap must replace, not insert");
+  field().onClick({ currentTarget: input });
+  assert.equal(selections, 2, "Later taps place the cursor for corrections");
+  field().onFocus({ target: input });
+  field().onClick({ currentTarget: input });
+  assert.equal(selections, 4, "Returning to the field selects again");
+});
+await splitScenario("An added member is named on the expense", async () => {
+  startExpense();
+  costTree().props.headerAction.props.onClick();
+  memberBoxes()[4].props.onChange({ target: { checked: false } });
+  await submitCost();
+  openSplit();
+  await submitCost();
+  assert.equal(stepTitle(), "Add expense");
+  costTree().props.headerAction.props.onClick();
+  memberBoxes()[4].props.onChange({ target: { checked: true } });
+  await submitCost();
+  assert.match(renderToStaticMarkup(costTree()), /Add an amount for Person 5/);
+  assert.ok(changeSplitButton(), "The fix stays one tap away");
+});
+await splitScenario("A price change is explained on the expense", async () => {
+  startSplit();
+  await submitCost();
+  find(costTree(), "expense-price").props.onChange({
+    target: { value: "5000" },
+  });
+  assert.match(
+    renderToStaticMarkup(costTree()),
+    /₱1,000 is still left to assign/,
+  );
+});
+assert.deepEqual(splitFailures, []);
+console.log(
+  "Custom split back, running total, balancing, reset and outdated-split messages passed.",
+);
 
 viewData = {
   ...reservationLedger,

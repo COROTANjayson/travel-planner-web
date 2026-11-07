@@ -130,8 +130,8 @@ there. Unavailable invitations use the same safe message and refresh the list.
 Block duplicate submissions and retain retry controls for recoverable failures.
 
 Owners invite by email and role without copying tokens. Creation/revocation
-refreshes owner history, which includes Declined; owners can invite again after
-a decline. Invitations expire after seven days. No email notification is sent.
+refreshes the owner's pending list; closed invitations are not shown. Owners can
+invite again after a decline. Invitations expire after seven days. No email notification is sent.
 Verification changes require signing out and back in to refresh access-token
 claims. Never expose cached invitation summaries before verification succeeds.
 The API retains token acceptance for existing clients, but the web UI never
