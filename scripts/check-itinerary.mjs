@@ -358,11 +358,9 @@ assert.match(
   "Multiple pages retain navigation",
 );
 tripOffset = trips.tripPageSize;
-const filterNav = tripPage
-  .default()
-  .props.children.find(
-    (child) => child?.props?.["aria-label"] === "Filter trips",
-  );
+const filterNav = nodes(tripPage.default()).find(
+  (child) => child?.props?.["aria-label"] === "Filter trips",
+);
 filterNav.props.children
   .find((button) => button.key === "Upcoming")
   .props.onClick();
@@ -384,9 +382,9 @@ assert.match(
   /Ongoing<span class="filter-count">11<\/span>/,
   "Counts still include trips outside the selected filter",
 );
-const emptyCard = tripPage
-  .default()
-  .props.children.find((child) => child?.props?.className === "trips-empty");
+const emptyCard = nodes(tripPage.default()).find(
+  (child) => child?.props?.className === "trips-empty",
+);
 emptyCard.props.children.props.children.at(-1).props.onClick();
 assert.equal(tripFilter, "All", "The empty-state action restores all trips");
 assert.equal(
