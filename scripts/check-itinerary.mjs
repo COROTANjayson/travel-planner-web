@@ -1465,7 +1465,7 @@ const components = load("src/components/features/itinerary/itinerary.tsx", {
     useSearchParams: () => new URLSearchParams(),
   },
   "@/lib/money": load("src/lib/money.ts"),
-  "@/components/features/expenses/expenses": {
+  "@/components/features/expenses/activity-expenses": {
     ActivityExpenses: wrap("section"),
   },
   "next/link": { __esModule: true, default: wrap("a") },

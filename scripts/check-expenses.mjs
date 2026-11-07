@@ -475,65 +475,78 @@ const viewApi = { ...api, ledger: async () => data };
 const CostEditor = () => null;
 const PaymentWorkspace = () => null;
 const PersonalPayments = () => null;
-const view = load(
-  "src/components/features/expenses/expenses.tsx",
-  {
-    react: formReact,
-    "next/link": {
-      __esModule: true,
-      default: ({ scroll, children, ...props }) => {
-        void scroll;
-        return React.createElement("a", props, children);
-      },
-    },
-    "next/navigation": { useSearchParams: () => new URLSearchParams() },
-    "@tanstack/react-query": {
-      useQuery(options) {
-        enabled.push(options.enabled);
-        return {
-          data:
-            options.queryKey[0] === "expense-currencies"
-              ? currencies
-              : options.queryKey[2] === "activities"
-                ? [resort]
-                : viewData,
-          isPending: false,
-          error: null,
-        };
-      },
-    },
-    "@/lib/api": apiMock,
-    "@/lib/expenses": { ...ledger, useExpensesApi: () => viewApi },
-    "@/lib/activity-expenses": activity,
-    "@/lib/money": money,
-    "@/components/ui/button": { Button: wrap("button") },
-    "@/components/shared/trip-dialog": {
-      TripDialog: ({ open, children }) => (open ? children : null),
-    },
-    "@/components/shared/trip-states": { TripError },
-    "@/components/features/expenses/expense-forms": { ExpenseSelect },
-    "@/components/features/expenses/activity-expense-form/activity-expense-form":
-      formModule,
-    "@/components/features/expenses/drawers/cost-editor/expense-cost-editor": {
-      ExpenseCostEditor: CostEditor,
-    },
-    "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace":
-      {
-        ExpensePaymentWorkspace: PaymentWorkspace,
-      },
-    "@/components/features/expenses/personal-payments/personal-payments": {
-      PersonalPayments,
+const viewMocks = {
+  react: formReact,
+  "next/link": {
+    __esModule: true,
+    default: ({ scroll, children, ...props }) => {
+      void scroll;
+      return React.createElement("a", props, children);
     },
   },
-  {
-    document: { activeElement: null, querySelector: () => null },
-    window: {
-      confirm: () => true,
-      prompt: () => "Repayment entered by mistake",
+  "next/navigation": { useSearchParams: () => new URLSearchParams() },
+  "@tanstack/react-query": {
+    useQuery(options) {
+      enabled.push(options.enabled);
+      return {
+        data:
+          options.queryKey[0] === "expense-currencies"
+            ? currencies
+            : options.queryKey[2] === "activities"
+              ? [resort]
+              : viewData,
+        isPending: false,
+        error: null,
+      };
     },
-    crypto: { randomUUID: () => "test-key" },
   },
+  "@/lib/api": apiMock,
+  "@/lib/expenses": { ...ledger, useExpensesApi: () => viewApi },
+  "@/lib/activity-expenses": activity,
+  "@/lib/money": money,
+  "@/components/ui/button": { Button: wrap("button") },
+  "@/components/shared/trip-dialog": {
+    TripDialog: ({ open, children }) => (open ? children : null),
+  },
+  "@/components/shared/trip-states": { TripError },
+  "@/components/features/expenses/expense-forms": { ExpenseSelect },
+  "@/components/features/expenses/activity-expense-form/activity-expense-form":
+    formModule,
+  "@/components/features/expenses/drawers/cost-editor/expense-cost-editor": {
+    ExpenseCostEditor: CostEditor,
+  },
+  "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace":
+    {
+      ExpensePaymentWorkspace: PaymentWorkspace,
+    },
+  "@/components/features/expenses/personal-payments/personal-payments": {
+    PersonalPayments,
+  },
+};
+const viewGlobals = {
+  document: { activeElement: null, querySelector: () => null },
+  window: {
+    confirm: () => true,
+    prompt: () => "Repayment entered by mistake",
+  },
+  crypto: { randomUUID: () => "test-key" },
+};
+const activityView = load(
+  "src/components/features/expenses/activity-expenses.tsx",
+  viewMocks,
+  viewGlobals,
 );
+const view = {
+  ...activityView,
+  ...load(
+    "src/components/features/expenses/expenses.tsx",
+    {
+      ...viewMocks,
+      "@/components/features/expenses/activity-expenses": activityView,
+    },
+    viewGlobals,
+  ),
+};
 const viewProps = {
   active: false,
   trip: { id: 7, time_zone: "Asia/Manila" },

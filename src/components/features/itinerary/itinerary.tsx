@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { ActivityExpenseView } from "@/components/features/expenses/expenses";
+import type { ActivityExpenseView } from "@/components/features/expenses/activity-expenses";
 import { useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
 import {

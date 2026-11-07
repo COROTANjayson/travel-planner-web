@@ -5,7 +5,7 @@ import { Trash2 } from "lucide-react";
 import {
   ActivityExpenses,
   type ActivityExpenseView,
-} from "@/components/features/expenses/expenses";
+} from "@/components/features/expenses/activity-expenses";
 import { CategoryBadge } from "@/components/features/itinerary/category-badge";
 import {
   ActivityDetailSections,
