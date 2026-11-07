@@ -22,12 +22,10 @@ import { ExpensePaymentWorkspace } from "@/components/features/expenses/drawers/
 import { PersonalPayments } from "@/components/features/expenses/personal-payments/personal-payments";
 import { Tabs } from "@base-ui/react/tabs";
 import { ArrowRight, Plus } from "lucide-react";
-import { TripDialog } from "@/components/shared/trip-dialog";
 import { TripError } from "@/components/shared/trip-states";
-import {
-  ActivityExpenseForm,
-  type ExpenseEditor,
-} from "@/components/features/expenses/activity-expense-form/activity-expense-form";
+import type { ExpenseEditor } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
+import { ExpenseEditorDialog } from "@/components/features/expenses/dialogs/expense-editor-dialog";
+import { ReceiptHistoryDialog } from "@/components/features/expenses/dialogs/receipt-history-dialog";
 import {
   useFinance,
   type Context,
@@ -921,156 +919,42 @@ export function ActivityExpenses(
           }}
         />
       )}
-      <TripDialog
-        className="expense-editor-dialog"
-        backdropClassName="bg-black/60"
-        open={!!editing && (editing.type !== "cost" || !hasActivity)}
-        title={
-          editing?.type === "cost"
-            ? editing.cost
-              ? "Edit expense"
-              : "Add expense"
-            : editing?.type === "loan"
-              ? "Record money lent"
-              : editing?.type === "payment"
-                ? "Record business payment"
-                : editing?.receipt
-                  ? "Correct receipt"
-                  : "Mark as paid"
-        }
-        description={activityTitle}
-        busy={api.pending}
-        disablePointerDismissal
+      <ExpenseEditorDialog
+        editing={editing}
+        editor={editor}
+        setEditor={setEditor}
+        hasActivity={hasActivity}
+        activityID={activityID}
+        activityTitle={activityTitle}
+        options={options}
+        people={people}
+        participants={participants}
+        current={current}
+        trip={trip}
+        data={data}
+        currencies={currencies.data}
+        api={api}
+        writable={writable}
+        revision={revision}
+        setRevision={setRevision}
+        setDirty={setDirty}
+        localError={localError}
+        setLocalError={setLocalError}
+        save={save}
+        close={close}
         finalFocus={() =>
           trigger.current?.isConnected ? trigger.current : heading.current
         }
-        onOpenChange={(value) => {
-          if (!value) close();
-        }}
-      >
-        {editing &&
-          (editing.type !== "cost" || !hasActivity) &&
-          data &&
-          currencies.data &&
-          current && (
-            <>
-              <ActivityExpenseForm
-                key={`${revision}-${editing.type}-${editing.cost?.id ?? "new"}-${editing.memberID ?? ""}-${editing.payment?.id ?? ""}-${editing.receipt?.id ?? ""}-${editing.debt?.payment_id ?? editing.debt?.loan_id ?? ""}-${editing.debt?.from_user_id ?? ""}`}
-                editor={editing}
-                activityID={activityID}
-                activities={options}
-                people={people}
-                currencies={currencies.data}
-                userID={current.user_id}
-                currentUserIDs={participants?.map((p) => p.user_id)}
-                zone={trip.time_zone}
-                ledger={data}
-                pending={api.pending || !writable}
-                error={api.error}
-                onDirty={() => {
-                  setDirty(true);
-                  if (!editor) setEditor(editing);
-                }}
-                onSave={save}
-                onCancel={close}
-              />
-              {localError && <TripError error={localError} />}
-              {api.error instanceof ApiError && api.error.status === 409 && (
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    if (
-                      !window.confirm(
-                        "Discard this draft and load the latest record?",
-                      )
-                    )
-                      return;
-                    try {
-                      if (editing.cost) {
-                        const latest = await api.get(
-                          "expenses",
-                          editing.cost.id,
-                        );
-                        setEditor({
-                          ...editing,
-                          cost: latest as typeof editing.cost,
-                        });
-                      }
-                      if (editing.payment) {
-                        const latest = await api.get(
-                          "expense_payments",
-                          editing.payment.id,
-                        );
-                        setEditor({
-                          ...editing,
-                          payment: latest as typeof editing.payment,
-                        });
-                      }
-                      if (editing.receipt) {
-                        const latest = await api.get(
-                          "settlements",
-                          editing.receipt.id,
-                        );
-                        setEditor({
-                          ...editing,
-                          receipt: latest as typeof editing.receipt,
-                        });
-                      }
-                      await api.refresh();
-                      setRevision((n) => n + 1);
-                      setDirty(false);
-                      api.reset();
-                    } catch (cause) {
-                      setLocalError(cause as Error);
-                    }
-                  }}
-                >
-                  Reload latest record
-                </Button>
-              )}
-            </>
-          )}
-      </TripDialog>
-      <TripDialog
-        open={historyID !== null}
-        title="Receipt history"
-        description="Who recorded or corrected this receipt"
-        onOpenChange={(open) => {
-          if (!open) setHistoryID(null);
-        }}
-      >
-        <div className="space-y-4">
-          {historyError ? (
-            <TripError
-              error={historyError}
-              retry={() => void showHistory(historyID!)}
-            />
-          ) : history === null ? (
-            <p role="status">Loading receipt history…</p>
-          ) : history.length ? (
-            history.map((h) => (
-              <div key={h.id} className="border-b pb-3 text-sm">
-                <p>
-                  {h.action} by {name(h.actor_user_id)} ·{" "}
-                  {new Date(h.created_at).toLocaleString()}
-                </p>
-                {h.reason && <p>{h.reason}</p>}
-                <p>
-                  {h.before
-                    ? money(h.before.amount_minor, h.before.currency)
-                    : "No previous receipt"}{" "}
-                  →{" "}
-                  {h.after
-                    ? money(h.after.amount_minor, h.after.currency)
-                    : "Reversed"}
-                </p>
-              </div>
-            ))
-          ) : (
-            <p>No earlier changes recorded for this historical receipt.</p>
-          )}
-        </div>
-      </TripDialog>
+      />
+      <ReceiptHistoryDialog
+        historyID={historyID}
+        setHistoryID={setHistoryID}
+        history={history}
+        historyError={historyError}
+        showHistory={showHistory}
+        name={name}
+        money={money}
+      />
     </section>
   );
 }
