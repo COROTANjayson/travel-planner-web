@@ -5,16 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, type ApiUser, useApi } from "@/lib/api";
-import {
-  participantInitials,
-  permissions,
-  useMembershipsApi,
-} from "@/lib/memberships";
-import {
-  InviteForm,
-  Participants,
-  PendingInvitations,
-} from "@/components/features/memberships/memberships";
+import { permissions, useMembershipsApi } from "@/lib/memberships";
 import { Expenses } from "@/components/features/expenses/expenses";
 import { Itinerary } from "@/components/features/itinerary/itinerary";
 import {
@@ -26,28 +17,10 @@ import {
 } from "@/lib/trips";
 import { formatActivityTime } from "@/lib/activity-time";
 import { Button } from "@/components/ui/button";
-import {
-  Settings,
-  Users,
-  ArrowLeft,
-  MoreHorizontal,
-  MapPin,
-  CalendarDays,
-  Clock3,
-} from "lucide-react";
-import { TripDialog } from "@/components/shared/trip-dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { TripForm } from "@/components/features/trips/trip-form";
+import { ArrowLeft, MapPin, CalendarDays, Clock3 } from "lucide-react";
+import { TripOptionsDialog } from "@/components/features/trips/dialogs/trip-options-dialog";
+import { TripPeopleDialog } from "@/components/features/trips/dialogs/trip-people-dialog";
+import { TripSettingsDialog } from "@/components/features/trips/dialogs/trip-settings-dialog";
 import {
   TripError,
   TripLoading,
@@ -171,56 +144,17 @@ export function TripDetail({ id }: { id: number }) {
         <p className="min-w-0 flex-1 text-sm font-medium">
           {expenseView ? "Trip expenses" : "Trip itinerary"}
         </p>
-        <TripDialog
-          title="Trip options"
-          description={trip.data.name}
-          mobilePresentation="sheet"
-          open={menuOpen}
-          onOpenChange={setMenuOpen}
-          finalFocus={() =>
-            peopleOpen || editing
-              ? false
-              : document.querySelector<HTMLButtonElement>(
-                  '[aria-label="Trip options"]',
-                )
-          }
-          trigger={
-            <Button
-              variant="ghost"
-              className="size-12 shrink-0"
-              aria-label="Trip options"
-            >
-              <MoreHorizontal aria-hidden="true" />
-            </Button>
-          }
-        >
-          <div className="space-y-2">
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={() => {
-                setMenuOpen(false);
-                setPeopleOpen(true);
-              }}
-            >
-              <Users aria-hidden="true" />
-              People {members.data?.length ?? ""}
-            </Button>
-            {allowed.edit && (
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setEditing(true);
-                }}
-              >
-                <Settings aria-hidden="true" />
-                Settings
-              </Button>
-            )}
-          </div>
-        </TripDialog>
+        <TripOptionsDialog
+          tripName={trip.data.name}
+          memberCount={members.data?.length}
+          canEdit={allowed.edit}
+          menuOpen={menuOpen}
+          setMenuOpen={setMenuOpen}
+          peopleOpen={peopleOpen}
+          setPeopleOpen={setPeopleOpen}
+          editing={editing}
+          setEditing={setEditing}
+        />
       </div>
       {accessError && <TripError error={accessError} />}
       {trip.isError && (
@@ -315,162 +249,27 @@ export function TripDetail({ id }: { id: number }) {
               <ArrowLeft aria-hidden="true" />
               Back to trips
             </Button>
-            <TripDialog
-              title="People"
-              className="[&_[data-slot=trip-dialog-header]]:items-center"
-              keepMounted
-              open={peopleOpen}
-              onOpenChange={setPeopleOpen}
-              trigger={
-                <Button
-                  variant="ghost"
-                  className="trip-people min-h-11"
-                  aria-label={
-                    members.data ? `People, ${members.data.length}` : "People"
-                  }
-                >
-                  {members.data?.length ? (
-                    <span aria-hidden="true" className="trip-people-avatars">
-                      {members.data.slice(0, 3).map((person) => (
-                        <span key={person.user_id}>
-                          {participantInitials(person)}
-                        </span>
-                      ))}
-                      {members.data.length > 3 && (
-                        <span>+{members.data.length - 3}</span>
-                      )}
-                    </span>
-                  ) : (
-                    <>
-                      <Users aria-hidden="true" />
-                      People
-                    </>
-                  )}
-                </Button>
-              }
-            >
-              <div className="space-y-8">
-                {allowed.manage && (
-                  <InviteForm id={id} onFailure={handleFailure} />
-                )}
-                {members.isPending ? (
-                  <p role="status">Loading participants...</p>
-                ) : members.isError ? (
-                  <TripError
-                    error={members.error}
-                    retry={() =>
-                      void members.refetch().then((result) => {
-                        if (result.isSuccess) setPermissionBlocked(false);
-                      })
-                    }
-                    pending={members.isFetching}
-                  />
-                ) : (
-                  <Participants
-                    id={id}
-                    participants={members.data}
-                    current={current}
-                    onFailure={handleFailure}
-                  />
-                )}
-                {allowed.manage && (
-                  <PendingInvitations id={id} onFailure={handleFailure} />
-                )}
-              </div>
-            </TripDialog>
+            <TripPeopleDialog
+              id={id}
+              members={members}
+              current={current}
+              canManage={allowed.manage}
+              peopleOpen={peopleOpen}
+              setPeopleOpen={setPeopleOpen}
+              setPermissionBlocked={setPermissionBlocked}
+              handleFailure={handleFailure}
+            />
             {allowed.edit && (
-              <TripDialog
-                title="Trip settings"
-                description="Update your destination, dates, and time zone."
-                open={editing}
-                onOpenChange={(open) => {
-                  if (!update.isPending && !remove.isPending) {
-                    update.reset();
-                    setEditing(open);
-                  }
-                }}
-                trigger={
-                  <Button
-                    variant="ghost"
-                    className="trip-settings size-11 min-h-11"
-                    aria-label="Trip settings"
-                  >
-                    <Settings aria-hidden="true" className="size-5" />
-                  </Button>
-                }
-              >
-                <TripForm
-                  initialValue={trip.data}
-                  onSubmit={(input) => update.mutate(input)}
-                  pending={update.isPending}
-                  error={update.error}
-                  submitLabel="Save changes"
-                  cancel={
-                    <Button
-                      type="button"
-                      className="min-h-11"
-                      variant="outline"
-                      disabled={update.isPending}
-                      onClick={() => {
-                        update.reset();
-                        setEditing(false);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  }
-                />
-                {allowed.manage && (
-                  <div className="mt-6 border-t pt-5">
-                    <AlertDialog
-                      open={confirming}
-                      onOpenChange={(open) => {
-                        if (!remove.isPending) {
-                          setConfirming(open);
-                          remove.reset();
-                        }
-                      }}
-                    >
-                      <AlertDialogTrigger
-                        render={
-                          <Button className="min-h-11" variant="destructive" />
-                        }
-                      >
-                        Delete trip
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="w-[calc(100%-2rem)]">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete this trip?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This permanently deletes the trip and all its
-                            activities, expenses, and recorded payments. This
-                            cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        {remove.error && <TripError error={remove.error} />}
-                        <AlertDialogFooter>
-                          <AlertDialogCancel
-                            className="min-h-11"
-                            disabled={remove.isPending}
-                          >
-                            Cancel
-                          </AlertDialogCancel>
-                          <AlertDialogAction
-                            className="min-h-11"
-                            variant="destructive"
-                            disabled={remove.isPending}
-                            onClick={() => {
-                              if (!remove.isPending) remove.mutate();
-                            }}
-                          >
-                            {remove.isPending ? "Deleting…" : "Delete trip"}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                )}
-              </TripDialog>
+              <TripSettingsDialog
+                trip={trip.data}
+                canManage={allowed.manage}
+                editing={editing}
+                setEditing={setEditing}
+                confirming={confirming}
+                setConfirming={setConfirming}
+                update={update}
+                remove={remove}
+              />
             )}
           </>
         </nav>
