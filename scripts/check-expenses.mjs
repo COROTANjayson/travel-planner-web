@@ -1,29 +1,12 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import vm from "node:vm";
-import { createRequire } from "node:module";
 import ts from "typescript";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { createLoader, isAutoLoaded } from "./lib/load.mjs";
 
-const require = createRequire(import.meta.url);
-function load(file, mocks = {}, globals = {}) {
-  const compiled = ts.transpileModule(fs.readFileSync(file, "utf8"), {
-    fileName: file,
-    compilerOptions: {
-      target: ts.ScriptTarget.ES2020,
-      module: ts.ModuleKind.CommonJS,
-      jsx: ts.JsxEmit.ReactJSX,
-    },
-  }).outputText;
-  const context = {
-    exports: {},
-    require: (id) => mocks[id] || require(id),
-    ...globals,
-  };
-  vm.runInNewContext(compiled, context);
-  return context.exports;
-}
+const load = createLoader({
+  compilerOptions: { target: ts.ScriptTarget.ES2020 },
+});
 const money = load("src/lib/money.ts");
 assert.equal(money.parseMoney("123.45", 2), "12345");
 assert.equal(money.parseMoney("001.2", 2), "120");
@@ -367,7 +350,10 @@ const formModule = load("src/components/trips/activity-expense-form.tsx", {
 });
 function nodes(el) {
   if (!React.isValidElement(el)) return [];
-  return [el, ...React.Children.toArray(el.props.children).flatMap(nodes)];
+  const children = isAutoLoaded(el.type)
+    ? el.type(el.props)
+    : el.props.children;
+  return [el, ...React.Children.toArray(children).flatMap(nodes)];
 }
 function render(component, props) {
   index = 0;

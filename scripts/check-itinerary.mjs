@@ -1,11 +1,9 @@
 // Run with: node scripts/check-itinerary.mjs
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import vm from "node:vm";
 import { createRequire } from "node:module";
-import ts from "typescript";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { createLoader, isAutoLoaded } from "./lib/load.mjs";
 const require = createRequire(import.meta.url);
 let confirmDiscard = false;
 let activityRequestNumber = 0;
@@ -13,17 +11,9 @@ const successToasts = [];
 const sonnerMock = {
   toast: { success: (message) => successToasts.push(message) },
 };
-function load(file, mocks = {}) {
-  const compiled = ts.transpileModule(fs.readFileSync(file, "utf8"), {
-    fileName: file,
-    compilerOptions: {
-      jsx: ts.JsxEmit.ReactJSX,
-      module: ts.ModuleKind.CommonJS,
-    },
-  }).outputText;
-  const context = {
-    exports: {},
-    require: (id) => mocks[id] || (id === "sonner" ? sonnerMock : require(id)),
+const load = createLoader({
+  mocks: { sonner: sonnerMock },
+  globals: {
     Date,
     crypto: {
       randomUUID: () => `activity-test-key-${++activityRequestNumber}`,
@@ -34,10 +24,8 @@ function load(file, mocks = {}) {
     HTMLElement: Object,
     requestAnimationFrame: (callback) => callback(),
     window: { confirm: () => confirmDiscard },
-  };
-  vm.runInNewContext(compiled, context);
-  return context.exports;
-}
+  },
+});
 const time = load("src/lib/activity-time.ts");
 assert.equal(
   time.formatActivityDuration("2026-10-24T02:00:00Z", "2026-10-24T03:30:00Z"),
@@ -1697,9 +1685,13 @@ console.log(
 // Exercise the board's actual event handlers without a browser or extra test dependencies.
 function nodes(node) {
   if (Array.isArray(node)) return node.flatMap(nodes);
-  return React.isValidElement(node)
-    ? [node, ...nodes(node.props.children)]
-    : [];
+  if (!React.isValidElement(node)) return [];
+  return [
+    node,
+    ...nodes(
+      isAutoLoaded(node.type) ? node.type(node.props) : node.props.children,
+    ),
+  ];
 }
 queryMode = "success";
 uiState = [];

@@ -1,28 +1,9 @@
 // Run with: node scripts/check-memberships.mjs
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import vm from "node:vm";
-import { createRequire } from "node:module";
-import ts from "typescript";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-const require = createRequire(import.meta.url);
-function load(file, mocks, globals = {}) {
-  const compiled = ts.transpileModule(fs.readFileSync(file, "utf8"), {
-    fileName: file,
-    compilerOptions: {
-      jsx: ts.JsxEmit.ReactJSX,
-      module: ts.ModuleKind.CommonJS,
-    },
-  }).outputText;
-  const context = {
-    exports: {},
-    require: (id) => mocks[id] || require(id),
-    ...globals,
-  };
-  vm.runInNewContext(compiled, context);
-  return context.exports;
-}
+import { createLoader } from "./lib/load.mjs";
+const load = createLoader();
 class ApiError extends Error {
   constructor(status, message) {
     super(message);

@@ -6,6 +6,7 @@ import { createRequire } from "node:module";
 import ts from "typescript";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { createLoader, isAutoLoaded } from "./lib/load.mjs";
 const loadModule = createRequire(import.meta.url);
 
 let auth = {};
@@ -45,25 +46,18 @@ const mocks = {
   "next/navigation": { usePathname: () => pathname },
   react: { ...React, useState: () => [undefined, () => {}] },
 };
-const compiled = ts.transpileModule(
-  fs.readFileSync("src/components/auth-panel.tsx", "utf8"),
-  {
-    compilerOptions: {
-      jsx: ts.JsxEmit.ReactJSX,
-      module: ts.ModuleKind.CommonJS,
-    },
-  },
-).outputText;
 const context = {
-  exports: {},
-  require: (id) => mocks[id] || loadModule(id),
-  window: { location: { origin: "http://localhost:3000", pathname: "/trips" } },
+  exports: createLoader()("src/components/auth-panel.tsx", mocks, {
+    window: {
+      location: { origin: "http://localhost:3000", pathname: "/trips" },
+    },
+  }),
 };
-vm.runInNewContext(compiled, context);
 const panel = () => context.exports.AuthPanel({});
 const html = () => renderToStaticMarkup(panel());
 function buttons(node) {
   if (!node || typeof node !== "object") return [];
+  if (isAutoLoaded(node.type)) return buttons(node.type(node.props));
   return [
     ...(node.props?.onClick ? [node] : []),
     ...React.Children.toArray(node.props?.children).flatMap(buttons),
