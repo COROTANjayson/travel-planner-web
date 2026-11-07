@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { CostArticle } from "@/components/features/expenses/cost-article";
+import { LoanArticle } from "@/components/features/expenses/loan-article";
+import { ReceiptRows } from "@/components/features/expenses/receipt-rows";
 import { ApiError } from "@/lib/api";
 import { activityKey, personalTotals } from "@/lib/activity-expenses";
 import {
@@ -237,39 +240,19 @@ export function ActivityExpenses(
         d.from_user_id === s.from_user_id &&
         d.to_user_id === s.to_user_id,
     );
-  const receiptRows = (receipts: Settlement[]) =>
-    receipts.map((s) => (
-      <div key={`s${s.id}`}>
-        <p>
-          {name(s.to_user_id)} received {money(s.amount_minor, s.currency)} from{" "}
-          {name(s.from_user_id)} · {s.paid_on}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={() => void showHistory(s.id)}>
-            Receipt history
-          </Button>
-          {canCorrect(s) && (
-            <>
-              <Button
-                variant="ghost"
-                onClick={() =>
-                  open({ type: "repayment", receipt: s, debt: debtFor(s) })
-                }
-              >
-                Correct receipt
-              </Button>
-              <Button
-                variant="ghost"
-                disabled={api.pending}
-                onClick={() => void reverse("settlements", s)}
-              >
-                Reverse receipt
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-    ));
+  const receiptRows = (receipts: Settlement[]) => (
+    <ReceiptRows
+      receipts={receipts}
+      name={name}
+      money={money}
+      showHistory={showHistory}
+      canCorrect={canCorrect}
+      debtFor={debtFor}
+      open={open}
+      reverse={reverse}
+      api={api}
+    />
+  );
   return (
     <section
       className={
@@ -443,300 +426,46 @@ export function ActivityExpenses(
             {(showCosts || showLoans) && (
               <div className="activity-cost-list">
                 {showCosts &&
-                  costs.map((cost) => {
-                    const payments = data.payments.filter(
-                      (p) => p.expense_id === cost.id,
-                    );
-                    const paid = payments.reduce(
-                      (n, p) => n + BigInt(p.amount_minor),
-                      0n,
-                    );
-                    const equal = cost.shares.every(
-                      (s) => s.amount_minor === cost.shares[0]?.amount_minor,
-                    );
-                    const receipts = data.settlements.filter((s) =>
-                      payments.some((p) => p.id === s.payment_id),
-                    );
-                    return (
-                      <article key={cost.id} className="space-y-2 py-5">
-                        {!props.managementOnly && (
-                          <>
-                            <div className="activity-cost-title">
-                              <h4 aria-label={cost.description}>
-                                <button
-                                  type="button"
-                                  onClick={(event) => {
-                                    trigger.current = event.currentTarget;
-                                    setPaymentCost(cost);
-                                  }}
-                                  aria-label={`View ${cost.description} payments`}
-                                >
-                                  {cost.description}
-                                </button>
-                              </h4>
-                              <span>
-                                {equal && cost.shares[0]
-                                  ? `${money(cost.shares[0].amount_minor, cost.currency)} each`
-                                  : money(cost.amount_minor, cost.currency)}
-                              </span>
-                            </div>
-                            <p className="activity-cost-meta">
-                              {cost.shares.length} people ·{" "}
-                              {money(cost.amount_minor, cost.currency)} total
-                            </p>
-                            {paid === 0n && !!cost.planned_coverer_user_id ? (
-                              <p className="activity-cost-status">
-                                {name(cost.planned_coverer_user_id)} will cover
-                                the{" "}
-                                {money(
-                                  cost.planned_cover_amount_minor ?? "0",
-                                  cost.currency,
-                                )}{" "}
-                                reservation
-                              </p>
-                            ) : (
-                              <p className="activity-cost-meta">
-                                {paid > 0n
-                                  ? `${money(paid, cost.currency)} paid to ${cost.description}`
-                                  : "Not paid yet"}
-                              </p>
-                            )}
-                            {
-                              <Button
-                                variant="outline"
-                                className="activity-view-payments"
-                                onClick={(event) => {
-                                  trigger.current = event.currentTarget;
-                                  setPaymentCost(cost);
-                                }}
-                              >
-                                View payments
-                              </Button>
-                            }
-                          </>
-                        )}
-                        {props.managementOnly && (
-                          <h4 className="font-semibold">{cost.description}</h4>
-                        )}
-                        {!flow &&
-                          !props.compact &&
-                          (payments.length > 0 || isEditor) && (
-                            <details>
-                              <summary className="cursor-pointer text-sm text-muted-foreground py-2">
-                                Payment history and corrections
-                              </summary>
-                              <div className="space-y-3 text-sm pt-2">
-                                {isEditor && (
-                                  <Button
-                                    variant="link"
-                                    onClick={() => open({ type: "cost", cost })}
-                                    aria-label={`Edit ${cost.description} expense`}
-                                  >
-                                    Edit expense
-                                  </Button>
-                                )}
-                                {payments.map((p) => (
-                                  <div key={p.id}>
-                                    <p>
-                                      {name(p.payer_user_id)} paid{" "}
-                                      {money(p.amount_minor, p.currency)} to
-                                      business · {p.paid_on}
-                                    </p>
-                                    {isEditor && (
-                                      <div className="flex flex-wrap gap-2">
-                                        <Button
-                                          variant="ghost"
-                                          disabled={
-                                            api.pending ||
-                                            receipts.some(
-                                              (s) => s.payment_id === p.id,
-                                            )
-                                          }
-                                          onClick={() =>
-                                            open({
-                                              type: "payment",
-                                              cost,
-                                              payment: p,
-                                            })
-                                          }
-                                        >
-                                          Correct payment
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          disabled={
-                                            api.pending ||
-                                            receipts.some(
-                                              (s) => s.payment_id === p.id,
-                                            )
-                                          }
-                                          onClick={() =>
-                                            void reverse("expense_payments", p)
-                                          }
-                                        >
-                                          Reverse payment
-                                        </Button>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                                {receiptRows(receipts)}
-                                {isEditor && !payments.length && (
-                                  <Button
-                                    variant="ghost"
-                                    disabled={api.pending}
-                                    onClick={() =>
-                                      void reverse("expenses", cost)
-                                    }
-                                  >
-                                    Remove expense
-                                  </Button>
-                                )}
-                              </div>
-                            </details>
-                          )}
-                      </article>
-                    );
-                  })}
+                  costs.map((cost) => (
+                    <CostArticle
+                      key={cost.id}
+                      cost={cost}
+                      data={data}
+                      flow={flow}
+                      compact={props.compact}
+                      managementOnly={props.managementOnly}
+                      isEditor={isEditor}
+                      name={name}
+                      money={money}
+                      triggerRef={trigger}
+                      setPaymentCost={setPaymentCost}
+                      open={open}
+                      reverse={reverse}
+                      api={api}
+                      receiptRows={receiptRows}
+                    />
+                  ))}
                 {showLoans &&
-                  (flow ? ownLoans : loans).map((loan) => {
-                    const debt = data.debts.find((d) => d.loan_id === loan.id);
-                    const remaining = BigInt(
-                      debt?.amount_minor ?? loan.amount_minor,
-                    );
-                    const receipts = data.settlements.filter(
-                      (s) => s.loan_id === loan.id,
-                    );
-                    const latestReceipt = [...receipts].sort(
-                      (a, b) => b.id - a.id,
-                    )[0];
-                    const canRemove =
-                      writable &&
-                      (isEditor ||
-                        (current?.user_id === loan.created_by_user_id &&
-                          current.user_id === loan.from_user_id));
-                    return (
-                      <article
-                        key={`loan-${loan.id}`}
-                        className="space-y-2 py-5 break-words"
-                      >
-                        {!props.managementOnly && (
-                          <>
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                              <h4 className="min-w-0 flex-1 basis-40 text-lg font-bold">
-                                {flow
-                                  ? name(loan.to_user_id)
-                                  : loan.description}
-                              </h4>
-                              <span className="max-w-full shrink-0 text-base tabular-nums">
-                                {money(loan.amount_minor, loan.currency)}
-                                {flow ? " total" : ""}
-                              </span>
-                            </div>
-                            {flow && (
-                              <p className="text-sm text-muted-foreground">
-                                {loan.description}
-                              </p>
-                            )}
-                            {!flow && (
-                              <p className="text-sm">
-                                {name(loan.to_user_id)} borrowed from{" "}
-                                {name(loan.from_user_id)}
-                              </p>
-                            )}
-                            <p className="text-sm text-muted-foreground">
-                              {remaining < 0n
-                                ? "Credit for review"
-                                : remaining === 0n
-                                  ? "Paid"
-                                  : remaining < BigInt(loan.amount_minor)
-                                    ? "Partially paid"
-                                    : "Unpaid"}{" "}
-                              · Outstanding{" "}
-                              {money(remaining.toString(), loan.currency)}
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {writable &&
-                                current?.user_id === loan.from_user_id &&
-                                debt &&
-                                remaining > 0n && (
-                                  <Button
-                                    variant="outline"
-                                    onClick={() =>
-                                      open({ type: "repayment", debt })
-                                    }
-                                  >
-                                    Mark as paid
-                                  </Button>
-                                )}
-                              {flow &&
-                                writable &&
-                                latestReceipt &&
-                                current?.user_id === loan.from_user_id && (
-                                  <Button
-                                    variant="outline"
-                                    disabled={api.pending}
-                                    onClick={async (event) => {
-                                      const button = event.currentTarget;
-                                      const title = button
-                                        .closest("[role='dialog']")
-                                        ?.querySelector<HTMLElement>("h2");
-                                      await reverse(
-                                        "settlements",
-                                        latestReceipt,
-                                      );
-                                      if (!button.isConnected)
-                                        title?.focus({ preventScroll: true });
-                                    }}
-                                  >
-                                    Undo
-                                  </Button>
-                                )}
-                            </div>
-                          </>
-                        )}
-                        {(!props.compact ||
-                          (flow && props.view === "loans")) && (
-                          <details>
-                            <summary className="min-h-11 cursor-pointer py-2 text-sm text-muted-foreground">
-                              {props.managementOnly
-                                ? `${loan.description} — loan history and corrections`
-                                : "Loan history and corrections"}
-                            </summary>
-                            <div className="space-y-3 pt-2 text-sm">
-                              <p>
-                                {name(loan.from_user_id)} lent{" "}
-                                {money(loan.amount_minor, loan.currency)} to{" "}
-                                {name(loan.to_user_id)} · {loan.paid_on}
-                              </p>
-                              {receiptRows(receipts)}
-                              {canRemove && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    disabled={
-                                      api.pending || receipts.length > 0
-                                    }
-                                    onClick={() =>
-                                      void reverse("expense_loans", loan)
-                                    }
-                                  >
-                                    Remove loan
-                                  </Button>
-                                  {receipts.length > 0 && (
-                                    <p className="text-muted-foreground">
-                                      Reverse repayment receipts before removing
-                                      this loan.
-                                    </p>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </details>
-                        )}
-                      </article>
-                    );
-                  })}
+                  (flow ? ownLoans : loans).map((loan) => (
+                    <LoanArticle
+                      key={`loan-${loan.id}`}
+                      loan={loan}
+                      data={data}
+                      current={current}
+                      writable={writable}
+                      isEditor={isEditor}
+                      flow={flow}
+                      compact={props.compact}
+                      managementOnly={props.managementOnly}
+                      view={props.view}
+                      name={name}
+                      money={money}
+                      open={open}
+                      reverse={reverse}
+                      api={api}
+                      receiptRows={receiptRows}
+                    />
+                  ))}
               </div>
             )}
             {flow && props.view === "details" && (
