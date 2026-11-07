@@ -2524,9 +2524,11 @@ const detailRoute = load("src/app/trips/[tripID]/page.tsx", {
   "@/lib/memberships": { ...membership, useMembershipsApi: () => ({}) },
   "@/components/features/itinerary/itinerary": { Itinerary: detailItinerary },
   "@/components/features/expenses/expenses": { Expenses: detailExpenses },
-  "@/components/features/memberships/memberships": {
+  "@/components/features/memberships/participants": {
     Participants: wrap("div"),
-    InviteForm: wrap("div"),
+  },
+  "@/components/features/memberships/invite-form": { InviteForm: wrap("div") },
+  "@/components/features/memberships/pending-invitations": {
     PendingInvitations: wrap("div"),
   },
   "@/components/features/trips/trip-form": { TripForm: wrap("div") },

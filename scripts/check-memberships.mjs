@@ -133,7 +133,7 @@ const wrap = (tag) =>
     return React.createElement(tag, null, children);
   };
 let invitationQuery;
-const components = load("src/components/features/memberships/memberships.tsx", {
+const membershipMocks = {
   "@tanstack/react-query": { useQuery: () => invitationQuery },
   "@/components/ui/popover": Object.fromEntries(
     ["Popover", "PopoverContent", "PopoverTitle", "PopoverTrigger"].map(
@@ -166,7 +166,13 @@ const components = load("src/components/features/memberships/memberships.tsx", {
   ),
   "@/components/ui/alert-dialog": {},
   "@/components/shared/trip-states": {},
-});
+};
+const components = Object.assign(
+  {},
+  ...["participants", "invite-form", "pending-invitations"].map((file) =>
+    load(`src/components/features/memberships/${file}.tsx`, membershipMocks),
+  ),
+);
 for (const role of ["owner", "editor", "member", "viewer", undefined]) {
   const current = role ? { ...owner, role } : undefined;
   const html = renderToStaticMarkup(

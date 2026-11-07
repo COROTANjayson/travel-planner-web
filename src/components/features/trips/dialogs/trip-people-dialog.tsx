@@ -2,11 +2,9 @@
 
 import { Users } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
-import {
-  InviteForm,
-  Participants,
-  PendingInvitations,
-} from "@/components/features/memberships/memberships";
+import { InviteForm } from "@/components/features/memberships/invite-form";
+import { Participants } from "@/components/features/memberships/participants";
+import { PendingInvitations } from "@/components/features/memberships/pending-invitations";
 import { TripDialog } from "@/components/shared/trip-dialog";
 import { TripError } from "@/components/shared/trip-states";
 import { Button } from "@/components/ui/button";

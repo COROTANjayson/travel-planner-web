@@ -22,7 +22,7 @@ Useful examples to inspect only when relevant:
 | Change | Existing examples |
 | --- | --- |
 | Activity editing or failed saves | `src/components/features/itinerary/activity-form/activity-form.tsx`, `src/components/features/itinerary/itinerary.tsx`, `src/lib/itinerary.ts` |
-| Participant controls or stale permissions | `src/components/features/memberships/memberships.tsx`, `src/lib/memberships.ts` |
+| Participant controls or stale permissions | `src/components/features/memberships/participants.tsx`, `src/lib/memberships.ts` |
 | Dates, zones, or durations | `src/lib/activity-time.ts`, `src/lib/trips.ts` |
 
 For mutations, locate who closes the editor, retains entered values, handles
