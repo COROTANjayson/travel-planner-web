@@ -3,11 +3,10 @@
 import { useId, useRef, useState, type Ref, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
-import { Clock, Plus, Tag } from "lucide-react";
+import { Plus } from "lucide-react";
 import { ApiError, useApi } from "@/lib/api";
 import {
   activityCategories,
-  activityCategoryIcons,
   type ActivityInput,
   type ChecklistItem,
 } from "@/lib/itinerary";
@@ -22,21 +21,19 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { TripError } from "@/components/shared/trip-states";
-import { DateTimeField } from "@/components/shared/date-time-field";
 
 import type { CostChange, ExpensePerson } from "@/lib/expenses";
 import { ActivityExpenseDrafts } from "@/components/features/expenses/activity-expense-drafts";
+import { CategoryField } from "@/components/features/itinerary/activity-form/category-field";
+import { ChecklistSection } from "@/components/features/itinerary/activity-form/checklist-section";
+import { NotesSection } from "@/components/features/itinerary/activity-form/notes-section";
+import { OverlapNotice } from "@/components/features/itinerary/activity-form/overlap-notice";
+import { PlaceSection } from "@/components/features/itinerary/activity-form/place-section";
+import { WhenEditor } from "@/components/features/itinerary/activity-form/when-editor";
 
 const durations = { "30": 30, "60": 60, "120": 120 } as const;
-type Duration = keyof typeof durations | "custom";
+export type Duration = keyof typeof durations | "custom";
 
 function formatEndTime(instant: string, zone: string, startDate: string) {
   const local = instantToLocal(instant, zone).value;
@@ -354,60 +351,14 @@ export function ActivityForm({
     </Button>
   );
   const categoryField = (
-    <div className="space-y-2">
-      <fieldset className="activity-category-chips">
-        <legend className="mb-2 text-sm leading-none font-medium">
-          Category
-        </legend>
-        {[...activityCategories, "Custom"].map((category) => {
-          const value = category === "Custom" ? "custom" : category;
-          const Icon = Object.hasOwn(activityCategoryIcons, category)
-            ? activityCategoryIcons[category]
-            : Tag;
-          return (
-            <label
-              key={category}
-              className="activity-category activity-category-chip"
-              data-category={category}
-            >
-              <input
-                type="radio"
-                className="sr-only"
-                name={`${prefix}-category`}
-                value={value}
-                checked={categoryChoice === value}
-                onChange={() => {
-                  setCategoryChoice(value);
-                  markDirty();
-                }}
-              />
-              <Icon aria-hidden="true" className="size-3.5 shrink-0" />
-              {category}
-            </label>
-          );
-        })}
-      </fieldset>
-      {categoryChoice === "custom" && (
-        <div className="space-y-2">
-          <Label
-            htmlFor={`${prefix}-custom-category`}
-            className="field-required"
-          >
-            Custom category
-          </Label>
-          <Input
-            id={`${prefix}-custom-category`}
-            required
-            value={customCategory}
-            placeholder="e.g. Shopping"
-            onChange={(event) => setCustomCategory(event.target.value)}
-          />
-          <p className="text-sm text-muted-foreground">
-            This label belongs to this activity.
-          </p>
-        </div>
-      )}
-    </div>
+    <CategoryField
+      prefix={prefix}
+      categoryChoice={categoryChoice}
+      setCategoryChoice={setCategoryChoice}
+      customCategory={customCategory}
+      setCustomCategory={setCustomCategory}
+      markDirty={markDirty}
+    />
   );
 
   const whenSummary = `${
@@ -455,142 +406,26 @@ export function ActivityForm({
               />
             </div>
             {!section && categoryField}
-            <div
-              className="activity-when-editor"
-              role="group"
-              aria-labelledby={`${prefix}-when`}
-            >
-              <p
-                id={`${prefix}-when`}
-                className={hideDate ? "sr-only" : "activity-when-label"}
-              >
-                {hideDate
-                  ? new Intl.DateTimeFormat(undefined, {
-                      weekday: "long",
-                      month: "long",
-                      day: "numeric",
-                      timeZone: "UTC",
-                    }).format(new Date(`${initialDate}T12:00:00Z`))
-                  : "When"}
-              </p>
-              <div className="activity-when-fields space-y-5">
-                <div className="min-w-0 space-y-2">
-                  <DateTimeField
-                    id={`${prefix}-start`}
-                    label="Start"
-                    zone={tripZone}
-                    draft={startTime}
-                    split
-                    required
-                    hideDate={hideDate}
-                    minDate={tripStart}
-                    maxDate={tripEnd}
-                    disabled={pending}
-                    onChange={(next) => {
-                      setStartTime(next);
-                      setTimeChanged(true);
-                      setValidationError(undefined);
-                      markDirty();
-                    }}
-                  />
-                  <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
-                    <Clock className="mt-0.5 size-4 shrink-0" />
-                    <span className="min-w-0 wrap-break-word">
-                      {whenSummary}
-                    </span>
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label
-                    htmlFor={`${prefix}-duration`}
-                    className="field-required"
-                  >
-                    Duration
-                  </Label>
-                  <Select
-                    value={duration}
-                    onValueChange={(value) => {
-                      if (
-                        value === "30" ||
-                        value === "60" ||
-                        value === "120" ||
-                        value === "custom"
-                      ) {
-                        setDuration(value);
-                        setTimeChanged(true);
-                        setValidationError(undefined);
-                        markDirty();
-                      }
-                    }}
-                  >
-                    <SelectTrigger
-                      id={`${prefix}-duration`}
-                      className="min-h-11 w-full"
-                    >
-                      <SelectValue>
-                        {duration === "30"
-                          ? "30 minutes"
-                          : duration === "60"
-                            ? "1 hour"
-                            : duration === "120"
-                              ? "2 hours"
-                              : "Custom duration"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="30">30 minutes</SelectItem>
-                      <SelectItem value="60">1 hour</SelectItem>
-                      <SelectItem value="120">2 hours</SelectItem>
-                      <SelectItem value="custom">Custom duration</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {duration === "custom" && (
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor={`${prefix}-custom-hours`}
-                      className="field-required"
-                    >
-                      Duration (hours)
-                    </Label>
-                    <Input
-                      id={`${prefix}-custom-hours`}
-                      type="number"
-                      min="0"
-                      step="any"
-                      inputMode="decimal"
-                      required
-                      value={customHours}
-                      placeholder="e.g. 1.5"
-                      onChange={(event) => {
-                        setCustomHours(event.target.value);
-                        setTimeChanged(true);
-                        setValidationError(undefined);
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-            {interval &&
-              (overlaps.isPending ? (
-                <p role="status" className="text-sm">
-                  Checking other activities…
-                </p>
-              ) : overlaps.isError ? (
-                <TripError
-                  error={overlaps.error}
-                  retry={() => void overlaps.refetch()}
-                />
-              ) : overlaps.data && overlaps.data.length > 0 ? (
-                <Alert>
-                  <AlertDescription>
-                    Overlaps{" "}
-                    {overlaps.data.map((item) => item.title).join(", ")}.
-                    Parallel activities are allowed.
-                  </AlertDescription>
-                </Alert>
-              ) : null)}
+            <WhenEditor
+              prefix={prefix}
+              hideDate={hideDate}
+              initialDate={initialDate}
+              tripZone={tripZone}
+              tripStart={tripStart}
+              tripEnd={tripEnd}
+              pending={pending}
+              startTime={startTime}
+              setStartTime={setStartTime}
+              setTimeChanged={setTimeChanged}
+              setValidationError={setValidationError}
+              markDirty={markDirty}
+              whenSummary={whenSummary}
+              duration={duration}
+              setDuration={setDuration}
+              customHours={customHours}
+              setCustomHours={setCustomHours}
+            />
+            {interval && <OverlapNotice overlaps={overlaps} />}
           </>
         )}
         {(section
@@ -602,196 +437,40 @@ export function ActivityForm({
             }
           >
             {(section === "place" || (!section && placeOpen)) && (
-              <section className={section ? "space-y-2" : undefined}>
-                <div className="activity-section-heading">
-                  <h3>Place</h3>
-                </div>
-                <div className="space-y-3 pt-4">
-                  <Label htmlFor={`${prefix}-place-search`} className="sr-only">
-                    Search for a place (optional)
-                  </Label>
-                  {place && (
-                    <div className="rounded-xl border bg-secondary/40 p-4 text-sm">
-                      <p className="font-medium">{place.name}</p>
-                      <p className="break-words text-muted-foreground">
-                        {place.address}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="mt-2 min-h-11"
-                        onClick={() => {
-                          setPlace(null);
-                          markDirty();
-                        }}
-                      >
-                        Clear place
-                      </Button>
-                    </div>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    <Input
-                      id={`${prefix}-place-search`}
-                      autoFocus={!section || section === "place"}
-                      className="min-h-11 min-w-0 flex-1"
-                      value={query}
-                      onChange={(event) => setQuery(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (
-                          event.key === "Enter" &&
-                          !event.nativeEvent.isComposing
-                        ) {
-                          event.preventDefault();
-                          void search();
-                        }
-                      }}
-                      placeholder="Search for a place"
-                      enterKeyHint="search"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="min-h-11"
-                      onClick={() => void search()}
-                    >
-                      {placePending ? "Loading…" : "Search"}
-                    </Button>
-                  </div>
-                  {results && (
-                    <div aria-live="polite">
-                      {results.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          No places found.
-                        </p>
-                      ) : (
-                        <ul className="space-y-2">
-                          {results.map((candidate) => (
-                            <li key={candidate.provider_place_id}>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="h-auto min-h-11 w-full justify-start whitespace-normal text-left"
-                                onClick={() => void choose(candidate)}
-                              >
-                                <span>
-                                  <strong>{candidate.name}</strong>
-                                  <br />
-                                  <span className="text-muted-foreground">
-                                    {candidate.address}
-                                  </span>
-                                </span>
-                              </Button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
-                  {!!placeError && <TripError error={placeError} />}
-                  <p className="text-xs text-muted-foreground">
-                    Searches run only when you press Search. Place data ©{" "}
-                    <a
-                      className="underline"
-                      href="https://www.openstreetmap.org/copyright"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      OpenStreetMap contributors
-                    </a>
-                    .
-                  </p>
-                </div>
-              </section>
+              <PlaceSection
+                prefix={prefix}
+                section={section}
+                place={place}
+                setPlace={setPlace}
+                markDirty={markDirty}
+                query={query}
+                setQuery={setQuery}
+                search={search}
+                choose={choose}
+                results={results}
+                placePending={placePending}
+                placeError={placeError}
+              />
             )}
             {(section === "notes" || (!section && notesOpen)) && (
-              <section className={section ? "space-y-2" : undefined}>
-                <div className="activity-section-heading">
-                  <h3>Notes</h3>
-                </div>
-                <div className="pt-4 space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor={`${prefix}-notes`}>Activity notes</Label>
-                    <textarea
-                      id={`${prefix}-notes`}
-                      autoFocus={!section || section === "notes"}
-                      rows={3}
-                      value={notes}
-                      onChange={(event) => setNotes(event.target.value)}
-                      className="w-full min-w-0 rounded-lg border border-input bg-card px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/30 disabled:opacity-50"
-                    />
-                  </div>
-                </div>
-              </section>
+              <NotesSection
+                prefix={prefix}
+                section={section}
+                notes={notes}
+                setNotes={setNotes}
+              />
             )}
             {(section === "checklist" ||
               (!section && checklist.length > 0)) && (
-              <section className={section ? "space-y-2" : undefined}>
-                <div className="activity-section-heading">
-                  <h3 id={`${prefix}-checklist-label`}>To do</h3>
-                </div>
-                <div
-                  className="space-y-3 pt-4"
-                  role="group"
-                  aria-labelledby={`${prefix}-checklist-label`}
-                >
-                  {section && (
-                    <p className="text-sm text-muted-foreground">
-                      A simple list of things to do during this activity.
-                    </p>
-                  )}
-                  <ol className="space-y-3">
-                    {checklist.map((item, index) => (
-                      <li
-                        key={item.key}
-                        className="flex flex-wrap items-center gap-2"
-                      >
-                        <Input
-                          className="min-h-11 min-w-0 flex-1 basis-32"
-                          aria-label={`To-do item ${index + 1}`}
-                          autoFocus={
-                            !section || (section === "checklist" && index === 0)
-                          }
-                          required
-                          value={item.text}
-                          placeholder="e.g. Buy tickets"
-                          onChange={(event) =>
-                            setChecklist(
-                              checklist.map((current) =>
-                                current.key === item.key
-                                  ? { ...current, text: event.target.value }
-                                  : current,
-                              ),
-                            )
-                          }
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="min-h-11"
-                          aria-label={`Remove to-do item ${index + 1}`}
-                          onClick={() => {
-                            setChecklist(
-                              checklist.filter(
-                                (current) => current.key !== item.key,
-                              ),
-                            );
-                            markDirty();
-                            requestAnimationFrame(() =>
-                              checklistAddButton.current?.focus(),
-                            );
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      </li>
-                    ))}
-                  </ol>
-                  {addChecklistItem(false)}
-                  <p className="text-xs text-muted-foreground">
-                    {checklist.length}/50 items
-                  </p>
-                </div>
-              </section>
+              <ChecklistSection
+                prefix={prefix}
+                section={section}
+                checklist={checklist}
+                setChecklist={setChecklist}
+                markDirty={markDirty}
+                checklistAddButtonRef={checklistAddButton}
+                addButton={addChecklistItem(false)}
+              />
             )}
           </div>
         )}
