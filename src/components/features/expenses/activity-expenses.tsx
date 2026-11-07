@@ -2,11 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { BorrowListLink } from "@/components/features/expenses/borrow-list-link";
+import { ExpenseTotals } from "@/components/features/expenses/expense-totals";
+import { ExpenseViewTabs } from "@/components/features/expenses/expense-view-tabs";
+import { OtherBalances } from "@/components/features/expenses/other-balances";
 import { CostArticle } from "@/components/features/expenses/cost-article";
 import { LoanArticle } from "@/components/features/expenses/loan-article";
 import { ReceiptRows } from "@/components/features/expenses/receipt-rows";
 import { ApiError } from "@/lib/api";
-import { activityKey, personalTotals } from "@/lib/activity-expenses";
+import { activityKey } from "@/lib/activity-expenses";
 import {
   expenseName,
   type Expense,
@@ -23,7 +27,6 @@ import { Button } from "@/components/ui/button";
 import { ExpenseCostEditor } from "@/components/features/expenses/drawers/cost-editor/expense-cost-editor";
 import { ExpensePaymentWorkspace } from "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace";
 import { PersonalPayments } from "@/components/features/expenses/personal-payments/personal-payments";
-import { Tabs } from "@base-ui/react/tabs";
 import { ArrowRight, Plus } from "lucide-react";
 import { TripError } from "@/components/shared/trip-states";
 import type { ExpenseEditor } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
@@ -266,31 +269,11 @@ export function ActivityExpenses(
       data-finance-view={props.view}
     >
       {tabView && (
-        <Tabs.Root
-          className="activity-finance-tabs"
-          value={props.view}
-          onValueChange={(value) => {
-            if (value === "details" || value === "personal")
-              props.onViewChange?.(value);
-          }}
-        >
-          <Tabs.List aria-label="Expense views" activateOnFocus>
-            <Tabs.Tab
-              id={`expense-details-${activityID}`}
-              value="details"
-              aria-controls={`expense-panel-${activityID}`}
-            >
-              All expenses
-            </Tabs.Tab>
-            <Tabs.Tab
-              id={`expense-personal-${activityID}`}
-              value="personal"
-              aria-controls={`expense-panel-${activityID}`}
-            >
-              My expenses
-            </Tabs.Tab>
-          </Tabs.List>
-        </Tabs.Root>
+        <ExpenseViewTabs
+          view={props.view}
+          activityID={activityID}
+          onViewChange={props.onViewChange}
+        />
       )}
       {!props.managementOnly && (!flow || props.view === "overview") && (
         <div className="activity-cost-heading flex flex-wrap items-center justify-between gap-3">
@@ -345,39 +328,17 @@ export function ActivityExpenses(
             {!props.managementOnly &&
               (!flow ||
                 props.view === "overview" ||
-                props.view === "details") &&
-              (flow ? [...new Set(costs.map((c) => c.currency))] : codes).map(
-                (code) => {
-                  const total = costs
-                    .filter((e) => e.currency === code)
-                    .reduce((n, e) => n + BigInt(e.amount_minor), 0n);
-                  const own = personalTotals(
-                    data,
-                    current?.user_id ?? 0,
-                    code,
-                    activityID,
-                  );
-                  return (
-                    <div key={code} className="activity-cost-total">
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Estimated total
-                        </p>
-                        <p className="text-xl font-semibold">
-                          {money(total, code)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Your share
-                        </p>
-                        <p className="text-xl font-semibold">
-                          {money(own.cost, code)}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                },
+                props.view === "details") && (
+                <ExpenseTotals
+                  codes={
+                    flow ? [...new Set(costs.map((c) => c.currency))] : codes
+                  }
+                  costs={costs}
+                  data={data}
+                  current={current}
+                  activityID={activityID}
+                  money={money}
+                />
               )}
             {flow && props.view === "details" && !props.managementOnly && (
               <div className="activity-expense-list-heading">
@@ -483,31 +444,11 @@ export function ActivityExpenses(
               </details>
             )}
             {flow && props.view === "details" && (
-              <Button
-                variant="outline"
-                data-finance-link="loans"
-                className="activity-borrow-link"
-                onClick={() => props.onViewChange?.("loans")}
-              >
-                <span>Borrow list</span>
-                <span className="text-sm text-muted-foreground">
-                  {ownLoans.length} {ownLoans.length === 1 ? "loan" : "loans"}
-                  {[...new Set(ownLoans.map((l) => l.currency))]
-                    .map(
-                      (code) =>
-                        ` · ${money(
-                          ownLoans
-                            .filter((l) => l.currency === code)
-                            .reduce(
-                              (sum, l) => sum + BigInt(l.amount_minor),
-                              0n,
-                            ),
-                          code,
-                        )} total`,
-                    )
-                    .join("")}
-                </span>
-              </Button>
+              <BorrowListLink
+                ownLoans={ownLoans}
+                money={money}
+                onViewChange={props.onViewChange}
+              />
             )}
             {flow && props.view === "loans" && (
               <>
@@ -524,53 +465,15 @@ export function ActivityExpenses(
               </>
             )}
             {!props.compact && hasOtherBalances && (
-              <details>
-                <summary className="min-h-11 cursor-pointer text-sm">
-                  Other balances and historical receipts
-                </summary>
-                <div className="space-y-3 text-sm">
-                  {activityID === "unassigned" &&
-                    data.settlements
-                      .filter((s) => !s.payment_id && !s.loan_id)
-                      .map((s) => (
-                        <div key={s.id}>
-                          <p>
-                            {name(s.from_user_id)} → {name(s.to_user_id)} ·{" "}
-                            {money(s.amount_minor, s.currency)} · Trip-level
-                            receipt awaiting association
-                          </p>
-                          {isEditor && (
-                            <Button
-                              variant="outline"
-                              onClick={() =>
-                                open({ type: "repayment", receipt: s })
-                              }
-                            >
-                              Associate existing receipt
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                  {(data.reversed_settlements ?? []).map((s) => (
-                    <div key={`reversed-${s.id}`} className="border-t pt-3">
-                      <p>
-                        Reversed receipt: {name(s.from_user_id)} →{" "}
-                        {name(s.to_user_id)} ·{" "}
-                        {money(s.amount_minor, s.currency)}
-                      </p>
-                      <Button
-                        variant="ghost"
-                        onClick={() => void showHistory(s.id)}
-                      >
-                        Receipt history
-                      </Button>
-                    </div>
-                  ))}
-                  <p className="text-muted-foreground">
-                    These records remain part of the trip’s balances.
-                  </p>
-                </div>
-              </details>
+              <OtherBalances
+                activityID={activityID}
+                data={data}
+                isEditor={isEditor}
+                name={name}
+                money={money}
+                open={open}
+                showHistory={showHistory}
+              />
             )}
             {current?.role === "viewer" && (
               <p className="text-sm text-muted-foreground">Read-only access</p>
