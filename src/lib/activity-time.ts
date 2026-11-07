@@ -119,3 +119,35 @@ export function formatActivityDuration(start: string, end: string) {
     .filter(Boolean)
     .join(" ");
 }
+
+export const fullDateLabel = (date: string) =>
+  new Intl.DateTimeFormat(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T12:00:00Z`));
+export const dateLabel = (date: string) =>
+  new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T12:00:00Z`));
+export const timeLabel = (instant: string, zone: string) =>
+  new Intl.DateTimeFormat(undefined, {
+    timeZone: zone,
+    timeStyle: "short",
+  }).format(new Date(instant));
+export const localDate = (instant: string, zone: string) =>
+  Temporal.Instant.from(instant)
+    .toZonedDateTimeISO(zone)
+    .toPlainDate()
+    .toString();
+export const boundary = (date: string, zone: string) =>
+  Temporal.PlainDate.from(date)
+    .toZonedDateTime({ timeZone: zone, plainTime: "00:00" })
+    .toInstant()
+    .toString();
+export const moveDate = (date: string, days: number) =>
+  Temporal.PlainDate.from(date).add({ days }).toString();
