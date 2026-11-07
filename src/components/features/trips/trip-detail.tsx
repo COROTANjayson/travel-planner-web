@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, type ApiUser, useApi } from "@/lib/api";
 import { permissions, useMembershipsApi } from "@/lib/memberships";
 import { Expenses } from "@/components/features/expenses/expenses";
+import { Prep } from "@/components/features/prep/prep";
 import { Itinerary } from "@/components/features/itinerary/itinerary";
 import { type TripInput, useTripsApi } from "@/lib/trips";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,10 @@ import { TripOptionsDialog } from "@/components/features/trips/dialogs/trip-opti
 import { TripPeopleDialog } from "@/components/features/trips/dialogs/trip-people-dialog";
 import { TripSettingsDialog } from "@/components/features/trips/dialogs/trip-settings-dialog";
 import {
+  TripViewSwitch,
+  tripViews,
+} from "@/components/features/trips/trip-view-switch";
+import {
   TripError,
   TripLoading,
   TripNotFound,
@@ -24,8 +29,11 @@ import {
 
 export function TripDetail({ id }: { id: number }) {
   const searchParams = useSearchParams();
-  const expenseView =
-    searchParams.get("view") === "expenses" && !searchParams.has("activity");
+  const view = searchParams.get("view") ?? "";
+  // An activity dialog always opens over the itinerary.
+  const shown = searchParams.has("activity") ? "" : view;
+  const expenseView = shown === "expenses";
+  const prepView = shown === "prep";
   const [itineraryDate, setItineraryDate] = useState<string>();
   const api = useTripsApi();
   const queryClient = useQueryClient();
@@ -137,7 +145,7 @@ export function TripDetail({ id }: { id: number }) {
           <ArrowLeft aria-hidden="true" />
         </Button>
         <p className="min-w-0 flex-1 text-sm font-medium">
-          {expenseView ? "Trip expenses" : "Trip itinerary"}
+          {`Trip ${(tripViews[shown] ?? "Itinerary").toLowerCase()}`}
         </p>
         <TripOptionsDialog
           tripName={trip.data.name}
@@ -210,6 +218,7 @@ export function TripDetail({ id }: { id: number }) {
           </>
         </nav>
       </header>
+      <TripViewSwitch tripID={id} view={view} />
       <Expenses
         active={expenseView}
         trip={trip.data}
@@ -217,7 +226,16 @@ export function TripDetail({ id }: { id: number }) {
         current={current}
         onFailure={handleFailure}
       />
-      {!expenseView && (
+      {prepView && (
+        <Prep
+          trip={trip.data}
+          participants={members.data}
+          current={current}
+          canEdit={allowed.edit}
+          onFailure={handleFailure}
+        />
+      )}
+      {!expenseView && !prepView && (
         <Itinerary
           trip={trip.data}
           participants={members.data}

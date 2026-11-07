@@ -29,7 +29,6 @@ export function WhenEditor({
   setStartTime,
   setTimeChanged,
   setValidationError,
-  markDirty,
   whenSummary,
   duration,
   setDuration,
@@ -47,7 +46,6 @@ export function WhenEditor({
   setStartTime: (next: LocalDraft) => void;
   setTimeChanged: (changed: boolean) => void;
   setValidationError: (error: string | undefined) => void;
-  markDirty: () => void;
   whenSummary: string;
   duration: Duration;
   setDuration: (duration: Duration) => void;
@@ -83,7 +81,6 @@ export function WhenEditor({
               setStartTime(next);
               setTimeChanged(true);
               setValidationError(undefined);
-              markDirty();
             }}
           />
           <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
@@ -107,7 +104,6 @@ export function WhenEditor({
                 setDuration(value);
                 setTimeChanged(true);
                 setValidationError(undefined);
-                markDirty();
               }
             }}
           >

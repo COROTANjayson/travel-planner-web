@@ -11,14 +11,12 @@ export function CategoryField({
   setCategoryChoice,
   customCategory,
   setCustomCategory,
-  markDirty,
 }: {
   prefix: string;
   categoryChoice: string;
   setCategoryChoice: (choice: string) => void;
   customCategory: string;
   setCustomCategory: (category: string) => void;
-  markDirty: () => void;
 }) {
   return (
     <div className="space-y-2">
@@ -45,7 +43,6 @@ export function CategoryField({
                 checked={categoryChoice === value}
                 onChange={() => {
                   setCategoryChoice(value);
-                  markDirty();
                 }}
               />
               <Icon aria-hidden="true" className="size-3.5 shrink-0" />

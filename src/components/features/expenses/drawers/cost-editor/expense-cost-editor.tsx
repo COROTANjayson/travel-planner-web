@@ -110,7 +110,6 @@ export function ExpenseCostEditor({
       Temporal.Now.zonedDateTimeISO(zone).toPlainDate().toString(),
   );
   const [validation, setValidation] = useState<Error | null>(null);
-  const [dirty, setDirty] = useState(false);
   // What the custom step restores on Back, and which rows were edited on it.
   const [customEntry, setCustomEntry] = useState<Record<number, string>>({});
   const [editedShares, setEditedShares] = useState<number[]>([]);
@@ -124,18 +123,8 @@ export function ExpenseCostEditor({
       formRef.current
     )?.focus();
   }, [step]);
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
   const money = (value: string | bigint) => expenseMoney(String(value), meta);
   function change() {
-    setDirty(true);
     setReview(null);
     setValidation(null);
     onDirty?.();
@@ -149,11 +138,6 @@ export function ExpenseCostEditor({
   function back() {
     if (busy) return;
     if (step === "custom") {
-      if (
-        selected.some((id) => (exact[id] ?? "") !== (customEntry[id] ?? "")) &&
-        !window.confirm("Discard the amounts you entered?")
-      )
-        return;
       setExact(customEntry);
       setValidation(null);
       setStep("cost");
@@ -163,7 +147,6 @@ export function ExpenseCostEditor({
       setStep("cost");
       return;
     }
-    if (dirty && !window.confirm("Discard this expense draft?")) return;
     onBack();
   }
   const selectedPeople = people.filter((p) => selected.includes(p.user_id));
@@ -252,11 +235,6 @@ export function ExpenseCostEditor({
     submitRef.current?.focus();
   }
   function resetShares() {
-    if (
-      editedShares.length &&
-      !window.confirm("Replace the amounts you entered with an even split?")
-    )
-      return;
     setExact(evenInputs(total, selected));
     setEditedShares([]);
     change();
@@ -561,12 +539,6 @@ export function ExpenseCostEditor({
                     type="button"
                     variant="outline"
                     onClick={async () => {
-                      if (
-                        !window.confirm(
-                          "Discard this expense draft and reload the latest expense?",
-                        )
-                      )
-                        return;
                       try {
                         await onReload();
                       } catch (cause) {

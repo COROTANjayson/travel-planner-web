@@ -14,7 +14,6 @@ type FormProps = ComponentProps<typeof ActivityExpenseForm>;
 export function MarkAsPaidDialog({
   debt,
   setDebt,
-  setDirty,
   api,
   people,
   currencies,
@@ -28,7 +27,6 @@ export function MarkAsPaidDialog({
 }: {
   debt: Debt | null;
   setDebt: (debt: Debt | null) => void;
-  setDirty: (dirty: boolean) => void;
   api: Pick<
     ReturnType<typeof useExpensesApi>,
     "pending" | "error" | "reset" | "saveSettlement"
@@ -71,10 +69,7 @@ export function MarkAsPaidDialog({
           ledger={ledger}
           pending={api.pending || current.role === "viewer"}
           error={api.error}
-          onDirty={() => {
-            setDirty(true);
-            api.reset();
-          }}
+          onDirty={() => api.reset()}
           onCancel={close}
           onSave={async (input) => {
             const value = input as TransactionInput;
@@ -101,7 +96,6 @@ export function MarkAsPaidDialog({
             );
             if (!saved) return;
             setDebt(null);
-            setDirty(false);
           }}
         />
       )}

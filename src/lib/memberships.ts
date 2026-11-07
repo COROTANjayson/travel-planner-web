@@ -141,6 +141,9 @@ export function useMembershipsApi(
                       queryKey: ["trip", tripID],
                       exact: true,
                     }),
+                    client.invalidateQueries({
+                      queryKey: ["trip", tripID, "prep"],
+                    }),
                   ]
                 : []),
             ],

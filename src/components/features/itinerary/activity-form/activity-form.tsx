@@ -59,7 +59,6 @@ export function ActivityForm({
   tripEndsAt,
   onSubmit,
   onCancel,
-  onDirty,
   pending,
   error,
 }: {
@@ -79,7 +78,6 @@ export function ActivityForm({
   tripEndsAt: string | null;
   onSubmit: (input: ActivityInput, requestKey?: string) => void;
   onCancel: () => void;
-  onDirty?: () => void;
   pending: boolean;
   error: unknown;
 }) {
@@ -88,9 +86,6 @@ export function ActivityForm({
   const [expenseChanges, setExpenseChanges] = useState<CostChange[]>([]);
   // A failed response may already have committed, so edits must keep the submission key.
   const requestKey = useRef("");
-  function markDirty() {
-    onDirty?.();
-  }
   const api = useApi();
   const [title, setTitle] = useState(initialValue?.title ?? "");
   const [notes, setNotes] = useState(initialValue?.notes ?? "");
@@ -308,7 +303,6 @@ export function ActivityForm({
         throw new ApiError(500, "Unable to save the place. Please try again.");
       setPlace(selected);
       setResults(null);
-      markDirty();
     } catch (cause) {
       setPlaceError(cause);
     } finally {
@@ -341,7 +335,6 @@ export function ActivityForm({
           ...checklist,
           { key: checklistKey.current++, text: "", done: false },
         ]);
-        markDirty();
       }}
     >
       <Plus aria-hidden="true" className="size-3.5" />
@@ -355,7 +348,6 @@ export function ActivityForm({
       setCategoryChoice={setCategoryChoice}
       customCategory={customCategory}
       setCustomCategory={setCustomCategory}
-      markDirty={markDirty}
     />
   );
 
@@ -367,14 +359,6 @@ export function ActivityForm({
   return (
     <form
       onSubmit={submit}
-      onChangeCapture={(event) => {
-        if (
-          event.target instanceof HTMLElement &&
-          !event.currentTarget.contains(event.target)
-        )
-          return;
-        markDirty();
-      }}
       className={
         section
           ? "activity-section-form"
@@ -416,7 +400,6 @@ export function ActivityForm({
               setStartTime={setStartTime}
               setTimeChanged={setTimeChanged}
               setValidationError={setValidationError}
-              markDirty={markDirty}
               whenSummary={whenSummary}
               duration={duration}
               setDuration={setDuration}
@@ -440,7 +423,6 @@ export function ActivityForm({
                 section={section}
                 place={place}
                 setPlace={setPlace}
-                markDirty={markDirty}
                 query={query}
                 setQuery={setQuery}
                 search={search}
@@ -465,7 +447,6 @@ export function ActivityForm({
                 section={section}
                 checklist={checklist}
                 setChecklist={setChecklist}
-                markDirty={markDirty}
                 checklistAddButtonRef={checklistAddButton}
                 addButton={addChecklistItem(false)}
               />
@@ -494,10 +475,7 @@ export function ActivityForm({
               userID={expenseUserID}
               changes={expenseChanges}
               pending={pending}
-              onChange={(changes) => {
-                setExpenseChanges(changes);
-                markDirty();
-              }}
+              onChange={setExpenseChanges}
             />
           </div>
         )}

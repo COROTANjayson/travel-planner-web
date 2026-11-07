@@ -135,13 +135,6 @@ export function TripForm({
         destination.time_zone !== selected.time_zone &&
         exactTimes
       ) {
-        if (
-          (times.start.value.slice(11) || times.end.value.slice(11)) &&
-          !window.confirm(
-            "This destination uses a different time zone. Your dates will stay selected, but you will need to enter exact times again. Continue?",
-          )
-        )
-          return;
         setTimes((current) => ({
           start: {
             value: `${current.start.value.slice(0, 10)}T`,

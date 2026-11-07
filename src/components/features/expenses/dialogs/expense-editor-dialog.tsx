@@ -33,7 +33,6 @@ export function ExpenseEditorDialog({
   writable,
   revision,
   setRevision,
-  setDirty,
   localError,
   setLocalError,
   save,
@@ -60,7 +59,6 @@ export function ExpenseEditorDialog({
   writable: boolean;
   revision: number;
   setRevision: Dispatch<SetStateAction<number>>;
-  setDirty: (dirty: boolean) => void;
   localError: Error | null;
   setLocalError: (error: Error | null) => void;
   save: FormProps["onSave"];
@@ -113,7 +111,6 @@ export function ExpenseEditorDialog({
               pending={api.pending || !writable}
               error={api.error}
               onDirty={() => {
-                setDirty(true);
                 if (!editor) setEditor(editing);
               }}
               onSave={save}
@@ -124,12 +121,6 @@ export function ExpenseEditorDialog({
               <Button
                 variant="outline"
                 onClick={async () => {
-                  if (
-                    !window.confirm(
-                      "Discard this draft and load the latest record?",
-                    )
-                  )
-                    return;
                   try {
                     if (editing.cost) {
                       const latest = await api.get("expenses", editing.cost.id);
@@ -160,7 +151,6 @@ export function ExpenseEditorDialog({
                     }
                     await api.refresh();
                     setRevision((n) => n + 1);
-                    setDirty(false);
                     api.reset();
                   } catch (cause) {
                     setLocalError(cause as Error);

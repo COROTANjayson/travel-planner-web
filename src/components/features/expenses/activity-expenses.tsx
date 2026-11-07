@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BorrowListLink } from "@/components/features/expenses/borrow-list-link";
 import { ExpenseTotals } from "@/components/features/expenses/expense-totals";
@@ -22,7 +22,7 @@ import {
   type Debt,
   type ReceiptHistory,
 } from "@/lib/expenses";
-import { expenseMoney as formatMoney } from "@/lib/money";
+import { moneyIn } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { ExpenseCostEditor } from "@/components/features/expenses/drawers/cost-editor/expense-cost-editor";
 import { ExpensePaymentWorkspace } from "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace";
@@ -69,7 +69,6 @@ export function ActivityExpenses(
   const editing =
     editor ??
     (auto && !autoDismissed && isEditor ? { type: "cost" as const } : null);
-  const [dirty, setDirty] = useState(false);
   const [localError, setLocalError] = useState<Error | null>(null);
   const [history, setHistory] = useState<ReceiptHistory[] | null>(null);
   const [historyID, setHistoryID] = useState<number | null>(null);
@@ -89,14 +88,7 @@ export function ActivityExpenses(
   ];
   const name = (id: number) =>
     expenseName(people.find((p) => p.user_id === id));
-  const money = (amount: string | bigint, currency: string) =>
-    formatMoney(
-      String(amount),
-      currencies.data?.find((c) => c.code === currency) ?? {
-        code: currency,
-        decimals: 2,
-      },
-    );
+  const money = moneyIn(currencies.data ?? []);
   const costs =
     data?.expenses.filter((e) => activityKey(e) === activityID) ?? [];
   const loans = data?.loans.filter((l) => activityKey(l) === activityID) ?? [];
@@ -110,32 +102,17 @@ export function ActivityExpenses(
   const options =
     props.activities ??
     (hasActivity ? [{ id: Number(activityID), title: activityTitle }] : []);
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
   function open(next: ExpenseEditor) {
     trigger.current = document.activeElement as HTMLElement;
     key.current = crypto.randomUUID();
     api.reset();
     setLocalError(null);
-    setDirty(false);
     setEditor(next);
   }
   function close() {
-    if (
-      api.pending ||
-      (dirty && !window.confirm("Discard unsaved expense changes?"))
-    )
-      return;
+    if (api.pending) return;
     setEditor(null);
     setAutoDismissed(true);
-    setDirty(false);
     key.current = "";
     api.reset();
   }
@@ -200,7 +177,6 @@ export function ActivityExpenses(
     if (!saved) return;
     setEditor(null);
     setAutoDismissed(true);
-    setDirty(false);
     key.current = "";
   }
   async function reverse(kind: LedgerKind, record: FinancialRecord) {
@@ -535,20 +511,15 @@ export function ActivityExpenses(
                   );
                   setEditor({ ...editing, cost: latest });
                   setRevision((n) => n + 1);
-                  setDirty(false);
                   api.reset();
                 }
               : undefined
           }
           onBack={() => {
-            setDirty(false);
             setEditor(null);
             setAutoDismissed(true);
           }}
-          onDirty={() => {
-            setDirty(true);
-            api.reset();
-          }}
+          onDirty={() => api.reset()}
         />
       )}
       <ExpenseEditorDialog
@@ -569,7 +540,6 @@ export function ActivityExpenses(
         writable={writable}
         revision={revision}
         setRevision={setRevision}
-        setDirty={setDirty}
         localError={localError}
         setLocalError={setLocalError}
         save={save}

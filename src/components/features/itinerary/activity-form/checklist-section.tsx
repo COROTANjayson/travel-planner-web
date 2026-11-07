@@ -12,7 +12,6 @@ export function ChecklistSection({
   section,
   checklist,
   setChecklist,
-  markDirty,
   checklistAddButtonRef,
   addButton,
 }: {
@@ -20,7 +19,6 @@ export function ChecklistSection({
   section?: "details" | "place" | "notes" | "checklist";
   checklist: ChecklistDraft[];
   setChecklist: (checklist: ChecklistDraft[]) => void;
-  markDirty: () => void;
   checklistAddButtonRef: RefObject<HTMLButtonElement | null>;
   addButton: ReactNode;
 }) {
@@ -68,7 +66,6 @@ export function ChecklistSection({
                   setChecklist(
                     checklist.filter((current) => current.key !== item.key),
                   );
-                  markDirty();
                   requestAnimationFrame(() =>
                     checklistAddButtonRef.current?.focus(),
                   );

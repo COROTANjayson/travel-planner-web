@@ -196,7 +196,7 @@ assert.equal(
   ])[0].user_id,
   1,
 );
-const resort = { id: 1, title: "Resort" };
+const resort = { id: 1, title: "Resort", category: "Rest" };
 const inn = {
   id: 1,
   trip_id: 7,
@@ -302,6 +302,119 @@ const adjusted = {
   amount_minor: "350000",
 };
 assert.equal(activity.uncovered(adjusted, data)[0].amount_minor, "-10000");
+
+// Trip-wide balances: own rows from the signed-in person's view.
+const tripExpenses = load("src/lib/trip-expenses.ts");
+assert.equal(
+  tripExpenses.categoryOf({ activity_id: 9 }, [{ id: 9, category: "" }]),
+  "Other",
+);
+const loanLedgerShape = {
+  ...cash,
+  expenses: [
+    {
+      ...inn,
+      payer_user_id: 1,
+      shares: [{ user_id: 3, amount_minor: "5000" }],
+    },
+  ],
+  payments: [cash.payments[0]],
+  loans: [
+    {
+      id: 1,
+      trip_id: 7,
+      activity_id: 1,
+      activity_name: "Resort",
+      description: "Cash",
+      from_user_id: 1,
+      to_user_id: 2,
+      currency: "PHP",
+      amount_minor: "25000",
+      paid_on: "2026-11-02",
+    },
+    {
+      id: 2,
+      trip_id: 7,
+      activity_id: 1,
+      activity_name: "Resort",
+      description: "Cash",
+      from_user_id: 1,
+      to_user_id: 3,
+      currency: "PHP",
+      amount_minor: "35000",
+      paid_on: "2026-11-02",
+    },
+  ],
+  settlements: [
+    {
+      id: 9,
+      loan_id: 1,
+      currency: "PHP",
+      amount_minor: "10000",
+      paid_on: "2026-11-03",
+      from_user_id: 2,
+      to_user_id: 1,
+    },
+  ],
+  debts: [
+    {
+      payment_id: 1,
+      activity_id: 1,
+      activity_name: "Resort",
+      description: "Inn",
+      currency: "PHP",
+      from_user_id: 3,
+      to_user_id: 1,
+      amount_minor: "5000",
+    },
+    {
+      loan_id: 1,
+      activity_id: 1,
+      activity_name: "Resort",
+      description: "Cash",
+      currency: "PHP",
+      from_user_id: 2,
+      to_user_id: 1,
+      amount_minor: "15000",
+    },
+    {
+      loan_id: 2,
+      activity_id: 1,
+      activity_name: "Resort",
+      description: "Cash",
+      currency: "PHP",
+      from_user_id: 3,
+      to_user_id: 1,
+      amount_minor: "35000",
+    },
+  ],
+};
+const mine = tripExpenses.myEntries(cash, [resort], 3, (id) => `P${id}`);
+assert.equal(
+  JSON.stringify(
+    mine.map((e) => [e.title, e.status, e.status_label, e.status_amount]),
+  ),
+  JSON.stringify([
+    ["Inn", "owe", "you owe", "80000"],
+    ["Entrance", "owe", "you owe", "40000"],
+    ["Food", "owe", "you owe", "35000"],
+  ]),
+  "Own expense rows carry what is still owed on them",
+);
+assert.equal(
+  JSON.stringify(
+    tripExpenses
+      .myEntries(loanLedgerShape, [resort], 1, (id) => `P${id}`)
+      .map((e) => [e.title, e.status, e.status_label, e.status_amount]),
+  ),
+  JSON.stringify([
+    ["P2 paid you", "settled", "received", undefined],
+    ["You lent P2", "owed", "left to repay you", "15000"],
+    ["You lent P3", "owed", "left to repay you", "35000"],
+    ["P3 owes you", "owed", "owes you", undefined],
+  ]),
+  "Lender sees loans, repayments received and reimbursements owed",
+);
 
 let states = [],
   index = 0,
@@ -562,10 +675,19 @@ assert.ok(
 states = [];
 enabled.length = 0;
 tree = render(view.Expenses, { ...viewProps, active: true });
-const html = renderToStaticMarkup(tree);
+let html = renderToStaticMarkup(tree);
 assert.match(html, /1550|1,550/);
-assert.match(html, /My share/);
-assert.match(html, /View activity/);
+assert.match(html, /Overall expenses<\/dt><dd>₱6,350/);
+assert.match(
+  html,
+  /Balance<\/dt><dd>₱1,550/,
+  "Balance is the unpaid share plus borrowed money",
+);
+assert.match(html, /To receive<\/dt><dd>₱0/);
+assert.doesNotMatch(html, /Your share|To pay to business|Overall, you/);
+assert.match(html, /data-category="Rest"/);
+assert.doesNotMatch(html, /href=/, "Expense rows do not navigate");
+assert.doesNotMatch(html, /Mark as paid|View payments|Add expense/);
 assert.doesNotMatch(html, />Add cost</);
 assert.doesNotMatch(
   html,
@@ -580,6 +702,17 @@ tree = render(view.Expenses, {
 });
 
 assert.doesNotMatch(renderToStaticMarkup(tree), /Paid for someone/);
+states = [];
+refs = [];
+tree = render(view.Expenses, { ...viewProps, active: true });
+nodes(tree)
+  .find((n) => n.props.children === "Upcoming")
+  .props.onClick();
+html = renderToStaticMarkup(
+  render(view.Expenses, { ...viewProps, active: true }),
+);
+assert.match(html, /Nothing matches this filter/);
+assert.doesNotMatch(html, /Sun, Nov 1/);
 states = [];
 refs = [];
 viewData = {
@@ -801,8 +934,6 @@ console.log(
 );
 
 // The approved form keeps custom splitting in a separate step and preserves failed drafts.
-const confirms = [];
-let confirmAnswer = true;
 const approved = load(
   "src/components/features/expenses/drawers/cost-editor/expense-cost-editor.tsx",
   {
@@ -835,12 +966,6 @@ const approved = load(
     "@/components/shared/trip-states": { TripError },
   },
   {
-    window: {
-      confirm(message) {
-        confirms.push(message);
-        return confirmAnswer;
-      },
-    },
     requestAnimationFrame: (callback) => callback(),
   },
 );
@@ -1019,8 +1144,6 @@ const splitFailures = [];
 async function splitScenario(name, run) {
   states = [];
   refs = [];
-  confirms.length = 0;
-  confirmAnswer = true;
   editorsClosed = 0;
   saved = undefined;
   try {
@@ -1036,19 +1159,12 @@ await splitScenario("Back from an untouched split", () => {
   dismiss();
   assert.equal(stepTitle(), "Add expense");
   assert.equal(editorsClosed, 0, "Back must not close the whole expense");
-  assert.equal(confirms.length, 0, "Nothing typed, so nothing to confirm");
   assert.equal(find(costTree(), "expense-name").props.value, "Inn");
   assert.equal(find(costTree(), "expense-price").props.value, "4000");
 });
-await splitScenario("Back after typing asks first", () => {
+await splitScenario("Back after typing discards the amounts", () => {
   startSplit();
   typeShare(1, "2000");
-  confirmAnswer = false;
-  dismiss();
-  assert.equal(stepTitle(), "Custom split");
-  assert.equal(find(costTree(), "expense-share-1").props.value, "2000");
-  assert.equal(confirms.length, 1);
-  confirmAnswer = true;
   dismiss();
   assert.equal(stepTitle(), "Add expense");
   assert.equal(editorsClosed, 0);
@@ -1209,19 +1325,12 @@ await splitScenario("Reset to even replaces the dropdown", () => {
     true,
   );
   typeShare(1, "1");
-  confirmAnswer = false;
-  reset().props.onClick();
-  assert.equal(find(costTree(), "expense-share-1").props.value, "1");
-  confirmAnswer = true;
   reset().props.onClick();
   assert.equal(
     shareValues(),
     JSON.stringify(["800.00", "800.00", "800.00", "800.00", "800.00"]),
   );
   assert.equal(stepTitle(), "Custom split");
-  assert.equal(confirms.length, 2);
-  reset().props.onClick();
-  assert.equal(confirms.length, 2, "No typed amounts left to warn about");
 });
 await splitScenario("Focusing an amount selects it", () => {
   startSplit();
@@ -1852,7 +1961,6 @@ const personalModule = load(
   },
   {
     crypto: { randomUUID: () => "receipt-key" },
-    window: { confirm: () => true },
   },
 );
 const personalProps = { ...lenderProps, ledger: loanLedger, currencies };
@@ -1999,13 +2107,25 @@ viewData = {
 };
 states = [];
 refs = [];
-tree = render(view.Expenses, { ...viewProps, active: true });
-assert.doesNotMatch(renderToStaticMarkup(tree), /No expenses yet/);
-assert.match(renderToStaticMarkup(tree), /JPY/);
-assert.ok(
-  nodes(tree).some((n) => n.type === PersonalPayments),
-  "Trip renders personal payments",
+tree = render(view.Expenses, {
+  ...viewProps,
+  active: true,
+  current: { user_id: 1, role: "member" },
+});
+html = renderToStaticMarkup(tree);
+assert.match(html, /You lent Person 2[^]*?left to repay you ₱250/);
+assert.match(
+  html,
+  /To receive<\/dt><dd>₱600/,
+  "To receive includes money lent to others",
 );
+assert.match(html, /JPY 25,000/, "Currencies stay separate");
+assert.match(
+  html,
+  /Overall expenses<\/dt><dd>₱0/,
+  "Loans aren't expenses, so they don't add to the overall figure",
+);
+assert.doesNotMatch(html, /Mark as paid|Add expense/);
 states = [];
 refs = [];
 tree = render(view.ActivityExpenses, { ...lenderProps, compact: true });

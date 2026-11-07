@@ -73,7 +73,6 @@ export function Itinerary({
   const [editing, setEditing] = useState<
     Activity | { date: string; startsAt?: string } | null
   >(null);
-  const [editDirty, setEditDirty] = useState(false);
   const titleInput = useRef<HTMLInputElement>(null);
   const editTrigger = useRef<HTMLButtonElement | null>(null);
   const selectedHeading = useRef<HTMLHeadingElement>(null);
@@ -253,7 +252,6 @@ export function Itinerary({
     );
     editTrigger.current = trigger;
     api.reset();
-    setEditDirty(false);
     setEditing({
       date,
       startsAt:
@@ -264,10 +262,7 @@ export function Itinerary({
   }
   const closeEditor = () => {
     if (api.pending) return false;
-    if (editDirty && !window.confirm("Discard your unsaved activity changes?"))
-      return false;
     api.reset();
-    setEditDirty(false);
     if (editedActivity) setViewing(editedActivity.id);
     setEditing(null);
     if (editedActivity) focusSection();
@@ -320,7 +315,6 @@ export function Itinerary({
           canEdit
             ? (activity) => {
                 setConflictsOpen(false);
-                setEditDirty(false);
                 api.reset();
                 setViewing(activity.id);
                 setEditSection("details");
@@ -353,7 +347,6 @@ export function Itinerary({
       tripEndsAt={trip.ends_at}
       pending={api.pending || !canEdit}
       error={api.error}
-      onDirty={() => setEditDirty(true)}
       onCancel={closeEditor}
       onSubmit={async (input, requestKey) => {
         if (!canEdit || api.pending) return;
@@ -380,7 +373,6 @@ export function Itinerary({
             : input;
           const saved = await api.save(payload, editedActivity?.id, requestKey);
           if (saved) {
-            setEditDirty(false);
             setEditing(null);
             setSelected(localDate(payload.starts_at, trip.time_zone));
             if (saved !== true) setViewing(saved.id);
@@ -397,7 +389,6 @@ export function Itinerary({
   const startSectionEdit = (section: typeof editSection) => {
     if (!canEdit || api.pending || editing || !detailActivity) return;
     api.reset();
-    setEditDirty(false);
     setEditSection(section);
     setEditing(detailActivity);
   };

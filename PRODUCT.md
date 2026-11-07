@@ -42,6 +42,10 @@ itinerary, not saved user data.
 - Plan activity costs per person or for a group, split evenly or by exact
   amounts, record deposits and covered purchases, and track cash loans and
   repayments separately per currency.
+- Keep a trip-level Prep list of tasks that one person does, assigned or claimed,
+  or that everyone does, with each person's progress shown. A task can name an
+  activity, one of the trip's days, or both. Viewers can read it but aren't counted and
+  can't take tasks.
 - Show schedule overlaps as advisory conflicts. Activities use the trip's IANA
   time zone; saved exact times remain UTC instants.
 
@@ -49,7 +53,7 @@ The API owns authorization and durable scheduling rules. Invitations appear in
 an inbox for the matching verified email, where recipients can accept or decline.
 They expire after seven days; email delivery is future work.
 Preserve entered values after recoverable errors and protect unsaved work.
-To-dos currently have no completion controls. See the [web README](README.md)
+Activity to-dos currently have no completion controls. See the [web README](README.md)
 for the authoritative implemented contracts and limitations.
 
 ### Future goals

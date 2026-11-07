@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { activityKey, uncovered } from "@/lib/activity-expenses";
 import {
   expenseName,
@@ -39,19 +39,9 @@ export function PersonalPayments({
   const api = useExpensesApi(trip.id, onFailure);
   const [debt, setDebt] = useState<Debt | null>(null);
   const [cost, setCost] = useState<Expense | null>(null);
-  const [dirty, setDirty] = useState(false);
   const key = useRef("");
   const trigger = useRef<HTMLElement | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
   const people = [
     ...new Map(
       [...ledger.people, ...(participants ?? [])].map((p) => [p.user_id, p]),
@@ -92,13 +82,8 @@ export function PersonalPayments({
   const finalFocus = () =>
     trigger.current?.isConnected ? trigger.current : heading.current;
   function close() {
-    if (
-      api.pending ||
-      (dirty && !window.confirm("Discard unsaved payment changes?"))
-    )
-      return;
+    if (api.pending) return;
     setDebt(null);
-    setDirty(false);
     api.reset();
   }
   if (!current) return null;
@@ -137,7 +122,6 @@ export function PersonalPayments({
         api={api}
         setCost={setCost}
         setDebt={setDebt}
-        setDirty={setDirty}
       />
       {cost && (
         <ExpensePaymentWorkspace
@@ -155,7 +139,6 @@ export function PersonalPayments({
       <MarkAsPaidDialog
         debt={debt}
         setDebt={setDebt}
-        setDirty={setDirty}
         api={api}
         people={people}
         currencies={currencies}

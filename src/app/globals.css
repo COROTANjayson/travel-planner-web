@@ -321,11 +321,12 @@
 .trip-filters .trip-filter {
   font-size: 0.75rem;
 }
-.trip-filter:hover:not([aria-pressed="true"]) {
+.trip-filter:hover:not([aria-pressed="true"]):not([aria-current="page"]) {
   background: #dbe7e0;
   color: var(--foreground);
 }
-.trip-filter[aria-pressed="true"]:hover {
+.trip-filter[aria-pressed="true"]:hover,
+.trip-filter[aria-current="page"]:hover {
   background: #0b5d61;
   color: white;
 }
@@ -485,7 +486,8 @@
   flex: 1;
   color: var(--muted-foreground);
 }
-.trip-filter[aria-pressed="true"] {
+.trip-filter[aria-pressed="true"],
+.trip-filter[aria-current="page"] {
   background: var(--primary);
   color: var(--primary-foreground);
 }
@@ -2862,6 +2864,54 @@ summary {
   border-radius: 12px;
   gap: 8px 16px;
   padding: 16px;
+}
+.trip-balance {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  background: var(--trip-sea);
+}
+.trip-balance-currency {
+  display: grid;
+  gap: 0.75rem;
+}
+.trip-balance-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.75rem;
+}
+.trip-balance-code {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.trip-balance-totals dt {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+.trip-balance-totals dd {
+  margin-top: 0.25rem;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.trip-balance-totals .trip-balance-overall {
+  flex-basis: 100%;
+}
+.trip-balance-totals .trip-balance-overall dd {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+  overflow-wrap: anywhere;
+}
+.trip-balance-totals [data-tone="owe"] dd {
+  color: #9c4034;
+}
+.trip-balance-totals [data-tone="owed"] dd {
+  color: #0e7277;
 }
 .personal-expense-summary {
   display: flex;

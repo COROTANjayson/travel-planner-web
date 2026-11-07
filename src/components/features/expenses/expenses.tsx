@@ -1,13 +1,11 @@
 "use client";
 
-import { ActivityExpenseCard } from "@/components/features/expenses/activity-expense-card";
 import { useQuery } from "@tanstack/react-query";
-import { ApiError, useApi } from "@/lib/api";
-import type { Activity } from "@/lib/itinerary";
-import { activityKey } from "@/lib/activity-expenses";
-import { expenseMoney as formatMoney } from "@/lib/money";
-import { ActivityExpenses } from "@/components/features/expenses/activity-expenses";
-import { PersonalPayments } from "@/components/features/expenses/personal-payments/personal-payments";
+import { useApi } from "@/lib/api";
+import { localDate } from "@/lib/activity-time";
+import { allActivities, allActivitiesKey } from "@/lib/itinerary";
+import { TripBalance } from "@/components/features/expenses/trip-balance";
+import { TripExpenseList } from "@/components/features/expenses/trip-expense-list";
 import {
   useFinance,
   type Context,
@@ -15,67 +13,38 @@ import {
 import { TripError } from "@/components/shared/trip-states";
 
 export function Expenses(props: Context & { active: boolean }) {
-  const { trip, active } = props;
+  const { trip, active, participants, current } = props;
   const { ledger, currencies } = useFinance(props, active);
   const read = useApi();
   const activities = useQuery({
-    queryKey: ["trip", trip.id, "activities", "expense-options"],
+    queryKey: allActivitiesKey(trip.id),
     enabled: active,
     retry: false,
-    queryFn: async ({ signal }) => {
-      const all: Activity[] = [];
-      for (let offset = 0; ; offset += 100) {
-        const page = await read<Activity[]>(
-          `/api/v1/trips/${trip.id}/activities?limit=100&offset=${offset}`,
-          { signal },
-        );
-        if (!page) throw new ApiError(500, "Unable to load activities.");
-        all.push(...page);
-        if (page.length < 100) break;
-      }
-      return all.sort(
-        (a, b) => a.starts_at.localeCompare(b.starts_at) || a.id - b.id,
-      );
-    },
+    queryFn: ({ signal }) => allActivities(read, trip.id, signal),
   });
   if (!active) return null;
   const data = ledger.data;
-  const money = (amount: string | bigint, currency: string) =>
-    formatMoney(
-      String(amount),
-      currencies.data?.find((c) => c.code === currency) ?? {
-        code: currency,
-        decimals: 2,
-      },
-    );
-  const historical = [
-    ...new Map(
-      [...(data?.expenses ?? []), ...(data?.loans ?? [])]
-        .filter((e) => !e.activity_id)
-        .map((e) => [
-          activityKey(e),
-          e.activity_name
-            ? `${e.activity_name} (removed)`
-            : "Unassigned expenses",
-        ]),
-    ).entries(),
-  ];
-  if (
-    (data?.settlements.some((s) => !s.payment_id && !s.loan_id) ||
-      !!data?.reversed_settlements?.length) &&
-    !historical.some(([key]) => key === "unassigned")
-  )
-    historical.push(["unassigned", "Unassigned expenses"]);
+  const me = current?.user_id ?? 0;
+  const people = data
+    ? [
+        ...new Map(
+          [...data.people, ...(participants ?? [])].map((p) => [p.user_id, p]),
+        ).values(),
+      ]
+    : [];
   return (
-    <section className="space-y-5">
+    <section className="space-y-6" aria-labelledby="trip-expenses-heading">
       <div>
-        <h2 className="text-2xl font-semibold">Activity expenses</h2>
+        <h2 id="trip-expenses-heading" className="text-2xl font-semibold">
+          Trip expenses
+        </h2>
         <p className="text-muted-foreground">
-          Choose an activity to see costs and payments.
+          Your balance and every cost, loan and settlement that involves you.
+          Open an activity in the itinerary to add or settle expenses.
         </p>
       </div>
       {(ledger.isPending || activities.isPending || currencies.isPending) && (
-        <p role="status">Loading activity expenses…</p>
+        <p role="status">Loading trip expenses…</p>
       )}
       {(ledger.error || activities.error || currencies.error) && (
         <TripError
@@ -89,40 +58,15 @@ export function Expenses(props: Context & { active: boolean }) {
       )}
       {data && activities.data && currencies.data && (
         <>
-          <PersonalPayments
-            {...props}
+          <TripBalance ledger={data} me={me} currencies={currencies.data} />
+          <TripExpenseList
             ledger={data}
+            activities={activities.data}
+            people={people}
+            me={me}
             currencies={currencies.data}
+            today={localDate(new Date().toISOString(), trip.time_zone)}
           />
-          {!activities.data.length && (
-            <p>
-              No activities yet. Add an activity in the itinerary to start
-              planning expenses.
-            </p>
-          )}
-          <div className="grid gap-4 lg:grid-cols-2">
-            {activities.data.map((a) => (
-              <ActivityExpenseCard
-                key={a.id}
-                a={a}
-                trip={trip}
-                data={data}
-                current={props.current}
-                money={money}
-              />
-            ))}
-          </div>
-          {historical.map(([key, title]) => (
-            <details key={key} className="rounded-2xl border p-5">
-              <summary className="cursor-pointer font-medium">{title}</summary>
-              <ActivityExpenses
-                {...props}
-                activityID={key}
-                activityTitle={title}
-                activities={activities.data}
-              />
-            </details>
-          ))}
         </>
       )}
     </section>

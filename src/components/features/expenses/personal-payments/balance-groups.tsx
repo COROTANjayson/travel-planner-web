@@ -20,7 +20,6 @@ export function BalanceGroups({
   api,
   setCost,
   setDebt,
-  setDirty,
 }: {
   business: { expense: Expense; amount: bigint }[];
   debts: Debt[];
@@ -35,7 +34,6 @@ export function BalanceGroups({
   api: Pick<ReturnType<typeof useExpensesApi>, "reset">;
   setCost: (cost: Expense | null) => void;
   setDebt: (debt: Debt | null) => void;
-  setDirty: (dirty: boolean) => void;
 }) {
   return (
     <>
@@ -210,7 +208,6 @@ export function BalanceGroups({
                                   triggerRef.current = event.currentTarget;
                                   receiptKeyRef.current = crypto.randomUUID();
                                   api.reset();
-                                  setDirty(false);
                                   setDebt(d);
                                 }}
                               >

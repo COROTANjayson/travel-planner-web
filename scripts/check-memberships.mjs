@@ -268,7 +268,12 @@ assert.deepEqual(
     .slice(1)
     .map((call) => JSON.stringify(call[1].queryKey))
     .sort(),
-  ['["trip",7,"members"]', '["trip",7]', '["trips"]'].sort(),
+  [
+    '["trip",7,"members"]',
+    '["trip",7,"prep"]',
+    '["trip",7]',
+    '["trips"]',
+  ].sort(),
 );
 calls = [];
 response = undefined;

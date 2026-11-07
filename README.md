@@ -43,8 +43,9 @@ Open an activity from the itinerary for a short overview: expense total, your sh
 **My Expenses** shows your shares, settled-share Paid total, amounts to pay,
 reimbursements, and borrowed money for that activity. Back returns to the
 previous view inside the activity window. Existing activity expense links remain
-supported. Currency totals stay separate; trip-wide personal lists remain at
-`?view=expenses`, an itinerary-ordered activity list with no link for now.
+supported. Currency totals stay separate. The Itinerary | Expenses switch under the trip
+summary opens `?view=expenses`, a read-only trip overview: your per-currency balance and one
+filterable list of your own expenses, loans, amounts owed to you and settlements.
 
 Members, owners, and editors can **Record money lent** to one other active trip
 participant through **Add borrow** in the activity's **Borrow list**, always the
@@ -86,18 +87,46 @@ deferred. Idempotency keys survive uncertain save failures.
 Money uses BigInt and integer minor-unit strings. Apply API migrations through
 `00013_activity_plan_requests.sql` before using this web version.
 `scripts/check-expenses.mjs` covers calculations, planned coverage, member-specific
-payments, permissions, adjustment previews, failed-save recovery and retries.
+payments, permissions, adjustment previews, failed-save recovery, retries and the
+trip-wide balance page.
+
+## Trip prep
+
+**Prep** in the trip's view switch opens `?view=prep`, the group's task list. It
+uses `/api/v1/trips/{tripID}/prep-tasks`, so run the API with migrations through
+`00015_prep_task_activity_and_date.sql` applied. Tasks are separate from activity to-dos and come in
+two kinds:
+
+- **One person does it:** assigned by an owner or editor, or claimed by anyone
+  taking part, and done once that person finishes it.
+- **Everyone does it:** each person ticks their own, and the task shows "3 of 5
+  ready" and who is left.
+
+A task can also name an activity on the trip, one of the trip's days, or both.
+Deleting the activity keeps the task. If the trip's dates later move, a saved date
+outside them still shows and can be kept, but any new date must fit the trip.
+
+Owners and editors add, edit, assign, and delete tasks, and can reopen a finished
+one-person task. Members claim, tick, and finish their own. Viewers can read the
+list, but aren't counted and can't take tasks. The API computes counts and assignees
+on each read, so people joining, leaving, or changing role need no Prep writes. There
+are no live updates: other people's changes appear when the list next refetches.
+
+`src/lib/prep.ts` holds the types and `usePrepApi`. Mutations send only a 403 to the
+trip page's failure handler; a 404 or 409 means the task moved on, so the section
+shows a notice and refetches. `scripts/check-prep.mjs` covers the hook, rows for each
+role and task state, dialogs, and the section.
 
 ## Project map and conventions
 
-| Location                  | Responsibility                                                                                                                                            |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/app`                 | App Router routes, layouts, providers, and shared theme                                                                                                   |
-| `src/components/features` | One folder per feature: `account`, `landing`, `trips`, `itinerary`, `expenses`, `memberships`. Modals live in `dialogs/`, right-side panels in `drawers/` |
-| `src/components/shared`   | UI used by more than one feature, including the `TripDialog` shell                                                                                        |
-| `src/components/ui`       | Repo-owned shadcn/Base UI primitives                                                                                                                      |
-| `src/lib`                 | API hooks, hand-maintained payload types, permissions for UI, and time helpers                                                                            |
-| `scripts`                 | Focused regression checks, contrast checks, and MapLibre worker copying                                                                                   |
+| Location                  | Responsibility                                                                                                                                                    |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app`                 | App Router routes, layouts, providers, and shared theme                                                                                                           |
+| `src/components/features` | One folder per feature: `account`, `landing`, `trips`, `itinerary`, `expenses`, `prep`, `memberships`. Modals live in `dialogs/`, right-side panels in `drawers/` |
+| `src/components/shared`   | UI used by more than one feature, including the `TripDialog` shell                                                                                                |
+| `src/components/ui`       | Repo-owned shadcn/Base UI primitives                                                                                                                              |
+| `src/lib`                 | API hooks, hand-maintained payload types, permissions for UI, and time helpers                                                                                    |
+| `scripts`                 | Focused regression checks, contrast checks, and MapLibre worker copying                                                                                           |
 
 Use TanStack Query for remote state and local React state for UI state. Follow
 existing query keys and mutation invalidation. All authenticated requests go
@@ -179,15 +208,15 @@ feature compositions belong outside that directory.
 npm run check
 ```
 
-| Command                | Coverage                                                          |
-| ---------------------- | ----------------------------------------------------------------- |
-| `npm run format`       | Format source, scripts, configuration, and docs with Prettier     |
-| `npm run format:check` | Check formatting without changing files                           |
-| `npm run lint`         | Existing Next.js/TypeScript ESLint rules                          |
-| `npm run typecheck`    | Next route type generation and strict TypeScript                  |
-| `npm test`             | Auth, membership, itinerary/DST, and light-theme contrast scripts |
-| `npm run build`        | Production compilation and prerendering                           |
-| `npm start`            | Serve an existing production build                                |
+| Command                | Coverage                                                                         |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| `npm run format`       | Format source, scripts, configuration, and docs with Prettier                    |
+| `npm run format:check` | Check formatting without changing files                                          |
+| `npm run lint`         | Existing Next.js/TypeScript ESLint rules                                         |
+| `npm run typecheck`    | Next route type generation and strict TypeScript                                 |
+| `npm test`             | Auth, membership, itinerary/DST, light-theme contrast, Prep, and expense scripts |
+| `npm run build`        | Production compilation and prerendering                                          |
+| `npm start`            | Serve an existing production build                                               |
 
 Prettier uses its default style from `.prettierrc.json` and skips Git-ignored
 files plus the exclusions in `.prettierignore`. Run `npm run format` before

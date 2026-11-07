@@ -68,9 +68,11 @@ their existing layouts and behavior.
   behavior. Distinguish an empty account from empty search/status results. Provide
   reset, loading skeletons, safe errors and retry, pagination and visible focus.
 - Open trips into the existing itinerary, directly below the shared trip summary,
-  with no view tabs or day-rail label. Expenses are reached from each activity;
-  the trip-wide list stays at `?view=expenses` but has no link for now. People and
-  Settings remain secondary and available in both views.
+  with no day-rail label. A pill Itinerary | Expenses | Prep switch sits under the
+  summary on mobile and desktop; Expenses opens the read-only trip expenses page at
+  `?view=expenses`, and Prep opens the group's task list at `?view=prep`. Expense
+  management stays inside each activity. People and Settings remain secondary and
+  available in every view.
   The following itinerary requirements describe the approved Step 2 implementation.
 - Activity cards use 16px mobile padding and 20px desktop padding with a 128px
   desktop minimum height, semibold 18px mobile and 20px desktop titles and 16px
@@ -183,7 +185,18 @@ their existing layouts and behavior.
 - To-dos are simple text items: add, rename, or remove them in the existing
   activity form, then Save. Do not show checkboxes, completion counts, status
   labels, or strikethroughs. Preserve historical completion values in storage.
+  This applies to activity to-dos only; Prep tasks are a separate trip-level list.
   Existing Sleeping activities retain their label and edit as a custom category.
+- Prep splits tasks into To do and Done. An everyone task shows your checkbox, "3 of
+  5 ready", and "Still to do" names. A one-person task shows Claim while open, a
+  checkbox and Drop when it's yours, a name when it's someone else's, and "Done by"
+  when finished. People only tick their own tasks; editors reopen others' finished
+  tasks with Reopen. Owners and editors manage tasks from each row's options and add
+  them with Add task, which is the same right-aligned mobile pill as Add activity.
+  A task's optional activity and date show under its title. Both are set in the
+  add/edit form, where the date is a list of the trip's days and the activity
+  picker's own loading or failure never blocks saving. Viewers get read-only rows and a one-line note. A task that changed underneath
+  someone shows a notice above the list, refreshes it, and keeps the page in place.
 - The People dialog shows the owner's invite form, then one row per person, then
   pending invitations only, omitting that section when there are none. Explain role
   capabilities inside the role dropdown rather than on every row. Transfer ownership
@@ -209,7 +222,7 @@ their existing layouts and behavior.
   sheets for short interactions, and bounded desktop dialogs where appropriate.
 - Use persistent labels, 16px mobile input text, associated errors, and explicit
   required formats. Preserve entered values and selected day after recoverable
-  errors. Confirm unsaved-work dismissal and destructive consequences.
+  errors. Confirm destructive consequences.
 - Show submission progress, block duplicate submissions, and announce success
   or errors accessibly. Never imply an unsaved change was saved.
 - Preserve loading, empty, error, permission-denied, and not-found states with
@@ -273,8 +286,21 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
   both in one transaction. Preserve drafts on errors,
   submission keys across retries, and focus when dialogs close. Review paid-cost
   balance changes before saving; retain payments and show resulting credits.
-- Keep trip-wide To pay and Owed to me lists on the `?view=expenses` page. Inside an activity,
-  My Expenses shows every own expense share, including fully paid items, plus
+- The `?view=expenses` page is a read-only Splitwise-style overview: a pale sea
+  balance panel per currency that leads with Overall expenses in large type, the
+  trip's total spending. Under it, Balance (red) is what you still have to pay,
+  including money you borrowed, and To receive (teal) is what you should get back,
+  whether lent or owed to you.
+  Below it, one flat Expenses list from the signed-in person's view, newest
+  first: each own expense share with what is still owed on it, money lent or
+  borrowed with the amount left, people who owe a reimbursement, and settlements
+  paid or received. A pill segmented control (All, Upcoming, You owe, Owed to
+  you, Settled) filters the list. Upcoming means the record date is after today
+  in the trip zone. Per-person rows and category totals were dropped; People
+  stays in the header dialog.
+  Rows are read-only and do not link anywhere for now; Mark as paid, View
+  payments and Add expense live inside each activity.
+  Inside an activity, My Expenses shows every own expense share, including fully paid items, plus
   money owed and receivable from reimbursements and loans. Paid means the settled
   part of the signed-in person's expense shares, not their cash outlay or loans.
   Keep currencies separate and credits explicitly labeled for review.

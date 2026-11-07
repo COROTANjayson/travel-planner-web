@@ -11,7 +11,6 @@ export function PlaceSection({
   section,
   place,
   setPlace,
-  markDirty,
   query,
   setQuery,
   search,
@@ -24,7 +23,6 @@ export function PlaceSection({
   section?: "details" | "place" | "notes" | "checklist";
   place: Place | null;
   setPlace: (place: Place | null) => void;
-  markDirty: () => void;
   query: string;
   setQuery: (query: string) => void;
   search: () => Promise<void>;
@@ -52,7 +50,6 @@ export function PlaceSection({
               className="mt-2 min-h-11"
               onClick={() => {
                 setPlace(null);
-                markDirty();
               }}
             >
               Clear place

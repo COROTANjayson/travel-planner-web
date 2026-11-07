@@ -81,6 +81,34 @@ export function activityInput(input: ActivityInput): ActivityInput {
   };
 }
 
+export const allActivitiesKey = (tripID: number) => [
+  "trip",
+  tripID,
+  "activities",
+  "all",
+];
+
+/** Every activity on the trip, in start order. The API pages at 100. */
+export async function allActivities(
+  api: ReturnType<typeof useApi>,
+  tripID: number,
+  signal?: AbortSignal,
+) {
+  const all: Activity[] = [];
+  for (let offset = 0; ; offset += 100) {
+    const page = await api<Activity[]>(
+      `/api/v1/trips/${tripID}/activities?limit=100&offset=${offset}`,
+      { signal },
+    );
+    if (!page) throw new ApiError(500, "Unable to load activities.");
+    all.push(...page);
+    if (page.length < 100)
+      return all.sort(
+        (a, b) => a.starts_at.localeCompare(b.starts_at) || a.id - b.id,
+      );
+  }
+}
+
 export function useItineraryApi(
   tripID: number,
   onFailure: (error: Error) => void | Promise<void>,

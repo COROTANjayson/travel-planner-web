@@ -10,8 +10,8 @@ import {
 } from "@/lib/memberships";
 import { Button } from "@/components/ui/button";
 import { Confirmation } from "@/components/features/memberships/confirmation-dialog";
-import { PersonOptions } from "@/components/features/memberships/person-options";
 import { RoleSelect } from "@/components/features/memberships/role-select";
+import { OptionsMenu } from "@/components/shared/options-menu";
 import { TripError } from "@/components/shared/trip-states";
 
 export function Participants({
@@ -80,17 +80,26 @@ export function Participants({
                       void api.updateRole(person.user_id, role).catch(() => {});
                   }}
                 />
-                <PersonOptions
+                <OptionsMenu
                   name={participantName(person)}
                   disabled={api.pending}
-                  onTransfer={() => {
-                    api.reset();
-                    setConfirm({ action: "transfer", person });
-                  }}
-                  onRemove={() => {
-                    api.reset();
-                    setConfirm({ action: "remove", person });
-                  }}
+                  items={[
+                    {
+                      label: "Transfer ownership",
+                      onClick: () => {
+                        api.reset();
+                        setConfirm({ action: "transfer", person });
+                      },
+                    },
+                    {
+                      label: "Remove",
+                      destructive: true,
+                      onClick: () => {
+                        api.reset();
+                        setConfirm({ action: "remove", person });
+                      },
+                    },
+                  ]}
                 />
               </div>
             ) : (

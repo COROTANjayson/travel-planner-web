@@ -67,3 +67,12 @@ export function expenseMoney(
       : text;
   return currency.code === "PHP" ? trimmed.replace(/^PHP /, "₱") : trimmed;
 }
+
+/** Formats amounts in any of `currencies`; an unknown code falls back to 2 decimals. */
+export const moneyIn =
+  (currencies: { code: string; decimals: number }[]) =>
+  (amount: string | bigint, code: string) =>
+    expenseMoney(
+      String(amount),
+      currencies.find((c) => c.code === code) ?? { code, decimals: 2 },
+    );

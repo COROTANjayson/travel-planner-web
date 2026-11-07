@@ -5,7 +5,6 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createLoader, isAutoLoaded } from "./lib/load.mjs";
 const require = createRequire(import.meta.url);
-let confirmDiscard = false;
 let activityRequestNumber = 0;
 const successToasts = [];
 const sonnerMock = {
@@ -21,9 +20,7 @@ const load = createLoader({
     Intl,
     Error,
     TextEncoder,
-    HTMLElement: Object,
     requestAnimationFrame: (callback) => callback(),
-    window: { confirm: () => confirmDiscard },
   },
 });
 const time = load("src/lib/activity-time.ts");
@@ -1269,15 +1266,8 @@ console.log(
   "Custom hours, overnight/multi-day ends, validation, presets, failed-save recovery, precision and DST passed.",
 );
 
-let dirtyChanges = 0;
-const checklistProps = {
-  ...durationProps,
-  onDirty() {
-    dirtyChanges++;
-  },
-};
 const checklistForm = (extra = {}) =>
-  durationForm({ ...checklistProps, ...extra });
+  durationForm({ ...durationProps, ...extra });
 const checklistButton = (label) =>
   nodes(checklistForm()).find((node) =>
     React.Children.toArray(node.props.children).includes(label),
@@ -1326,14 +1316,6 @@ assert.equal(
   checklistField("To-do item 1").props.value,
   "Visit museum",
   "Removing an item retains the following item's draft",
-);
-checklistForm().props.onChangeCapture({
-  target: {},
-  currentTarget: { contains: () => true },
-});
-assert.ok(
-  dirtyChanges >= 4,
-  "Add/remove and native changes participate in discard protection",
 );
 for (const text of [" ", "é".repeat(101)]) {
   submitted = undefined;
@@ -2091,14 +2073,8 @@ detailActions()
   .find((node) => node.props["aria-label"] === "Edit activity details")
   .props.onClick();
 assert.equal(inlineForm().props.initialValue, activity);
-inlineForm().props.onDirty();
 inlineForm().props.onCancel();
-assert.ok(inlineForm(), "Unsaved edits require discard confirmation");
-details().props.onOpenChange(false);
-assert.ok(inlineForm(), "Dismissal also protects unsaved edits");
-confirmDiscard = true;
-inlineForm().props.onCancel();
-assert.equal(inlineForm(), undefined, "Confirmed discard returns to reading");
+assert.equal(inlineForm(), undefined, "Cancel returns to reading");
 assert.equal(details().props.open, true);
 openDetails();
 detailActions()
@@ -2470,12 +2446,15 @@ let detailQuery = {
 const detailItinerary = () =>
   React.createElement("div", null, "Itinerary view");
 const detailExpenses = () => React.createElement("div", null, "Expenses view");
+const detailPrep = () => React.createElement("div", null, "Prep view");
 let detailView = "";
 const detailRoute = load("src/app/trips/[tripID]/page.tsx", {
   ...primitiveMocks,
   "next/link": {
-    default: ({ children, ...props }) =>
-      React.createElement("a", props, children),
+    default: ({ children, scroll, ...props }) => {
+      void scroll;
+      return React.createElement("a", props, children);
+    },
   },
   "next/navigation": {
     useParams: () => ({ tripID: "7" }),
@@ -2522,6 +2501,7 @@ const detailRoute = load("src/app/trips/[tripID]/page.tsx", {
   "@/lib/memberships": { ...membership, useMembershipsApi: () => ({}) },
   "@/components/features/itinerary/itinerary": { Itinerary: detailItinerary },
   "@/components/features/expenses/expenses": { Expenses: detailExpenses },
+  "@/components/features/prep/prep": { Prep: detailPrep },
   "@/components/features/memberships/participants": {
     Participants: wrap("div"),
   },
@@ -2663,6 +2643,50 @@ assert.equal(
 assert.ok(
   nodes(expenseTree).some((node) => node.props.children === "Trip expenses"),
 );
+assert.equal(
+  nodes(expenseTree).find((node) => node.props["aria-current"] === "page").props
+    .href,
+  "/trips/7?view=expenses",
+  "The view switch marks Expenses as current",
+);
+detailView = "";
+assert.equal(
+  nodes(detailTree()).find((node) => node.props["aria-current"] === "page")
+    .props.href,
+  "/trips/7",
+  "The view switch marks Itinerary as current",
+);
+assert.equal(
+  nodes(detailTree()).some((node) => node.type === detailPrep),
+  false,
+  "Prep only renders in its own view",
+);
+detailView = "view=prep";
+const prepTree = nodes(detailTree());
+assert.equal(
+  prepTree.find((node) => node.type === detailPrep).props.canEdit,
+  true,
+);
+assert.equal(
+  prepTree.some((node) => node.type === detailItinerary),
+  false,
+);
+assert.equal(
+  prepTree.find((node) => node.type === detailExpenses).props.active,
+  false,
+);
+assert.ok(prepTree.some((node) => node.props.children === "Trip prep"));
+assert.equal(
+  prepTree.find((node) => node.props["aria-current"] === "page").props.href,
+  "/trips/7?view=prep",
+  "The view switch marks Prep as current",
+);
+detailView = "view=prep&activity=3";
+assert.ok(
+  nodes(detailTree()).some((node) => node.type === detailItinerary),
+  "An activity link still opens over the itinerary",
+);
+detailView = "";
 assert.ok(nodes(expenseTree).some((node) => node.props.title === "People"));
 detailView = "view=unknown";
 assert.equal(
@@ -2761,14 +2785,9 @@ const retryProps = {
   onSubmit: (input, key) => activityAttempts.push({ input, key }),
 };
 durationForm(retryProps).props.onSubmit({ preventDefault() {} });
-let retryForm = durationForm(retryProps);
-nodes(retryForm)
+nodes(durationForm(retryProps))
   .find((node) => node.props.id === "activity-title")
   .props.onChange({ target: { value: "Edited after failed save" } });
-retryForm.props.onChangeCapture({
-  target: {},
-  currentTarget: { contains: () => true },
-});
 durationForm(retryProps).props.onSubmit({ preventDefault() {} });
 nodes(durationForm(retryProps))
   .find((node) => node.type?.name === "ActivityExpenseDrafts")

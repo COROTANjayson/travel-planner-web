@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/select";
 
 const roleHelp: Record<AssignableRole, string> = {
-  editor: "Can change the trip, activities, and all expenses",
-  member: "Can view plans and record expenses and payments",
+  editor: "Can change the trip, activities, prep tasks, and all expenses",
+  member: "Can view plans, take prep tasks, and record expenses and payments",
   viewer: "Can view the trip but can't change anything",
 };
 

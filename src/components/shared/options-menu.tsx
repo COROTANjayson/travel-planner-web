@@ -10,16 +10,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-export function PersonOptions({
+export function OptionsMenu({
   name,
   disabled,
-  onTransfer,
-  onRemove,
+  items,
 }: {
   name: string;
-  disabled: boolean;
-  onTransfer: () => void;
-  onRemove: () => void;
+  disabled?: boolean;
+  items: { label: string; onClick: () => void; destructive?: boolean }[];
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -29,7 +27,7 @@ export function PersonOptions({
         render={
           <Button
             variant="ghost"
-            className="size-11 min-h-11"
+            className="size-11 min-h-11 shrink-0"
             aria-label={`More options for ${name}`}
           />
         }
@@ -41,26 +39,19 @@ export function PersonOptions({
         className="w-56 max-w-[calc(100vw-3rem)] gap-0 p-1"
       >
         <PopoverTitle className="sr-only">Options for {name}</PopoverTitle>
-        <Button
-          variant="ghost"
-          className="min-h-11 w-full justify-start"
-          onClick={() => {
-            setOpen(false);
-            onTransfer();
-          }}
-        >
-          Transfer ownership
-        </Button>
-        <Button
-          variant="ghost"
-          className="min-h-11 w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
-          onClick={() => {
-            setOpen(false);
-            onRemove();
-          }}
-        >
-          Remove
-        </Button>
+        {items.map((item) => (
+          <Button
+            key={item.label}
+            variant="ghost"
+            className={`min-h-11 w-full justify-start${item.destructive ? " text-destructive hover:bg-destructive/10 hover:text-destructive" : ""}`}
+            onClick={() => {
+              setOpen(false);
+              item.onClick();
+            }}
+          >
+            {item.label}
+          </Button>
+        ))}
       </PopoverContent>
     </Popover>
   );
