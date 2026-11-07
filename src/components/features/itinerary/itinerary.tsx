@@ -5,31 +5,22 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { ActivityExpenseView } from "@/components/features/expenses/activity-expenses";
 import { useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
-import {
-  MapPin,
-  CalendarCheck,
-  CalendarDays,
-  ChevronRight,
-  Plus,
-  Pencil,
-} from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { type Activity, useItineraryApi } from "@/lib/itinerary";
 import {
   boundary,
-  dateLabel,
-  formatActivityDuration,
   fullDateLabel,
   localDate,
   moveDate,
-  timeLabel,
 } from "@/lib/activity-time";
 import type { Participant } from "@/lib/memberships";
 import { type Trip } from "@/lib/trips";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { ActivityTimeline } from "@/components/features/itinerary/activity-timeline";
+import { DayRail } from "@/components/features/itinerary/day-rail";
+import { DayTools } from "@/components/features/itinerary/day-tools";
 import { ActivityForm } from "@/components/features/itinerary/activity-form/activity-form";
-import { CategoryBadge } from "@/components/features/itinerary/category-badge";
 import { DayConflictsDialog } from "@/components/features/itinerary/dialogs/day-conflicts-dialog";
 import { DayMapDialog } from "@/components/features/itinerary/dialogs/day-map-dialog";
 import { DayOptionsDialog } from "@/components/features/itinerary/dialogs/day-options-dialog";
@@ -284,60 +275,20 @@ export function Itinerary({
   };
 
   const dayTools = (
-    <nav
-      aria-label={`Tools for ${dateLabel(selected)}`}
-      className="flex flex-wrap gap-1"
-    >
-      {today >= trip.start_date &&
-        today <= trip.end_date &&
-        selected !== today && (
-          <Button
-            type="button"
-            variant="ghost"
-            className="min-h-11 px-2"
-            onClick={() => {
-              setDayOptionsOpen(false);
-              setSelected(today);
-            }}
-          >
-            <CalendarDays aria-hidden="true" />
-            Today
-          </Button>
-        )}
-      <Button
-        variant="ghost"
-        className="min-h-11 px-2"
-        onClick={(event) => {
-          dayToolTrigger.current = dayOptionsOpen
-            ? dayOptionsTrigger.current
-            : event.currentTarget;
-          setDayOptionsOpen(false);
-          setMapOpen(true);
-        }}
-      >
-        <MapPin aria-hidden="true" />
-        View map
-      </Button>
-      {(conflicts.isError || dayConflicts.length > 0) && (
-        <Button
-          variant="ghost"
-          className="day-tool-overlaps min-h-11 px-2"
-          onClick={(event) => {
-            dayToolTrigger.current = dayOptionsOpen
-              ? dayOptionsTrigger.current
-              : event.currentTarget;
-            setDayOptionsOpen(false);
-            setConflictsOpen(true);
-          }}
-        >
-          <CalendarCheck aria-hidden="true" />
-          Overlaps
-          <span className="rounded-full px-2 py-0.5 text-xs">
-            {conflicts.isError ? "Unavailable" : dayConflicts.length}
-          </span>
-        </Button>
-      )}
-    </nav>
+    <DayTools
+      trip={trip}
+      selected={selected}
+      today={today}
+      setSelected={setSelected}
+      dayOptionsOpen={dayOptionsOpen}
+      setDayOptionsOpen={setDayOptionsOpen}
+      setMapOpen={setMapOpen}
+      setConflictsOpen={setConflictsOpen}
+      conflictsFailed={conflicts.isError}
+      dayConflictCount={dayConflicts.length}
+      dayToolTriggerRef={dayToolTrigger}
+      dayOptionsTriggerRef={dayOptionsTrigger}
+    />
   );
   const dayToolDialogs = (
     <>
@@ -485,44 +436,15 @@ export function Itinerary({
         aria-labelledby="itinerary-heading"
         className="itinerary-workspace"
       >
-        <nav className="itinerary-days" aria-label="Choose itinerary day">
-          <div className="day-rail" ref={dayRail}>
-            {dates.map((date) => {
-              const count = (activities.data ?? []).filter(
-                (activity) =>
-                  localDate(activity.starts_at, trip.time_zone) === date,
-              ).length;
-              return (
-                <button
-                  key={date}
-                  type="button"
-                  className="itinerary-day"
-                  aria-current={date === selected ? "date" : undefined}
-                  aria-label={`${dateLabel(date)}${date === today ? ", Today" : ""}`}
-                  onClick={() => setSelected(date)}
-                >
-                  <span className="day-weekday">
-                    {new Intl.DateTimeFormat(undefined, {
-                      weekday: "short",
-                      timeZone: "UTC",
-                    }).format(new Date(`${date}T12:00:00Z`))}
-                    {date === today && " · Today"}
-                  </span>
-                  <span className="day-number">{Number(date.slice(-2))}</span>
-                  <span className="day-plan">
-                    {activities.isSuccess
-                      ? count
-                        ? `${count} planned`
-                        : "Open day"
-                      : activities.isPending
-                        ? "Loading…"
-                        : "Unavailable"}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </nav>
+        <DayRail
+          trip={trip}
+          dates={dates}
+          selected={selected}
+          today={today}
+          setSelected={setSelected}
+          activitiesQuery={activities}
+          dayRail={dayRail}
+        />
         <div className="itinerary-agenda">
           <div className="itinerary-toolbar flex flex-wrap items-center justify-between gap-2">
             <h2 id="itinerary-heading" className="sr-only">
@@ -606,134 +528,15 @@ export function Itinerary({
               />
             ) : (
               <>
-                <div aria-label="Trip dates" className="itinerary-board pb-3">
-                  {[selected].map((date) => {
-                    const dayActivities = selectedActivities;
-                    return (
-                      <section
-                        key={date}
-                        data-date={date}
-                        aria-label={dateLabel(date)}
-                        className="day-column"
-                      >
-                        <div
-                          id={`day-${date}-details`}
-                          role="region"
-                          aria-labelledby={`day-${date}-heading`}
-                          className="space-y-3"
-                        >
-                          {dayActivities.length === 0 ? (
-                            <div className="day-empty">
-                              <p className="font-semibold">
-                                Nothing planned yet
-                              </p>
-                              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                                {canEdit
-                                  ? "Add your first activity to start planning this day."
-                                  : "Activities will appear here when an editor adds them."}
-                              </p>
-                            </div>
-                          ) : (
-                            <ul className="space-y-4">
-                              {dayActivities.map((activity) => {
-                                return (
-                                  <li
-                                    key={activity.id}
-                                    className="timeline-entry"
-                                  >
-                                    <p className="timeline-time">
-                                      <time dateTime={activity.starts_at}>
-                                        {timeLabel(
-                                          activity.starts_at,
-                                          trip.time_zone,
-                                        )}
-                                      </time>{" "}
-                                      <span className="timeline-time-end">
-                                        <span className="md:sr-only">– </span>
-                                        <time dateTime={activity.ends_at}>
-                                          {timeLabel(
-                                            activity.ends_at,
-                                            trip.time_zone,
-                                          )}
-                                        </time>
-                                      </span>
-                                      {localDate(
-                                        activity.ends_at,
-                                        trip.time_zone,
-                                      ) > date && (
-                                        <span className="timeline-end-date">
-                                          {" "}
-                                          · ends{" "}
-                                          {dateLabel(
-                                            localDate(
-                                              activity.ends_at,
-                                              trip.time_zone,
-                                            ),
-                                          )}
-                                        </span>
-                                      )}
-                                    </p>
-                                    <Card className="relative min-w-0 gap-0 ring-0">
-                                      <CardContent className="px-3">
-                                        <button
-                                          type="button"
-                                          className="absolute inset-0 cursor-pointer rounded-2xl outline-none transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-                                          aria-label={`View details for ${activity.title}`}
-                                          aria-haspopup="dialog"
-                                          data-selected={
-                                            viewing === activity.id || undefined
-                                          }
-                                          onClick={(event) => {
-                                            detailTrigger.current =
-                                              event.currentTarget;
-                                            setViewing(activity.id);
-                                          }}
-                                        />
-                                        <div className="activity-card-body pointer-events-none relative">
-                                          <div className="activity-card-meta">
-                                            <CategoryBadge
-                                              category={activity.category}
-                                            />
-                                            <span className="activity-card-actions">
-                                              <span className="activity-duration">
-                                                {formatActivityDuration(
-                                                  activity.starts_at,
-                                                  activity.ends_at,
-                                                )}
-                                              </span>
-                                              <ChevronRight
-                                                aria-hidden="true"
-                                                className="activity-open-cue"
-                                              />
-                                            </span>
-                                          </div>
-                                          <h4 className="break-words text-lg leading-7 font-semibold md:text-xl">
-                                            {activity.title}
-                                          </h4>
-                                          {activity.place && (
-                                            <p className="flex items-start gap-2 text-sm text-muted-foreground">
-                                              <MapPin
-                                                aria-hidden="true"
-                                                className="mt-0.5 size-4 shrink-0"
-                                              />
-                                              <span className="min-w-0 break-words">
-                                                {activity.place.name}
-                                              </span>
-                                            </p>
-                                          )}
-                                        </div>
-                                      </CardContent>
-                                    </Card>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          )}
-                        </div>
-                      </section>
-                    );
-                  })}
-                </div>
+                <ActivityTimeline
+                  trip={trip}
+                  selected={selected}
+                  selectedActivities={selectedActivities}
+                  canEdit={canEdit}
+                  viewing={viewing}
+                  setViewing={setViewing}
+                  detailTriggerRef={detailTrigger}
+                />
               </>
             ))}
           {canEdit && !unavailable && activities.isSuccess && (
