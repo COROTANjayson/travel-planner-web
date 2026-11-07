@@ -14,8 +14,8 @@ import {
 } from "@/lib/expenses";
 import { equalShares, expenseMoney } from "@/lib/money";
 import { Button } from "@/components/ui/button";
-import { ExpenseCostEditor } from "./expense-cost-editor";
-import { TripError } from "./trip-states";
+import { ExpenseCostEditor } from "@/components/features/expenses/drawers/cost-editor/expense-cost-editor";
+import { TripError } from "@/components/shared/trip-states";
 
 export function ActivityExpenseDrafts({
   tripID,

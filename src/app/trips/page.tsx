@@ -24,7 +24,7 @@ import {
 } from "@/lib/trips";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { TripError, TripLoading } from "@/components/trips/trip-states";
+import { TripError, TripLoading } from "@/components/shared/trip-states";
 import { Input } from "@/components/ui/input";
 
 type Status = "All" | TripStatus;

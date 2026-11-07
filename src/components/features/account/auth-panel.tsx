@@ -13,7 +13,7 @@ import {
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { TripDialog } from "@/components/trips/trip-dialog";
+import { TripDialog } from "@/components/shared/trip-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Popover,

@@ -6,8 +6,8 @@ import { ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TripError } from "./trip-states";
-import { ExpenseSelect } from "./expense-forms";
+import { TripError } from "@/components/shared/trip-states";
+import { ExpenseSelect } from "@/components/features/expenses/expense-forms";
 import {
   allocatePayment,
   uncovered,

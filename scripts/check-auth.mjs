@@ -39,7 +39,7 @@ const mocks = {
       ],
     ),
   ),
-  "@/components/trips/trip-dialog": {
+  "@/components/shared/trip-dialog": {
     TripDialog: ({ children, trigger }) =>
       React.createElement("section", null, trigger, children),
   },
@@ -47,11 +47,15 @@ const mocks = {
   react: { ...React, useState: () => [undefined, () => {}] },
 };
 const context = {
-  exports: createLoader()("src/components/auth-panel.tsx", mocks, {
-    window: {
-      location: { origin: "http://localhost:3000", pathname: "/trips" },
+  exports: createLoader()(
+    "src/components/features/account/auth-panel.tsx",
+    mocks,
+    {
+      window: {
+        location: { origin: "http://localhost:3000", pathname: "/trips" },
+      },
     },
-  }),
+  ),
 };
 const panel = () => context.exports.AuthPanel({});
 const html = () => renderToStaticMarkup(panel());

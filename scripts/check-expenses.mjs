@@ -329,25 +329,28 @@ const wrap = (tag) =>
   };
 const ExpenseSelect = (props) => React.createElement("div", null, props.label);
 // The real component hides non-ApiError text, so user-written messages must be ApiErrors.
-const { TripError } = load("src/components/trips/trip-states.tsx", {
+const { TripError } = load("src/components/shared/trip-states.tsx", {
   "next/link": { default: wrap("a") },
   "@/lib/api": apiMock,
   "@/components/ui/alert": { Alert: wrap("div"), AlertDescription: wrap("p") },
   "@/components/ui/button": { Button: wrap("button") },
   "@/components/ui/skeleton": { Skeleton: wrap("div") },
 });
-const formModule = load("src/components/trips/activity-expense-form.tsx", {
-  react: formReact,
-  "@/lib/api": apiMock,
-  "@/lib/activity-expenses": activity,
-  "@/lib/expenses": ledger,
-  "@/lib/money": money,
-  "./expense-forms": { ExpenseSelect },
-  "./trip-states": { TripError },
-  "@/components/ui/button": { Button: wrap("button") },
-  "@/components/ui/input": { Input: wrap("input") },
-  "@/components/ui/label": { Label: wrap("label") },
-});
+const formModule = load(
+  "src/components/features/expenses/activity-expense-form/activity-expense-form.tsx",
+  {
+    react: formReact,
+    "@/lib/api": apiMock,
+    "@/lib/activity-expenses": activity,
+    "@/lib/expenses": ledger,
+    "@/lib/money": money,
+    "@/components/features/expenses/expense-forms": { ExpenseSelect },
+    "@/components/shared/trip-states": { TripError },
+    "@/components/ui/button": { Button: wrap("button") },
+    "@/components/ui/input": { Input: wrap("input") },
+    "@/components/ui/label": { Label: wrap("label") },
+  },
+);
 function nodes(el) {
   if (!React.isValidElement(el)) return [];
   const children = isAutoLoaded(el.type)
@@ -473,7 +476,7 @@ const CostEditor = () => null;
 const PaymentWorkspace = () => null;
 const PersonalPayments = () => null;
 const view = load(
-  "src/components/trips/expenses.tsx",
+  "src/components/features/expenses/expenses.tsx",
   {
     react: formReact,
     "next/link": {
@@ -504,17 +507,23 @@ const view = load(
     "@/lib/activity-expenses": activity,
     "@/lib/money": money,
     "@/components/ui/button": { Button: wrap("button") },
-    "./trip-dialog": {
+    "@/components/shared/trip-dialog": {
       TripDialog: ({ open, children }) => (open ? children : null),
     },
-    "./trip-states": { TripError },
-    "./expense-forms": { ExpenseSelect },
-    "./activity-expense-form": formModule,
-    "./expense-cost-editor": { ExpenseCostEditor: CostEditor },
-    "./expense-payment-workspace": {
-      ExpensePaymentWorkspace: PaymentWorkspace,
+    "@/components/shared/trip-states": { TripError },
+    "@/components/features/expenses/expense-forms": { ExpenseSelect },
+    "@/components/features/expenses/activity-expense-form/activity-expense-form":
+      formModule,
+    "@/components/features/expenses/drawers/cost-editor/expense-cost-editor": {
+      ExpenseCostEditor: CostEditor,
     },
-    "./personal-payments": { PersonalPayments },
+    "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace":
+      {
+        ExpensePaymentWorkspace: PaymentWorkspace,
+      },
+    "@/components/features/expenses/personal-payments/personal-payments": {
+      PersonalPayments,
+    },
   },
   {
     document: { activeElement: null, querySelector: () => null },
@@ -782,9 +791,11 @@ console.log(
 const confirms = [];
 let confirmAnswer = true;
 const approved = load(
-  "src/components/trips/expense-cost-editor.tsx",
+  "src/components/features/expenses/drawers/cost-editor/expense-cost-editor.tsx",
   {
-    "./expense-fields": { ExpensePriceField: wrap("input") },
+    "@/components/features/expenses/expense-fields": {
+      ExpensePriceField: wrap("input"),
+    },
     react: { ...formReact, useId: () => "expense" },
     "@/lib/api": apiMock,
     "@/lib/expenses": ledger,
@@ -804,9 +815,11 @@ const approved = load(
       ),
       SelectContent: ({ children }) => children,
     },
-    "./trip-dialog": { TripDialog: ({ children }) => children },
-    "./expense-forms": { ExpenseSelect },
-    "./trip-states": { TripError },
+    "@/components/shared/trip-dialog": {
+      TripDialog: ({ children }) => children,
+    },
+    "@/components/features/expenses/expense-forms": { ExpenseSelect },
+    "@/components/shared/trip-states": { TripError },
   },
   {
     window: {
@@ -1275,10 +1288,13 @@ assert.ok(
   "Removed activities retain their historical association editor",
 );
 
-const readingFields = load("src/components/trips/expense-fields.tsx", {
-  "@/components/ui/input": { Input: wrap("input") },
-  "@/lib/money": money,
-});
+const readingFields = load(
+  "src/components/features/expenses/expense-fields.tsx",
+  {
+    "@/components/ui/input": { Input: wrap("input") },
+    "@/lib/money": money,
+  },
+);
 assert.match(
   renderToStaticMarkup(
     readingFields.ExpensePriceField({
@@ -1402,7 +1418,7 @@ const paymentApi = {
   },
 };
 const paymentModule = load(
-  "src/components/trips/expense-payment-workspace.tsx",
+  "src/components/features/expenses/drawers/payment-workspace/expense-payment-workspace.tsx",
   {
     react: { ...formReact, useId: () => "payment" },
     "@/lib/api": apiMock,
@@ -1421,13 +1437,15 @@ const paymentModule = load(
     "@/lib/money": money,
     "@/components/ui/button": { Button: wrap("button") },
     "@/components/ui/label": { Label: wrap("label") },
-    "./expense-fields": {
+    "@/components/features/expenses/expense-fields": {
       ExpensePriceField: wrap("input"),
       ExpenseDateField: wrap("input"),
     },
-    "./expense-forms": { ExpenseSelect },
-    "./trip-dialog": { TripDialog: ({ children }) => children },
-    "./trip-states": { TripError },
+    "@/components/features/expenses/expense-forms": { ExpenseSelect },
+    "@/components/shared/trip-dialog": {
+      TripDialog: ({ children }) => children,
+    },
+    "@/components/shared/trip-states": { TripError },
   },
   { crypto },
 );
@@ -1801,7 +1819,7 @@ assert.ok(
 );
 
 const personalModule = load(
-  "src/components/trips/personal-payments.tsx",
+  "src/components/features/expenses/personal-payments/personal-payments.tsx",
   {
     react: formReact,
     "@/lib/api": apiMock,
@@ -1809,11 +1827,13 @@ const personalModule = load(
     "@/lib/expenses": { ...ledger, useExpensesApi: () => viewApi },
     "@/lib/money": money,
     "@/components/ui/button": { Button: wrap("button") },
-    "./activity-expense-form": formModule,
-    "./expense-payment-workspace": {
-      ExpensePaymentWorkspace: PaymentWorkspace,
-    },
-    "./trip-dialog": {
+    "@/components/features/expenses/activity-expense-form/activity-expense-form":
+      formModule,
+    "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace":
+      {
+        ExpensePaymentWorkspace: PaymentWorkspace,
+      },
+    "@/components/shared/trip-dialog": {
       TripDialog: ({ open, children }) => (open ? children : null),
     },
   },

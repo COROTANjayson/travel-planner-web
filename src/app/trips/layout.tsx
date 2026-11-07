@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAuth0 } from "@auth0/auth0-react";
 import { type ReactNode } from "react";
-import { AuthPanel } from "@/components/auth-panel";
+import { AuthPanel } from "@/components/features/account/auth-panel";
 import { Compass } from "lucide-react";
 
 export default function TripsLayout({ children }: { children: ReactNode }) {

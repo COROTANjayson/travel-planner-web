@@ -9,7 +9,7 @@ import {
   Sparkles,
   Utensils,
 } from "lucide-react";
-import { AuthPanel } from "@/components/auth-panel";
+import { AuthPanel } from "@/components/features/account/auth-panel";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 

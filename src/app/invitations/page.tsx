@@ -7,7 +7,7 @@ import { type ApiUser, useApi } from "@/lib/api";
 import { type ReceivedInvitation, useMembershipsApi } from "@/lib/memberships";
 import { formatTripDates } from "@/lib/trips";
 import { Button } from "@/components/ui/button";
-import { TripError } from "@/components/trips/trip-states";
+import { TripError } from "@/components/shared/trip-states";
 
 export default function InvitationsPage() {
   const request = useApi();

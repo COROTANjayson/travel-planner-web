@@ -6,7 +6,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
 import { useApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { ExpenseDateField, ExpensePriceField } from "./expense-fields";
+import {
+  ExpenseDateField,
+  ExpensePriceField,
+} from "@/components/features/expenses/expense-fields";
 import { Label } from "@/components/ui/label";
 import { expenseMoney, moneyInput, parseMoney } from "@/lib/money";
 import {
@@ -21,9 +24,9 @@ import {
 } from "@/lib/expenses";
 import type { Participant } from "@/lib/memberships";
 import type { Trip } from "@/lib/trips";
-import { ExpenseSelect } from "./expense-forms";
-import { TripDialog } from "./trip-dialog";
-import { TripError } from "./trip-states";
+import { ExpenseSelect } from "@/components/features/expenses/expense-forms";
+import { TripDialog } from "@/components/shared/trip-dialog";
+import { TripError } from "@/components/shared/trip-states";
 
 type Context = {
   finalFocus?: () => HTMLElement | null;

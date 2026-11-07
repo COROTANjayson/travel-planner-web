@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTripsApi } from "@/lib/trips";
 import { Button } from "@/components/ui/button";
-import { TripForm } from "@/components/trips/trip-form";
+import { TripForm } from "@/components/features/trips/trip-form";
 
 export default function NewTripPage() {
   const api = useTripsApi();

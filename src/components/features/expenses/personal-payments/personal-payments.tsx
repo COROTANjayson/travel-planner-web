@@ -21,9 +21,9 @@ import type { Participant } from "@/lib/memberships";
 import type { Trip } from "@/lib/trips";
 import { expenseMoney } from "@/lib/money";
 import { Button } from "@/components/ui/button";
-import { ActivityExpenseForm } from "./activity-expense-form";
-import { ExpensePaymentWorkspace } from "./expense-payment-workspace";
-import { TripDialog } from "./trip-dialog";
+import { ActivityExpenseForm } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
+import { ExpensePaymentWorkspace } from "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace";
+import { TripDialog } from "@/components/shared/trip-dialog";
 
 export function PersonalPayments({
   trip,

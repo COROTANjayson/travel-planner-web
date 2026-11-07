@@ -267,7 +267,7 @@ const tripPage = load("src/app/trips/page.tsx", {
       ],
     ),
   ),
-  "@/components/trips/trip-states": { TripError() {}, TripLoading() {} },
+  "@/components/shared/trip-states": { TripError() {}, TripLoading() {} },
 });
 const today = require("@js-temporal/polyfill").Temporal.Now.plainDateISO("UTC");
 const tripFor = (id, start, end) => ({
@@ -764,75 +764,88 @@ const primitiveMocks = {
     ]),
   ),
   "@/components/ui/alert-dialog": {},
-  "./trip-dialog": {
+  "@/components/shared/trip-dialog": {
     TripDialog: ({ children, open }) =>
       open === false ? null : React.createElement("section", null, children),
   },
-  "./activity-form": {},
-  "./trip-states": { TripError: () => React.createElement("p", null, "Error") },
+  "@/components/features/itinerary/activity-form/activity-form": {},
+  "@/components/shared/trip-states": {
+    TripError: () => React.createElement("p", null, "Error"),
+  },
 };
 let activityFormState = null,
   activityHookIndex = 0,
   overlapQuery;
-const formModule = load("src/components/trips/activity-form.tsx", {
-  "./activity-expense-drafts": { ActivityExpenseDrafts: () => null },
-  ...primitiveMocks,
-  "@/lib/api": apiMock,
-  "@/lib/itinerary": itinerary,
-  "@tanstack/react-query": {
-    useQuery: (options) => {
-      overlapQuery = options;
-      return { data: [], isPending: false, isError: false };
+const formModule = load(
+  "src/components/features/itinerary/activity-form/activity-form.tsx",
+  {
+    "@/components/features/expenses/activity-expense-drafts": {
+      ActivityExpenseDrafts: () => null,
     },
-  },
-  react: {
-    useId: () => "activity",
-    useRef: (value) => {
-      if (!activityFormState) return { current: value };
-      const index = activityHookIndex++;
-      return (activityFormState[index] ??= { current: value });
+    ...primitiveMocks,
+    "@/lib/api": apiMock,
+    "@/lib/itinerary": itinerary,
+    "@tanstack/react-query": {
+      useQuery: (options) => {
+        overlapQuery = options;
+        return { data: [], isPending: false, isError: false };
+      },
     },
-    useState: (initial) => {
-      if (!activityFormState)
-        return [typeof initial === "function" ? initial() : initial, () => {}];
-      const index = activityHookIndex++;
-      if (!(index in activityFormState))
-        activityFormState[index] =
-          typeof initial === "function" ? initial() : initial;
-      return [
-        activityFormState[index],
-        (value) => {
+    react: {
+      useId: () => "activity",
+      useRef: (value) => {
+        if (!activityFormState) return { current: value };
+        const index = activityHookIndex++;
+        return (activityFormState[index] ??= { current: value });
+      },
+      useState: (initial) => {
+        if (!activityFormState)
+          return [
+            typeof initial === "function" ? initial() : initial,
+            () => {},
+          ];
+        const index = activityHookIndex++;
+        if (!(index in activityFormState))
           activityFormState[index] =
-            typeof value === "function"
-              ? value(activityFormState[index])
-              : value;
-        },
-      ];
+            typeof initial === "function" ? initial() : initial;
+        return [
+          activityFormState[index],
+          (value) => {
+            activityFormState[index] =
+              typeof value === "function"
+                ? value(activityFormState[index])
+                : value;
+          },
+        ];
+      },
     },
+    "@/lib/activity-time": time,
+    "@/components/shared/date-time-field": {
+      DateTimeField: ({ draft }) =>
+        React.createElement("input", { value: draft.value, readOnly: true }),
+    },
+    "@/components/ui/alert": {
+      Alert: wrap("div"),
+      AlertDescription: wrap("p"),
+    },
+    "@/components/ui/input": {
+      Input: (props) => React.createElement("input", props),
+    },
+    "@/components/ui/label": { Label: wrap("label") },
+    "@/components/ui/select": Object.fromEntries(
+      [
+        "Select",
+        "SelectContent",
+        "SelectItem",
+        "SelectTrigger",
+        "SelectValue",
+      ].map((key) => [key, wrap("div")]),
+    ),
   },
-  "@/lib/activity-time": time,
-  "./date-time-field": {
-    DateTimeField: ({ draft }) =>
-      React.createElement("input", { value: draft.value, readOnly: true }),
-  },
-  "@/components/ui/alert": { Alert: wrap("div"), AlertDescription: wrap("p") },
-  "@/components/ui/input": {
-    Input: (props) => React.createElement("input", props),
-  },
-  "@/components/ui/label": { Label: wrap("label") },
-  "@/components/ui/select": Object.fromEntries(
-    [
-      "Select",
-      "SelectContent",
-      "SelectItem",
-      "SelectTrigger",
-      "SelectValue",
-    ].map((key) => [key, wrap("div")]),
-  ),
-});
+);
 let tripFormState = null,
   tripFormHookIndex = 0;
-const tripFormModule = load("src/components/trips/trip-form.tsx", {
+const tripFormModule = load("src/components/features/trips/trip-form.tsx", {
   ...primitiveMocks,
   "@/lib/api": apiMock,
   "@/lib/activity-time": time,
@@ -854,7 +867,7 @@ const tripFormModule = load("src/components/trips/trip-form.tsx", {
       ];
     },
   },
-  "./date-time-field": { DateTimeField: () => null },
+  "@/components/shared/date-time-field": { DateTimeField: () => null },
   "@/components/ui/alert": { Alert: wrap("div"), AlertDescription: wrap("p") },
   "@/components/ui/input": {
     Input: (props) => React.createElement("input", props),
@@ -1004,7 +1017,8 @@ activityHookIndex = 0;
 const placeOpened = nodes(formModule.ActivityForm(optionalProps));
 
 // Search messages are written for the user, and TripError only shows ApiError text.
-const StubTripError = primitiveMocks["./trip-states"].TripError;
+const StubTripError =
+  primitiveMocks["@/components/shared/trip-states"].TripError;
 const placeForm = () => {
   activityHookIndex = 0;
   return nodes(formModule.ActivityForm(optionalProps));
@@ -1445,13 +1459,15 @@ const uiApi = {
 const boardQueries = [];
 let itineraryNow = "2026-10-23T12:00:00Z";
 const temporal = require("@js-temporal/polyfill").Temporal;
-const components = load("src/components/trips/itinerary.tsx", {
+const components = load("src/components/features/itinerary/itinerary.tsx", {
   "next/navigation": {
     useRouter: () => ({ push() {}, replace() {} }),
     useSearchParams: () => new URLSearchParams(),
   },
   "@/lib/money": load("src/lib/money.ts"),
-  "./expenses": { ActivityExpenses: wrap("section") },
+  "@/components/features/expenses/expenses": {
+    ActivityExpenses: wrap("section"),
+  },
   "next/link": { __esModule: true, default: wrap("a") },
   ...primitiveMocks,
   "@/lib/api": apiMock,
@@ -1466,7 +1482,7 @@ const components = load("src/components/trips/itinerary.tsx", {
       },
     },
   },
-  "./trip-dialog": {
+  "@/components/shared/trip-dialog": {
     TripDialog: ({ children, trigger, open }) =>
       React.createElement("section", null, trigger, open ? children : null),
   },
@@ -2132,7 +2148,7 @@ const dialogParts = Object.fromEntries(
     "Close",
   ].map((key) => [key, wrap("div")]),
 );
-const { TripDialog } = load("src/components/trips/trip-dialog.tsx", {
+const { TripDialog } = load("src/components/shared/trip-dialog.tsx", {
   react: {
     ...React,
     useRef: (initial) => ({ current: initial }),
@@ -2264,11 +2280,14 @@ console.log(
 );
 
 // A map failure must leave the selected day's places readable.
-const { default: TripMap } = load("src/components/trips/trip-map.tsx", {
-  react: { ...React, useEffect() {}, useState: () => [true, () => {}] },
-  "maplibre-gl": {},
-  "maplibre-gl/dist/maplibre-gl.css": {},
-});
+const { default: TripMap } = load(
+  "src/components/features/itinerary/trip-map.tsx",
+  {
+    react: { ...React, useEffect() {}, useState: () => [true, () => {}] },
+    "maplibre-gl": {},
+    "maplibre-gl/dist/maplibre-gl.css": {},
+  },
+);
 const locatedActivity = {
   ...activity,
   place: { name: "Harbor Cafe", address: "12 Waterfront Road" },
@@ -2503,15 +2522,15 @@ const detailRoute = load("src/app/trips/[tripID]/page.tsx", {
   "@/lib/trips": { ...trips, useTripsApi: () => ({}) },
   "@/lib/activity-time": time,
   "@/lib/memberships": { ...membership, useMembershipsApi: () => ({}) },
-  "@/components/trips/itinerary": { Itinerary: detailItinerary },
-  "@/components/trips/expenses": { Expenses: detailExpenses },
-  "@/components/trips/memberships": {
+  "@/components/features/itinerary/itinerary": { Itinerary: detailItinerary },
+  "@/components/features/expenses/expenses": { Expenses: detailExpenses },
+  "@/components/features/memberships/memberships": {
     Participants: wrap("div"),
     InviteForm: wrap("div"),
     PendingInvitations: wrap("div"),
   },
-  "@/components/trips/trip-form": { TripForm: wrap("div") },
-  "@/components/trips/trip-dialog": {
+  "@/components/features/trips/trip-form": { TripForm: wrap("div") },
+  "@/components/shared/trip-dialog": {
     TripDialog: ({ trigger }) => trigger ?? null,
   },
   "@/components/ui/alert-dialog": Object.fromEntries(
@@ -2527,7 +2546,7 @@ const detailRoute = load("src/app/trips/[tripID]/page.tsx", {
       "AlertDialogTrigger",
     ].map((key) => [key, wrap("div")]),
   ),
-  "@/components/trips/trip-states": {
+  "@/components/shared/trip-states": {
     TripLoading: () => React.createElement("p", null, "Loading trips"),
     TripError: () => React.createElement("p", null, "Trip error"),
     TripNotFound: () => React.createElement("p", null, "Trip not found"),

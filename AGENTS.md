@@ -23,8 +23,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - Use App Router, TypeScript, Tailwind, and existing shadcn/Base UI primitives.
   Keep Server Components unless interaction or browser APIs require a client.
-- Put routes in `src/app`, trip UI in `src/components/trips`, shared primitives
-  in `src/components/ui`, and API/types/time helpers in `src/lib`.
+- Put routes in `src/app`, feature UI in `src/components/features/<feature>`
+  (modals in `dialogs/`, right-side panels in `drawers/`), UI used by more than
+  one feature in `src/components/shared`, shared primitives in
+  `src/components/ui`, and API/types/time helpers in `src/lib`.
+- Import with `@/...` inside `src/components`: the regression scripts mock
+  modules by their exact import specifier.
 - Use `useApi` and the existing feature API hooks. Types are hand-maintained;
   there is no generated OpenAPI client. Coordinate API contract changes with
   the backend when requested; do not invent endpoints or response fields.

@@ -23,17 +23,17 @@ import {
 } from "@/lib/expenses";
 import { expenseMoney as formatMoney } from "@/lib/money";
 import { Button } from "@/components/ui/button";
-import { ExpenseCostEditor } from "./expense-cost-editor";
-import { ExpensePaymentWorkspace } from "./expense-payment-workspace";
-import { PersonalPayments } from "./personal-payments";
+import { ExpenseCostEditor } from "@/components/features/expenses/drawers/cost-editor/expense-cost-editor";
+import { ExpensePaymentWorkspace } from "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace";
+import { PersonalPayments } from "@/components/features/expenses/personal-payments/personal-payments";
 import { Tabs } from "@base-ui/react/tabs";
 import { ArrowRight, Plus } from "lucide-react";
-import { TripDialog } from "./trip-dialog";
-import { TripError } from "./trip-states";
+import { TripDialog } from "@/components/shared/trip-dialog";
+import { TripError } from "@/components/shared/trip-states";
 import {
   ActivityExpenseForm,
   type ExpenseEditor,
-} from "./activity-expense-form";
+} from "@/components/features/expenses/activity-expense-form/activity-expense-form";
 
 type Context = {
   trip: Trip;

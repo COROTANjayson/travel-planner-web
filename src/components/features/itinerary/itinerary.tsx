@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ActivityExpenses, type ActivityExpenseView } from "./expenses";
+import {
+  ActivityExpenses,
+  type ActivityExpenseView,
+} from "@/components/features/expenses/expenses";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
 import {
@@ -17,7 +20,7 @@ import {
   Trash2,
   Pencil,
 } from "lucide-react";
-import { TripDialog } from "./trip-dialog";
+import { TripDialog } from "@/components/shared/trip-dialog";
 import { ApiError } from "@/lib/api";
 import {
   activityCategoryIcons,
@@ -42,13 +45,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ActivityForm } from "./activity-form";
-import { TripError } from "./trip-states";
+import { ActivityForm } from "@/components/features/itinerary/activity-form/activity-form";
+import { TripError } from "@/components/shared/trip-states";
 
-const TripMap = dynamic(() => import("./trip-map"), {
-  ssr: false,
-  loading: () => <p role="status">Loading map…</p>,
-});
+const TripMap = dynamic(
+  () => import("@/components/features/itinerary/trip-map"),
+  {
+    ssr: false,
+    loading: () => <p role="status">Loading map…</p>,
+  },
+);
 
 function CategoryBadge({ category }: { category: string }) {
   const Icon = Object.hasOwn(activityCategoryIcons, category)

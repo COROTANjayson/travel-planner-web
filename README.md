@@ -90,13 +90,14 @@ payments, permissions, adjustment previews, failed-save recovery and retries.
 
 ## Project map and conventions
 
-| Location               | Responsibility                                                                 |
-| ---------------------- | ------------------------------------------------------------------------------ |
-| `src/app`              | App Router routes, layouts, providers, and shared theme                        |
-| `src/components/trips` | Trip, itinerary, participant, and invitation UI                                |
-| `src/components/ui`    | Repo-owned shadcn/Base UI primitives                                           |
-| `src/lib`              | API hooks, hand-maintained payload types, permissions for UI, and time helpers |
-| `scripts`              | Focused regression checks, contrast checks, and MapLibre worker copying        |
+| Location                  | Responsibility                                                                                                                                            |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app`                 | App Router routes, layouts, providers, and shared theme                                                                                                   |
+| `src/components/features` | One folder per feature: `account`, `landing`, `trips`, `itinerary`, `expenses`, `memberships`. Modals live in `dialogs/`, right-side panels in `drawers/` |
+| `src/components/shared`   | UI used by more than one feature, including the `TripDialog` shell                                                                                        |
+| `src/components/ui`       | Repo-owned shadcn/Base UI primitives                                                                                                                      |
+| `src/lib`                 | API hooks, hand-maintained payload types, permissions for UI, and time helpers                                                                            |
+| `scripts`                 | Focused regression checks, contrast checks, and MapLibre worker copying                                                                                   |
 
 Use TanStack Query for remote state and local React state for UI state. Follow
 existing query keys and mutation invalidation. All authenticated requests go

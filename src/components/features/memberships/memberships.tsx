@@ -39,7 +39,7 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { TripError } from "@/components/trips/trip-states";
+import { TripError } from "@/components/shared/trip-states";
 import { ApiError } from "@/lib/api";
 
 const roleHelp: Record<AssignableRole, string> = {

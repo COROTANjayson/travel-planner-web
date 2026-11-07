@@ -29,11 +29,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TripError } from "./trip-states";
-import { DateTimeField } from "./date-time-field";
+import { TripError } from "@/components/shared/trip-states";
+import { DateTimeField } from "@/components/shared/date-time-field";
 
 import type { CostChange, ExpensePerson } from "@/lib/expenses";
-import { ActivityExpenseDrafts } from "./activity-expense-drafts";
+import { ActivityExpenseDrafts } from "@/components/features/expenses/activity-expense-drafts";
 
 const durations = { "30": 30, "60": 60, "120": 120 } as const;
 type Duration = keyof typeof durations | "custom";

@@ -14,9 +14,9 @@ import {
   InviteForm,
   Participants,
   PendingInvitations,
-} from "@/components/trips/memberships";
-import { Expenses } from "@/components/trips/expenses";
-import { Itinerary } from "@/components/trips/itinerary";
+} from "@/components/features/memberships/memberships";
+import { Expenses } from "@/components/features/expenses/expenses";
+import { Itinerary } from "@/components/features/itinerary/itinerary";
 import {
   formatTripDates,
   tripDayCount,
@@ -36,7 +36,7 @@ import {
   CalendarDays,
   Clock3,
 } from "lucide-react";
-import { TripDialog } from "@/components/trips/trip-dialog";
+import { TripDialog } from "@/components/shared/trip-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,12 +48,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { TripForm } from "@/components/trips/trip-form";
+import { TripForm } from "@/components/features/trips/trip-form";
 import {
   TripError,
   TripLoading,
   TripNotFound,
-} from "@/components/trips/trip-states";
+} from "@/components/shared/trip-states";
 
 export default function TripPage() {
   const { tripID } = useParams<{ tripID: string }>();

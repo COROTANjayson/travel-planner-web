@@ -14,8 +14,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DateTimeField, type LocalDraft } from "./date-time-field";
-import { TripError } from "./trip-states";
+import {
+  DateTimeField,
+  type LocalDraft,
+} from "@/components/shared/date-time-field";
+import { TripError } from "@/components/shared/trip-states";
 
 type Destination = Pick<
   Place,

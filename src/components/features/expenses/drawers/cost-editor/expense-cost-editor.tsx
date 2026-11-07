@@ -6,7 +6,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { ChevronRight, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ExpensePriceField } from "./expense-fields";
+import { ExpensePriceField } from "@/components/features/expenses/expense-fields";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -32,9 +32,9 @@ import {
   type Share,
 } from "@/lib/expenses";
 import { participantInitials } from "@/lib/memberships";
-import { TripDialog } from "./trip-dialog";
-import { ExpenseSelect } from "./expense-forms";
-import { TripError } from "./trip-states";
+import { TripDialog } from "@/components/shared/trip-dialog";
+import { ExpenseSelect } from "@/components/features/expenses/expense-forms";
+import { TripError } from "@/components/shared/trip-states";
 
 export function ExpenseCostEditor({
   activity,

@@ -133,7 +133,7 @@ const wrap = (tag) =>
     return React.createElement(tag, null, children);
   };
 let invitationQuery;
-const components = load("src/components/trips/memberships.tsx", {
+const components = load("src/components/features/memberships/memberships.tsx", {
   "@tanstack/react-query": { useQuery: () => invitationQuery },
   "@/components/ui/popover": Object.fromEntries(
     ["Popover", "PopoverContent", "PopoverTitle", "PopoverTrigger"].map(
@@ -165,7 +165,7 @@ const components = load("src/components/trips/memberships.tsx", {
     ].map((key) => [key, wrap("div")]),
   ),
   "@/components/ui/alert-dialog": {},
-  "@/components/trips/trip-states": {},
+  "@/components/shared/trip-states": {},
 });
 for (const role of ["owner", "editor", "member", "viewer", undefined]) {
   const current = role ? { ...owner, role } : undefined;
@@ -475,7 +475,7 @@ const inboxPage = load("src/app/invitations/page.tsx", {
     Button: ({ children, ...props }) =>
       React.createElement("button", props, children),
   },
-  "@/components/trips/trip-states": {
+  "@/components/shared/trip-states": {
     TripError: ({ error }) =>
       React.createElement("p", { role: "alert" }, error.message),
   },
