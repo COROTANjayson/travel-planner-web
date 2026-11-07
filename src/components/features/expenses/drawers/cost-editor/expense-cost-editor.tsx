@@ -3,18 +3,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ApiError, useApi } from "@/lib/api";
 import { Temporal } from "@js-temporal/polyfill";
-import { ChevronRight, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ExpensePriceField } from "@/components/features/expenses/expense-fields";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   expenseMoney,
   equalShares,
@@ -33,8 +23,13 @@ import {
 } from "@/lib/expenses";
 import { participantInitials } from "@/lib/memberships";
 import { TripDialog } from "@/components/shared/trip-dialog";
-import { ExpenseSelect } from "@/components/features/expenses/expense-forms";
 import { TripError } from "@/components/shared/trip-states";
+import { CostStep } from "@/components/features/expenses/drawers/cost-editor/cost-step";
+import { CovererStep } from "@/components/features/expenses/drawers/cost-editor/coverer-step";
+import { CustomSharesStep } from "@/components/features/expenses/drawers/cost-editor/custom-shares-step";
+import { MembersStep } from "@/components/features/expenses/drawers/cost-editor/members-step";
+import { ReviewStep } from "@/components/features/expenses/drawers/cost-editor/review-step";
+import { SplitStatusFooter } from "@/components/features/expenses/drawers/cost-editor/split-status-footer";
 
 export function ExpenseCostEditor({
   activity,
@@ -455,35 +450,17 @@ export function ExpenseCostEditor({
       footer={
         <>
           {step === "custom" && (
-            <div
-              className="expense-split-status"
-              data-balanced={unassigned === 0n}
-            >
-              <div aria-live="polite">
-                <p className="figma-summary-value">
-                  {unassigned === 0n
-                    ? "Matches the total"
-                    : unassigned > 0n
-                      ? `${money(unassigned)} left to assign`
-                      : `${money(-unassigned)} over`}
-                </p>
-                <p>
-                  {money(assigned)} of {money(total)} assigned
-                </p>
-              </div>
-              {canBalance && (
-                <Button
-                  type="button"
-                  variant="link"
-                  disabled={busy}
-                  onClick={balanceShares}
-                >
-                  {untouched.length === 1
-                    ? `Give the remaining ${money(remaining)} to the other person`
-                    : `Split the remaining ${money(remaining)} between the other ${untouched.length}`}
-                </Button>
-              )}
-            </div>
+            <SplitStatusFooter
+              unassigned={unassigned}
+              assigned={assigned}
+              total={total}
+              canBalance={canBalance}
+              untouched={untouched}
+              remaining={remaining}
+              busy={busy}
+              money={money}
+              balanceShares={balanceShares}
+            />
           )}
           <Button
             ref={submitRef}
@@ -511,320 +488,68 @@ export function ExpenseCostEditor({
       >
         <fieldset disabled={busy} className="space-y-6 min-w-0">
           {step === "cost" && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor={`${formID}-name`} className="field-required">
-                  Expense name
-                </Label>
-                <Input
-                  id={`${formID}-name`}
-                  autoFocus
-                  required
-                  maxLength={200}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
-              <fieldset>
-                <legend className="mb-2 text-sm text-muted-foreground">
-                  How is the price given?
-                </legend>
-                <div className="figma-price-choice">
-                  {[
-                    { value: "per_person", label: "Per person" },
-                    { value: "group", label: "Group total" },
-                  ].map((option) => (
-                    <label key={option.value}>
-                      <input
-                        type="radio"
-                        name={`${formID}-basis`}
-                        checked={basis === option.value}
-                        onChange={() => {
-                          setBasis(option.value as typeof basis);
-                          if (option.value === "per_person") setMode("equal");
-                          change();
-                        }}
-                      />
-                      <span>{option.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <div className="expense-price-split">
-                <div className="min-w-0 space-y-2">
-                  <Label htmlFor={`${formID}-price`} className="field-required">
-                    {basis === "group" ? "Group price" : "Price per person"}
-                  </Label>
-                  <div className="price-with-currency">
-                    <ExpensePriceField
-                      currency={meta}
-                      id={`${formID}-price`}
-                      inputMode="decimal"
-                      required
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                    />
-                    <Select
-                      value={currency}
-                      onValueChange={(value) => {
-                        if (value) {
-                          setCurrency(value);
-                          change();
-                        }
-                      }}
-                    >
-                      <SelectTrigger aria-label="Currency">
-                        <SelectValue>{currency}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent align="end" alignItemWithTrigger={false}>
-                        {currencies.map((c) => (
-                          <SelectItem key={c.code} value={c.code}>
-                            {c.code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <ExpenseSelect
-                  id={`${formID}-split`}
-                  label="Split"
-                  value={mode}
-                  options={[
-                    { value: "equal", label: "Split evenly" },
-                    { value: "exact", label: "Custom amounts" },
-                  ]}
-                  onChange={(value) => {
-                    if (value === "exact") {
-                      openCustomSplit();
-                    } else {
-                      setMode("equal");
-                      change();
-                    }
-                  }}
-                />
-              </div>
-              {basis === "per_person" && (
-                <p className="text-sm text-muted-foreground">
-                  Custom amounts keep the same group total and let you adjust
-                  each person’s share.
-                </p>
-              )}
-              <div className="figma-money-summary" aria-live="polite">
-                <p className="figma-summary-value">
-                  {amount && !problem
-                    ? mode === "equal" &&
-                      shares.every(
-                        (s) => s.amount_minor === shares[0]?.amount_minor,
-                      )
-                      ? `${money(shares[0]?.amount_minor ?? "0")} each`
-                      : money(total)
-                    : "Your expense estimate"}
-                </p>
-                <p>
-                  {amount
-                    ? problem ||
-                      `${selected.length === 1 ? "1 share adds" : `${selected.length} shares add`} up to ${money(total)}`
-                    : "Enter a price to preview the split."}
-                </p>
-                {mode === "exact" && (
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="figma-summary-action px-0"
-                    onClick={openCustomSplit}
-                  >
-                    Change custom split
-                  </Button>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label id={`${formID}-coverer-label`}>
-                  Who will pay first? (optional)
-                </Label>
-                <Button
-                  id={`${formID}-coverer`}
-                  aria-labelledby={`${formID}-coverer-label ${formID}-coverer`}
-                  variant="outline"
-                  className="figma-select-button"
-                  type="button"
-                  onClick={() => {
-                    if (!amount || problem) {
-                      invalid("Enter a valid price and split first.");
-                      return;
-                    }
-                    setStep("coverer");
-                  }}
-                >
-                  <span className="min-w-0 break-words">
-                    {coverer
-                      ? `${expenseName(people.find((p) => p.user_id === coverer))} · reservation ${plannedLabel}`
-                      : "Decide later"}
-                  </span>
-                  <ChevronRight aria-hidden="true" />
-                </Button>
-              </div>
-            </>
+            <CostStep
+              formID={formID}
+              description={description}
+              setDescription={setDescription}
+              basis={basis}
+              setBasis={setBasis}
+              mode={mode}
+              setMode={setMode}
+              amount={amount}
+              setAmount={setAmount}
+              currency={currency}
+              setCurrency={setCurrency}
+              currencies={currencies}
+              meta={meta}
+              problem={problem}
+              shares={shares}
+              total={total}
+              selected={selected}
+              coverer={coverer}
+              people={people}
+              plannedLabel={plannedLabel}
+              money={money}
+              change={change}
+              invalid={invalid}
+              openCustomSplit={openCustomSplit}
+              setStep={setStep}
+            />
           )}
           {step === "review" && review && (
-            <div className="space-y-5">
-              <p className="text-sm text-muted-foreground">
-                Recorded payments stay unchanged. Review the updated balances
-                before saving.
-              </p>
-              <div className="figma-money-summary">
-                <p>
-                  Expense total: {money(review.before.expense.amount_minor)} →{" "}
-                  {money(review.after.expense.amount_minor)}
-                </p>
-                <p>
-                  Paid to business: {money(review.before.business_paid_minor)} →{" "}
-                  {money(review.after.business_paid_minor)}
-                </p>
-              </div>
-              <div className="divide-y">
-                {review.after.members.map((member) => {
-                  const before = review.before.members.find(
-                    (m) => m.user_id === member.user_id,
-                  );
-                  return (
-                    <div key={member.user_id} className="py-3 space-y-2">
-                      <strong>
-                        {expenseName(
-                          people.find((p) => p.user_id === member.user_id),
-                        )}
-                      </strong>
-                      <p className="text-sm">
-                        Still to pay: {money(before?.remaining_minor ?? "0")} →{" "}
-                        {money(member.remaining_minor)}
-                      </p>
-                      {BigInt(member.credit_minor) > 0n && (
-                        <p className="text-sm text-primary">
-                          Credit requiring correction:{" "}
-                          {money(member.credit_minor)}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <ReviewStep review={review} people={people} money={money} />
           )}
           {step === "members" && (
-            <div className="divide-y">
-              {people.map((person) => (
-                <label
-                  key={person.user_id}
-                  className="flex min-h-16 items-center gap-3 py-3"
-                >
-                  <input
-                    type="checkbox"
-                    className="size-5 accent-primary"
-                    checked={selected.includes(person.user_id)}
-                    onChange={(e) => {
-                      setSelected((ids) =>
-                        e.target.checked
-                          ? [...ids, person.user_id]
-                          : ids.filter((id) => id !== person.user_id),
-                      );
-                      change();
-                    }}
-                  />
-                  <span className="break-words">{expenseName(person)}</span>
-                </label>
-              ))}
-            </div>
+            <MembersStep
+              people={people}
+              selected={selected}
+              setSelected={setSelected}
+              change={change}
+            />
           )}
           {step === "custom" && (
-            <div className="figma-custom-shares">
-              {selectedPeople.map((person) => {
-                const shareID = `${formID}-share-${person.user_id}`;
-                const shareProblem = readShare(person.user_id).problem;
-                return (
-                  <div key={person.user_id}>
-                    <Label htmlFor={shareID}>{expenseName(person)}</Label>
-                    <ExpensePriceField
-                      currency={meta}
-                      id={shareID}
-                      aria-label={`Share for ${expenseName(person)}`}
-                      aria-invalid={shareProblem ? true : undefined}
-                      aria-describedby={
-                        shareProblem ? `${shareID}-error` : undefined
-                      }
-                      inputMode="decimal"
-                      value={exact[person.user_id] ?? ""}
-                      onFocus={(e) => {
-                        e.target.select();
-                        firstClickSelects.current = true;
-                      }}
-                      onClick={(e) => {
-                        if (firstClickSelects.current) {
-                          const input = e.currentTarget;
-                          // Browsers collapse a clicked selection after this event.
-                          requestAnimationFrame(() => input.select());
-                        }
-                        firstClickSelects.current = false;
-                      }}
-                      onChange={(e) => {
-                        setExact((v) => ({
-                          ...v,
-                          [person.user_id]: e.target.value,
-                        }));
-                        setEditedShares((ids) =>
-                          ids.includes(person.user_id)
-                            ? ids
-                            : [...ids, person.user_id],
-                        );
-                        change();
-                      }}
-                    />
-                    {shareProblem && (
-                      <p
-                        id={`${shareID}-error`}
-                        role="alert"
-                        className="figma-share-error text-sm text-destructive"
-                      >
-                        {shareProblem}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <CustomSharesStep
+              formID={formID}
+              selectedPeople={selectedPeople}
+              meta={meta}
+              exact={exact}
+              setExact={setExact}
+              setEditedShares={setEditedShares}
+              readShare={readShare}
+              firstClickSelectsRef={firstClickSelects}
+              change={change}
+            />
           )}
           {step === "coverer" && (
-            <>
-              <ExpenseSelect
-                id={`${formID}-coverer`}
-                label="Who will pay first?"
-                value={String(coverer)}
-                options={[
-                  { value: "0", label: "Decide later" },
-                  ...people.map((person) => ({
-                    value: String(person.user_id),
-                    label: expenseName(person),
-                  })),
-                ]}
-                onChange={(value) => setCoverer(Number(value))}
-              />
-              {!!coverer && (
-                <div className="space-y-2">
-                  <Label htmlFor={`${formID}-advance`}>
-                    Reservation amount · {currency}
-                  </Label>
-                  <Input
-                    id={`${formID}-advance`}
-                    inputMode="decimal"
-                    value={coverAmount}
-                    onChange={(e) => setCoverAmount(e.target.value)}
-                  />
-                </div>
-              )}
-              <p className="text-sm text-muted-foreground">
-                This reservation is part of the expense total. It stays a plan
-                until the payment is confirmed.
-              </p>
-            </>
+            <CovererStep
+              formID={formID}
+              coverer={coverer}
+              setCoverer={setCoverer}
+              coverAmount={coverAmount}
+              setCoverAmount={setCoverAmount}
+              currency={currency}
+              people={people}
+            />
           )}
           {(validation || error) && (
             <div ref={feedback} tabIndex={-1}>
