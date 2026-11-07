@@ -1,5 +1,13 @@
 "use client";
 
+import { AdjustmentReview } from "@/components/features/expenses/activity-expense-form/adjustment-review";
+import { CostDateDetails } from "@/components/features/expenses/activity-expense-form/cost-date-details";
+import { CostFields } from "@/components/features/expenses/activity-expense-form/cost-fields";
+import { PaymentCoverage } from "@/components/features/expenses/activity-expense-form/payment-coverage";
+import { PlannedCoverer } from "@/components/features/expenses/activity-expense-form/planned-coverer";
+import { SharingSection } from "@/components/features/expenses/activity-expense-form/sharing-section";
+import { TransactionFields } from "@/components/features/expenses/activity-expense-form/transaction-fields";
+
 import { useEffect, useRef, useState } from "react";
 import { Temporal } from "@js-temporal/polyfill";
 import { ApiError } from "@/lib/api";
@@ -8,11 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TripError } from "@/components/shared/trip-states";
 import { ExpenseSelect } from "@/components/features/expenses/expense-forms";
-import {
-  allocatePayment,
-  uncovered,
-  memberPaymentState,
-} from "@/lib/activity-expenses";
+import { allocatePayment, uncovered } from "@/lib/activity-expenses";
 import {
   equalShares,
   formatMoney,
@@ -422,470 +426,107 @@ export function ActivityExpenseForm({
           )}
         {isCost && (
           <div className="expense-cost-content">
-            <div className="space-y-2">
-              <Label htmlFor="cost-description">What’s this expense for?</Label>
-              <Input
-                id="cost-description"
-                placeholder="Entrance, a room, a meal…"
-                required
-                maxLength={200}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                autoFocus
-              />
-            </div>
-            {!activity && (
-              <ExpenseSelect
-                id="cost-activity"
-                label="Activity"
-                value={activity}
-                options={[
-                  { value: "", label: "Choose an activity" },
-                  ...activityOptions,
-                ]}
-                onChange={(v) => {
-                  setActivity(v);
-                  changed();
-                }}
-              />
-            )}
-            <div className="expense-amount-fields">
-              <div className="space-y-2">
-                <Label htmlFor="cost-amount">
-                  Amount{basis === "per_person" ? " per person" : ""} ·{" "}
-                  {currency}
-                </Label>
-                <Input
-                  className="expense-amount-input"
-                  id="cost-amount"
-                  placeholder="0.00"
-                  inputMode="decimal"
-                  required
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-              </div>
-              <ExpenseSelect
-                id="cost-currency"
-                label="Currency"
-                value={currency}
-                disabled={
-                  !!record &&
-                  ledger.payments.some((p) => p.expense_id === record.id)
-                }
-                options={currencies.map((c) => ({
-                  value: c.code,
-                  label: c.code,
-                }))}
-                onChange={(v) => {
-                  setCurrency(v);
-                  changed();
-                }}
-              />
-            </div>
-            <fieldset className="expense-choice" aria-label="Amount type">
-              <legend className="sr-only">Amount type</legend>
-              {[
-                { value: "group", label: "Group total" },
-                { value: "per_person", label: "Per person" },
-              ].map((option) => (
-                <label key={option.value}>
-                  <input
-                    id={`cost-basis-${option.value}`}
-                    type="radio"
-                    name="amount-basis"
-                    checked={basis === option.value}
-                    onChange={() => {
-                      setBasis(option.value as typeof basis);
-                      if (option.value === "per_person") setMode("equal");
-                      changed();
-                    }}
-                  />
-                  <span>{option.label}</span>
-                </label>
-              ))}
-            </fieldset>
-            <section
-              className="expense-sharing"
-              aria-label="Travelers and split"
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h3 className="font-semibold">Who’s sharing?</h3>
-                <span className="text-sm text-muted-foreground">
-                  {selected.length}{" "}
-                  {selected.length === 1 ? "traveler" : "travelers"}
-                </span>
-              </div>
-              <fieldset className="expense-choice" aria-label="Split costs">
-                <legend className="sr-only">Split costs</legend>
-                {[
-                  { value: "equal", label: "Split evenly" },
-                  { value: "exact", label: "Custom amounts" },
-                ].map((option) => (
-                  <label key={option.value}>
-                    <input
-                      id={`cost-mode-${option.value}`}
-                      type="radio"
-                      name="split-mode"
-                      checked={mode === option.value}
-                      onChange={() => {
-                        if (option.value === "exact") {
-                          if (previewError) {
-                            setValidation(new ApiError(422, previewError));
-                            return;
-                          }
-                          if (basis === "per_person") {
-                            setBasis("group");
-                            setAmount(moneyInput(total, meta.decimals));
-                          }
-                          setExact(
-                            Object.fromEntries(
-                              preview.map((share) => [
-                                share.user_id,
-                                moneyInput(share.amount_minor, meta.decimals),
-                              ]),
-                            ),
-                          );
-                        }
-                        setMode(option.value as typeof mode);
-                        changed();
-                      }}
-                    />
-                    <span>{option.label}</span>
-                  </label>
-                ))}
-              </fieldset>
-              <div className="expense-travelers">
-                {sharePeople.map((person) => (
-                  <div
-                    key={person.user_id}
-                    className="expense-traveler"
-                    data-selected={selected.includes(person.user_id)}
-                  >
-                    <label className="expense-traveler-name">
-                      <input
-                        type="checkbox"
-                        className="size-4 shrink-0 accent-primary"
-                        checked={selected.includes(person.user_id)}
-                        onChange={(e) =>
-                          setSelected((ids) =>
-                            e.target.checked
-                              ? [...ids, person.user_id]
-                              : ids.filter((id) => id !== person.user_id),
-                          )
-                        }
-                      />
-                      <span className="min-w-0 break-words">
-                        {expenseName(person)}
-                      </span>
-                    </label>
-                    {selected.includes(person.user_id) &&
-                      (mode === "exact" ? (
-                        <Input
-                          className="expense-custom-share"
-                          aria-label={`Share for ${expenseName(person)}`}
-                          inputMode="decimal"
-                          value={exact[person.user_id] ?? ""}
-                          onChange={(e) =>
-                            setExact((values) => ({
-                              ...values,
-                              [person.user_id]: e.target.value,
-                            }))
-                          }
-                        />
-                      ) : (
-                        <span className="expense-traveler-share">
-                          {amount && !previewError
-                            ? money(
-                                preview.find(
-                                  (share) => share.user_id === person.user_id,
-                                )?.amount_minor ?? "0",
-                              )
-                            : "—"}
-                        </span>
-                      ))}
-                  </div>
-                ))}
-              </div>
-              <p className="expense-split-preview" aria-live="polite">
-                {amount
-                  ? previewError ||
-                    `${money(total)} total${mode === "equal" && selected.length && preview[0] && BigInt(total) % BigInt(selected.length) === 0n ? ` · ${money(preview[0].amount_minor)} each` : ""}`
-                  : "Add an amount to see everyone’s share."}
-              </p>
-            </section>
-            <details
-              className="expense-extra"
-              open={record?.planned_coverer_user_id ? true : undefined}
-            >
-              <summary>
-                Plan who pays first{" "}
-                <span className="text-muted-foreground font-normal">
-                  Optional
-                </span>
-              </summary>
-              <div className="space-y-4 pt-4">
-                <ExpenseSelect
-                  id="planned-coverer"
-                  label="Who will cover the advance?"
-                  value={String(plannedCoverer)}
-                  options={[
-                    { value: "0", label: "Decide later" },
-                    ...people
-                      .filter(
-                        (person) =>
-                          currentUserIDs.includes(person.user_id) ||
-                          person.user_id === record?.planned_coverer_user_id,
-                      )
-                      .map((person) => ({
-                        value: String(person.user_id),
-                        label: expenseName(person),
-                      })),
-                  ]}
-                  onChange={(v) => {
-                    setPlannedCoverer(Number(v));
-                    changed();
-                  }}
-                />
-                {!!plannedCoverer && (
-                  <div className="space-y-2">
-                    <Label htmlFor="planned-amount">
-                      Planned amount · {currency}
-                    </Label>
-                    <Input
-                      id="planned-amount"
-                      inputMode="decimal"
-                      value={plannedAmount}
-                      onChange={(e) => setPlannedAmount(e.target.value)}
-                    />
-                    <p className="text-sm text-muted-foreground">
-                      A reservation or deposit someone will cover. This stays a
-                      plan until a planner/editor confirms the payment.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </details>
-            <details className="expense-extra">
-              <summary>Date &amp; activity</summary>
-              <div className="expense-detail-fields pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cost-date">Cost date</Label>
-                  <Input
-                    id="cost-date"
-                    type="date"
-                    required
-                    min="0001-01-01"
-                    max="9999-12-31"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
-                </div>
-                {!!activity && (
-                  <ExpenseSelect
-                    id="cost-activity"
-                    label="Activity"
-                    value={activity}
-                    options={activityOptions}
-                    onChange={(v) => {
-                      setActivity(v);
-                      changed();
-                    }}
-                  />
-                )}
-              </div>
-            </details>
+            <CostFields
+              description={description}
+              setDescription={setDescription}
+              activity={activity}
+              setActivity={setActivity}
+              activityOptions={activityOptions}
+              basis={basis}
+              setBasis={setBasis}
+              setMode={setMode}
+              amount={amount}
+              setAmount={setAmount}
+              currency={currency}
+              setCurrency={setCurrency}
+              currencies={currencies}
+              record={record}
+              ledger={ledger}
+              changed={changed}
+            />
+            <SharingSection
+              sharePeople={sharePeople}
+              selected={selected}
+              setSelected={setSelected}
+              mode={mode}
+              setMode={setMode}
+              basis={basis}
+              setBasis={setBasis}
+              amount={amount}
+              setAmount={setAmount}
+              exact={exact}
+              setExact={setExact}
+              preview={preview}
+              previewError={previewError}
+              total={total}
+              meta={meta}
+              money={money}
+              setValidation={setValidation}
+              changed={changed}
+            />
+            <PlannedCoverer
+              record={record}
+              people={people}
+              currentUserIDs={currentUserIDs}
+              plannedCoverer={plannedCoverer}
+              setPlannedCoverer={setPlannedCoverer}
+              plannedAmount={plannedAmount}
+              setPlannedAmount={setPlannedAmount}
+              currency={currency}
+              changed={changed}
+            />
+            <CostDateDetails
+              date={date}
+              setDate={setDate}
+              activity={activity}
+              setActivity={setActivity}
+              activityOptions={activityOptions}
+              changed={changed}
+            />
           </div>
         )}
         {!isCost && (
-          <>
-            {editor.type === "loan" && (
-              <ExpenseSelect
-                id="cost-activity"
-                label="Activity"
-                value={activity}
-                options={[
-                  { value: "", label: "Choose an activity" },
-                  ...activityOptions,
-                ]}
-                onChange={(v) => {
-                  setActivity(v);
-                  changed();
-                }}
-              />
-            )}
-            {editor.type === "loan" && (
-              <div className="space-y-2">
-                <Label htmlFor="cost-description">
-                  {editor.type === "loan"
-                    ? "What is the loan for?"
-                    : "Description"}
-                </Label>
-                <Input
-                  id="cost-description"
-                  required
-                  maxLength={200}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  autoFocus
-                />
-              </div>
-            )}
-            <ExpenseSelect
-              id="cost-currency"
-              label="Currency"
-              value={currency}
-              disabled={
-                editor.type === "payment" ||
-                editor.type === "repayment" ||
-                (!!record &&
-                  ledger.payments.some((p) => p.expense_id === record.id))
-              }
-              options={currencies.map((c) => ({
-                value: c.code,
-                label: c.code,
-              }))}
-              onChange={(v) => {
-                setCurrency(v);
-                changed();
-              }}
-            />
-            <div className="space-y-2">
-              <Label htmlFor="cost-amount">
-                Amount{basis === "per_person" && isCost ? " per person" : ""} ·{" "}
-                {currency}
-              </Label>
-              <Input
-                id="cost-amount"
-                required
-                inputMode="decimal"
-                readOnly={
-                  !!editor.receipt &&
-                  !editor.receipt.payment_id &&
-                  !editor.receipt.loan_id
-                }
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cost-date">
-                {isCost
-                  ? "Cost date"
-                  : editor.type === "loan"
-                    ? "Date lent"
-                    : "Date paid"}
-              </Label>
-              <Input
-                id="cost-date"
-                required
-                type="date"
-                min="0001-01-01"
-                max="9999-12-31"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-            {(editor.type === "payment" || editor.type === "loan") && (
-              <ExpenseSelect
-                id="cost-payer"
-                label={editor.type === "loan" ? "Lent by" : "Paid by"}
-                value={String(payer)}
-                options={currentPeople.map((p) => ({
-                  value: String(p.user_id),
-                  label: expenseName(p),
-                }))}
-                onChange={(v) => {
-                  setPayer(Number(v));
-                  changed();
-                }}
-                disabled={
-                  !!editor.memberID ||
-                  !!editor.payment ||
-                  (editor.type === "loan" && !canChooseLender)
-                }
-              />
-            )}
-            {editor.type === "loan" && (
-              <>
-                <ExpenseSelect
-                  id="loan-borrower"
-                  label="Borrowed by"
-                  value={String(borrower)}
-                  options={currentPeople
-                    .filter((p) => p.user_id !== payer)
-                    .map((p) => ({
-                      value: String(p.user_id),
-                      label: expenseName(p),
-                    }))}
-                  onChange={(v) => {
-                    setBorrower(Number(v));
-                    changed();
-                  }}
-                />
-                <p className="text-sm text-muted-foreground">
-                  A cash loan creates a debt. It does not add activity spending.
-                </p>
-              </>
-            )}
-          </>
+          <TransactionFields
+            editor={editor}
+            isCost={isCost}
+            record={record}
+            ledger={ledger}
+            activity={activity}
+            setActivity={setActivity}
+            activityOptions={activityOptions}
+            description={description}
+            setDescription={setDescription}
+            currency={currency}
+            setCurrency={setCurrency}
+            currencies={currencies}
+            basis={basis}
+            amount={amount}
+            setAmount={setAmount}
+            date={date}
+            setDate={setDate}
+            payer={payer}
+            setPayer={setPayer}
+            borrower={borrower}
+            setBorrower={setBorrower}
+            currentPeople={currentPeople}
+            canChooseLender={canChooseLender}
+            changed={changed}
+          />
         )}
         {editor.type === "payment" && !editor.memberID && (
-          <>
-            <label className="flex min-h-11 items-center gap-3">
-              <input
-                type="checkbox"
-                className="size-5 accent-primary"
-                checked={manual}
-                onChange={(e) => {
-                  setAllocation(
-                    Object.fromEntries(
-                      preview.map((s) => [
-                        s.user_id,
-                        moneyInput(s.amount_minor, meta.decimals),
-                      ]),
-                    ),
-                  );
-                  setManual(e.target.checked);
-                }}
-              />
-              Adjust coverage manually
-            </label>
-            <div className="space-y-2 rounded-xl bg-secondary p-4">
-              <p className="font-medium">Payment covers</p>
-              {(manual ? paymentRemaining : preview).map((s) => (
-                <div
-                  key={s.user_id}
-                  className="flex flex-wrap items-center justify-between gap-2"
-                >
-                  <span>
-                    {expenseName(people.find((p) => p.user_id === s.user_id))}
-                    {s.user_id === payer ? " (own share)" : ""}
-                  </span>
-                  {manual ? (
-                    <Input
-                      aria-label={`Coverage for ${expenseName(people.find((p) => p.user_id === s.user_id))}`}
-                      className="w-32"
-                      inputMode="decimal"
-                      value={allocation[s.user_id] ?? "0"}
-                      onChange={(e) =>
-                        setAllocation((v) => ({
-                          ...v,
-                          [s.user_id]: e.target.value,
-                        }))
-                      }
-                    />
-                  ) : (
-                    <span>{money(s.amount_minor)}</span>
-                  )}
-                </div>
-              ))}
-              <p className="text-sm" aria-live="polite">
-                {previewError ||
-                  "Included in the original cost. Other travelers reimburse the payer for their covered shares."}
-              </p>
-            </div>
-          </>
+          <PaymentCoverage
+            manual={manual}
+            setManual={setManual}
+            allocation={allocation}
+            setAllocation={setAllocation}
+            preview={preview}
+            previewError={previewError}
+            paymentRemaining={paymentRemaining}
+            people={people}
+            payer={payer}
+            meta={meta}
+            money={money}
+          />
         )}
         {editor.type === "repayment" && debt && (
           <p className="rounded-xl bg-secondary p-4">
@@ -898,56 +539,15 @@ export function ActivityExpenseForm({
           </p>
         )}
         {review && record && (
-          <div
-            ref={feedback}
-            tabIndex={-1}
-            className="space-y-2 rounded-xl border p-4"
-            role="status"
-          >
-            <p className="font-medium">Review adjustment before saving</p>
-            <p>
-              Cost: {money(record.amount_minor)} → {money(total)}
-            </p>
-            {preview.map((s) => (
-              <p key={s.user_id}>
-                {expenseName(people.find((p) => p.user_id === s.user_id))}:{" "}
-                {money(
-                  record.shares.find((old) => old.user_id === s.user_id)
-                    ?.amount_minor ?? "0",
-                )}{" "}
-                → {money(s.amount_minor)}
-              </p>
-            ))}
-            {[
-              ...new Set([
-                ...record.shares.map((s) => s.user_id),
-                ...preview.map((s) => s.user_id),
-                ...ledger.payments
-                  .filter((p) => p.expense_id === record.id)
-                  .flatMap((p) => p.allocations.map((a) => a.user_id)),
-              ]),
-            ].map((id) => {
-              const before = memberPaymentState(record, ledger, id);
-              const after = memberPaymentState(
-                { ...record, amount_minor: total, shares: preview },
-                ledger,
-                id,
-              );
-              return (
-                <p key={`balance-${id}`} className="text-sm">
-                  {expenseName(people.find((p) => p.user_id === id))}: still to
-                  pay {money(before.remaining.toString())} →{" "}
-                  {money(after.remaining.toString())}; credit{" "}
-                  {money(before.credit.toString())} →{" "}
-                  {money(after.credit.toString())}
-                </p>
-              );
-            })}
-            <p className="text-sm">
-              Recorded payments stay unchanged. Excess coverage becomes a credit
-              for review.
-            </p>
-          </div>
+          <AdjustmentReview
+            feedback={feedback}
+            record={record}
+            total={total}
+            preview={preview}
+            ledger={ledger}
+            people={people}
+            money={money}
+          />
         )}
         {editor.receipt && (
           <div className="space-y-2">
