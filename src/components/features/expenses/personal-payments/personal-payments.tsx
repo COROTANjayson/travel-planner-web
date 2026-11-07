@@ -21,9 +21,8 @@ import type { Participant } from "@/lib/memberships";
 import type { Trip } from "@/lib/trips";
 import { expenseMoney } from "@/lib/money";
 import { Button } from "@/components/ui/button";
-import { ActivityExpenseForm } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
 import { ExpensePaymentWorkspace } from "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace";
-import { TripDialog } from "@/components/shared/trip-dialog";
+import { MarkAsPaidDialog } from "@/components/features/expenses/dialogs/mark-as-paid-dialog";
 
 export function PersonalPayments({
   trip,
@@ -400,68 +399,21 @@ export function PersonalPayments({
           onFailure={onFailure}
         />
       )}
-      <TripDialog
-        className="expense-editor-dialog"
-        backdropClassName="bg-black/60"
-        open={!!debt}
-        title="Mark as paid"
-        description={debt?.description}
-        busy={api.pending}
-        disablePointerDismissal
+      <MarkAsPaidDialog
+        debt={debt}
+        setDebt={setDebt}
+        setDirty={setDirty}
+        api={api}
+        people={people}
+        currencies={currencies}
+        current={current}
+        participants={participants}
+        trip={trip}
+        ledger={ledger}
+        close={close}
         finalFocus={finalFocus}
-        onOpenChange={(open) => {
-          if (!open) close();
-        }}
-      >
-        {debt && (
-          <ActivityExpenseForm
-            key={`${debt.payment_id}:${debt.loan_id}:${debt.from_user_id}`}
-            editor={{ type: "repayment", debt }}
-            activityID={activityKey(debt)}
-            activities={[]}
-            people={people}
-            currencies={currencies}
-            userID={current.user_id}
-            currentUserIDs={participants?.map((p) => p.user_id)}
-            zone={trip.time_zone}
-            ledger={ledger}
-            pending={api.pending || current.role === "viewer"}
-            error={api.error}
-            onDirty={() => {
-              setDirty(true);
-              api.reset();
-            }}
-            onCancel={close}
-            onSave={async (input) => {
-              const value = input as TransactionInput;
-              if (
-                current.role === "viewer" ||
-                current.user_id !== value.to_user_id
-              )
-                throw new ApiError(
-                  403,
-                  "Only the recipient can confirm money received.",
-                );
-              const saved = await api.saveSettlement(
-                {
-                  payment_id: value.payment_id,
-                  loan_id: value.loan_id,
-                  from_user_id: value.from_user_id!,
-                  to_user_id: value.to_user_id!,
-                  currency: value.currency,
-                  amount_minor: value.amount_minor,
-                  paid_on: value.paid_on,
-                },
-                undefined,
-                key.current,
-              );
-              if (!saved) return;
-              setDebt(null);
-              setDirty(false);
-            }}
-          />
-        )}
-      </TripDialog>
+        receiptKey={key}
+      />
     </section>
   );
 }
