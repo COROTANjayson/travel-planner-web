@@ -24,6 +24,8 @@ export function MarkAsPaidDialog({
   close,
   finalFocus,
   receiptKey,
+  backLabel,
+  description,
 }: {
   debt: Debt | null;
   setDebt: (debt: Debt | null) => void;
@@ -40,14 +42,23 @@ export function MarkAsPaidDialog({
   close: () => void;
   finalFocus: ComponentProps<typeof TripDialog>["finalFocus"];
   receiptKey: RefObject<string>;
+  backLabel?: string;
+  description?: string;
 }) {
   return (
     <TripDialog
-      className="expense-editor-dialog"
+      className={
+        backLabel
+          ? "activity-details-dialog expense-flow-dialog repayment-dialog"
+          : "expense-editor-dialog"
+      }
+      presentation={backLabel ? "detail" : "dialog"}
+      backLabel={backLabel}
+      onBack={backLabel ? close : undefined}
       backdropClassName="bg-black/60"
       open={!!debt}
-      title="Mark as paid"
-      description={debt?.description}
+      title={backLabel ? "Confirm money received" : "Mark as paid"}
+      description={backLabel ? undefined : (description ?? debt?.description)}
       busy={api.pending}
       disablePointerDismissal
       finalFocus={finalFocus}
@@ -59,6 +70,7 @@ export function MarkAsPaidDialog({
         <ActivityExpenseForm
           key={`${debt.payment_id}:${debt.loan_id}:${debt.from_user_id}`}
           editor={{ type: "repayment", debt }}
+          simpleRepayment={!!backLabel}
           activityID={activityKey(debt)}
           activities={[]}
           people={people}

@@ -8,9 +8,21 @@ web
 
 ## Users
 
-Friends and small groups planning trips together are the primary audience,
-confirmed during initialization on 2026-10-22. They need to organize shared
-destinations, daily plans, and travel companions in one itinerary.
+Friends and small groups planning trips together remain the core audience,
+confirmed on 2026-10-22. They need to organize shared destinations, daily
+plans, and travel companions in one itinerary.
+
+On 2026-11-08 the user confirmed three further primary audiences:
+
+- Families: parents planning with children or relatives, across mixed ages
+  and devices.
+- Solo travelers: one person planning their own trip; group features are
+  optional for them, not required.
+- Organized groups: clubs, teams, classes, or company offsites, typically one
+  coordinator with many participants.
+
+No audience has been ranked above another beyond the core group; treat
+single-person and many-participant trips as equally valid.
 
 ## Product Purpose
 
@@ -18,6 +30,15 @@ Help a group create a clear trip plan, coordinate who can change it, and consult
 the same daily itinerary. Success means participants can find the plan for a day
 and authorized planners can update it without losing their work or confusing
 the trip's local times. Quantitative success targets remain undecided.
+
+## Positioning
+
+Money lives inside the itinerary. Costs, shares, payments, reimbursements, and
+loans attach to the actual activities on the plan rather than living in a
+separate expense app. Confirmed by the user on 2026-11-08 as the product's
+distinguishing mechanism. The current expenses and loan features are the
+implemented basis for this claim; see the [web README](README.md) for the
+shipped contracts.
 
 ## Operating Context
 
@@ -56,22 +77,26 @@ Preserve entered values after recoverable errors and protect unsaved work.
 Activity to-dos currently have no completion controls. See the [web README](README.md)
 for the authoritative implemented contracts and limitations.
 
-### Future goals
+### Committed roadmap
 
-The user confirmed these original ideas should remain in product context,
-separate from current capabilities:
+On 2026-11-08 the user confirmed these original ideas as committed goals, not
+merely context:
 
-- Generate itineraries with AI.
-- Create, reuse, and share traveler templates.
-- Let groups split into different plans and coordinate a later reunion.
-- Help adjust schedules as plans change.
-- Plan trip budgets among companions.
+- Generate itineraries with AI from a prompt and travel preferences.
+- Create, reuse, and share traveler itinerary templates.
+- Let sub-groups follow separate plans and rejoin at a set meeting point and
+  time.
+- Recalculate the schedule when activities move or run long.
 
-These goals are not shipped features or authorization to implement them. Their
-priority, detailed behavior, and delivery dates remain undecided. The original
-architecture proposal also discusses native mobile apps and offline support;
-neither changes the current web platform or establishes a delivery commitment.
-No distinct competitive positioning has been confirmed.
+Budget sharing among companions, the fifth original idea, is now delivered
+through activity expenses and loans and continues under the positioning above.
+
+None of the four is shipped, and nothing in the codebase implements them yet.
+Their order, detailed behavior, and delivery dates remain undecided; a
+commitment here is not authorization to build one without a request. The
+original architecture proposal also discusses native mobile apps and offline
+support; neither changes the current web platform or establishes a delivery
+commitment.
 
 ## Brand Commitments
 
@@ -87,8 +112,8 @@ interface decisions; this product record does not replace it.
   requirements.
 - [Landing page](src/app/page.tsx): current product copy and a labeled Lisbon
   sample itinerary. Its activities are examples, not validated travel advice.
-- [Original product ideas](../travel%20planner.txt) and
-  [architecture proposal](../travle-planner.md): workspace-level planning
+- [Original product ideas](../planner.txt) and
+  [architecture proposal](../planner.md): workspace-level planning
   references outside this independent Git repository. Their proposals must not
   be presented as implemented behavior.
 
@@ -100,6 +125,7 @@ been established during initialization; do not invent them.
 - Make the shared daily plan easy to find and understand.
 - Make permissions and the consequences of group changes clear.
 - Preserve user work and the meaning of scheduled times.
+- Keep money attached to the activity it pays for.
 - Keep current capabilities distinct from future promises and sample content.
 
 ## Accessibility & Inclusion

@@ -1,6 +1,7 @@
 "use client";
 
 import type { RefObject, ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
 import type { ExpenseEditor } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
 import { Button } from "@/components/ui/button";
 import type {
@@ -53,7 +54,47 @@ export function CostArticle({
   );
   return (
     <article className="space-y-2 py-5">
-      {!managementOnly && (
+      {flow && !managementOnly && (
+        <Button
+          variant="ghost"
+          className="activity-expense-row"
+          aria-label={`View ${cost.description} payments`}
+          onClick={(event) => {
+            triggerRef.current = event.currentTarget;
+            setPaymentCost(cost);
+          }}
+        >
+          <span className="activity-expense-row-content">
+            <span className="activity-expense-row-title">
+              <span className="font-semibold">{cost.description}</span>
+              <span className="activity-expense-row-price tabular-nums">
+                {equal && cost.shares[0]
+                  ? `${money(cost.shares[0].amount_minor, cost.currency)} each`
+                  : money(cost.amount_minor, cost.currency)}
+                <ChevronRight
+                  aria-hidden="true"
+                  className="size-4"
+                  strokeWidth={1.75}
+                />
+              </span>
+            </span>
+            <span className="activity-expense-row-meta">
+              {cost.shares.length}{" "}
+              {cost.shares.length === 1 ? "person" : "people"}
+              {" · "}
+              {money(cost.amount_minor, cost.currency)} total
+            </span>
+            <span className="activity-expense-row-meta">
+              {paid === 0n && !!cost.planned_coverer_user_id
+                ? `${name(cost.planned_coverer_user_id)} will cover the ${money(cost.planned_cover_amount_minor ?? "0", cost.currency)} reservation`
+                : paid > 0n
+                  ? `${money(paid, cost.currency)} paid`
+                  : "Not paid yet"}
+            </span>
+          </span>
+        </Button>
+      )}
+      {!flow && !managementOnly && (
         <>
           <div className="activity-cost-title">
             <h4 aria-label={cost.description}>

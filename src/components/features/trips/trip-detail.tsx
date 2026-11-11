@@ -3,7 +3,7 @@
 import { TripSummary } from "@/components/features/trips/trip-summary";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, type ApiUser, useApi } from "@/lib/api";
@@ -11,29 +11,30 @@ import { permissions, useMembershipsApi } from "@/lib/memberships";
 import { Expenses } from "@/components/features/expenses/expenses";
 import { Prep } from "@/components/features/prep/prep";
 import { Itinerary } from "@/components/features/itinerary/itinerary";
-import { type TripInput, useTripsApi } from "@/lib/trips";
+import { formatTripDates, type TripInput, useTripsApi } from "@/lib/trips";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ListChecks, Receipt } from "lucide-react";
 import { TripOptionsDialog } from "@/components/features/trips/dialogs/trip-options-dialog";
 import { TripPeopleDialog } from "@/components/features/trips/dialogs/trip-people-dialog";
 import { TripSettingsDialog } from "@/components/features/trips/dialogs/trip-settings-dialog";
-import {
-  TripViewSwitch,
-  tripViews,
-} from "@/components/features/trips/trip-view-switch";
 import {
   TripError,
   TripLoading,
   TripNotFound,
 } from "@/components/shared/trip-states";
 
-export function TripDetail({ id }: { id: number }) {
-  const searchParams = useSearchParams();
-  const view = searchParams.get("view") ?? "";
-  // An activity dialog always opens over the itinerary.
-  const shown = searchParams.has("activity") ? "" : view;
-  const expenseView = shown === "expenses";
-  const prepView = shown === "prep";
+/** Itinerary at `/trips/[id]`; Expenses and Prep are their own pages. */
+export function TripDetail({
+  id,
+  view,
+}: {
+  id: number;
+  view?: "expenses" | "prep";
+}) {
+  const expenseView = view === "expenses";
+  const prepView = view === "prep";
+  const backHref = view ? `/trips/${id}` : "/trips";
+  const backLabel = view ? "Back to itinerary" : "Back to trips";
   const [itineraryDate, setItineraryDate] = useState<string>();
   const api = useTripsApi();
   const queryClient = useQueryClient();
@@ -138,16 +139,17 @@ export function TripDetail({ id }: { id: number }) {
         <Button
           variant="ghost"
           className="size-12 shrink-0"
-          aria-label="Back to trips"
-          render={<Link href="/trips" />}
+          aria-label={backLabel}
+          render={<Link href={backHref} />}
           nativeButton={false}
         >
           <ArrowLeft aria-hidden="true" />
         </Button>
         <p className="min-w-0 flex-1 text-sm font-medium">
-          {`Trip ${(tripViews[shown] ?? "Itinerary").toLowerCase()}`}
+          {`Trip ${view ?? "itinerary"}`}
         </p>
         <TripOptionsDialog
+          tripID={id}
           tripName={trip.data.name}
           memberCount={members.data?.length}
           canEdit={allowed.edit}
@@ -176,7 +178,14 @@ export function TripDetail({ id }: { id: number }) {
       )}
       <header className="planning-header">
         <div className="min-w-0 flex-1">
-          <TripSummary trip={trip.data} />
+          {view ? (
+            <div className="trip-summary-compact">
+              <h1>{trip.data.name}</h1>
+              <p>{formatTripDates(trip.data.start_date, trip.data.end_date)}</p>
+            </div>
+          ) : (
+            <TripSummary trip={trip.data} />
+          )}
         </div>
         <nav
           aria-label="Trip tools"
@@ -186,13 +195,35 @@ export function TripDetail({ id }: { id: number }) {
             <Button
               className="trip-back min-h-11"
               variant="ghost"
-              aria-label="Back to trips"
-              render={<Link href="/trips" />}
+              aria-label={backLabel}
+              render={<Link href={backHref} />}
               nativeButton={false}
             >
               <ArrowLeft aria-hidden="true" />
-              Back to trips
+              {backLabel}
             </Button>
+            {!view && (
+              <>
+                <Button
+                  variant="ghost"
+                  className="min-h-11"
+                  render={<Link href={`/trips/${id}/expenses`} />}
+                  nativeButton={false}
+                >
+                  <Receipt aria-hidden="true" />
+                  Expenses
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="min-h-11"
+                  render={<Link href={`/trips/${id}/prep`} />}
+                  nativeButton={false}
+                >
+                  <ListChecks aria-hidden="true" />
+                  Prep
+                </Button>
+              </>
+            )}
             <TripPeopleDialog
               id={id}
               members={members}
@@ -218,7 +249,6 @@ export function TripDetail({ id }: { id: number }) {
           </>
         </nav>
       </header>
-      <TripViewSwitch tripID={id} view={view} />
       <Expenses
         active={expenseView}
         trip={trip.data}

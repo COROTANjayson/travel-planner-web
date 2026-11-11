@@ -2458,7 +2458,7 @@ const detailRoute = load("src/app/trips/[tripID]/page.tsx", {
   },
   "next/navigation": {
     useParams: () => ({ tripID: "7" }),
-    useSearchParams: () => new URLSearchParams(detailView),
+    useSearchParams: () => new URLSearchParams(),
     useRouter: () => ({}),
   },
   react: {
@@ -2535,7 +2535,10 @@ const detailRoute = load("src/app/trips/[tripID]/page.tsx", {
 const detailTree = () => {
   detailHook = 0;
   const route = detailRoute.default();
-  return route.props.children.type(route.props.children.props);
+  return route.props.children.type({
+    ...route.props.children.props,
+    view: detailView || undefined,
+  });
 };
 for (detailRole of ["owner", "editor", "viewer"]) {
   const tree = detailTree();
@@ -2629,9 +2632,8 @@ const itineraryDateChanged = nodes(detailTree()).find(
   (node) => node.type === detailItinerary,
 ).props.onDateChange;
 itineraryDateChanged("2026-10-02");
-detailView = "view=expenses";
-let expenseTree = detailTree();
-assert.ok(nodes(expenseTree).some((node) => node.type === detailExpenses));
+detailView = "expenses";
+const expenseTree = detailTree();
 assert.equal(
   nodes(expenseTree).find((node) => node.type === detailExpenses).props.active,
   true,
@@ -2641,27 +2643,33 @@ assert.equal(
   false,
 );
 assert.ok(
-  nodes(expenseTree).some((node) => node.props.children === "Trip expenses"),
+  nodes(expenseTree).some(
+    (node) =>
+      node.props["aria-label"] === "Back to itinerary" &&
+      node.props.render?.props.href === "/trips/7",
+  ),
+  "Expenses page links back to the itinerary",
 );
 assert.equal(
-  nodes(expenseTree).find((node) => node.props["aria-current"] === "page").props
-    .href,
-  "/trips/7?view=expenses",
-  "The view switch marks Expenses as current",
+  nodes(expenseTree).some((node) => node.props["aria-current"] === "page"),
+  false,
+  "The pill view switch is gone",
 );
 detailView = "";
-assert.equal(
-  nodes(detailTree()).find((node) => node.props["aria-current"] === "page")
-    .props.href,
-  "/trips/7",
-  "The view switch marks Itinerary as current",
+const itineraryTree = nodes(detailTree());
+assert.deepEqual(
+  itineraryTree
+    .filter((node) => node.props.render?.props.href?.startsWith("/trips/7/"))
+    .map((node) => node.props.render.props.href),
+  ["/trips/7/expenses", "/trips/7/prep", "/trips/7/expenses", "/trips/7/prep"],
+  "Desktop nav and mobile options both link to the separate Expenses and Prep pages",
 );
 assert.equal(
-  nodes(detailTree()).some((node) => node.type === detailPrep),
+  itineraryTree.some((node) => node.type === detailPrep),
   false,
-  "Prep only renders in its own view",
+  "Prep only renders on its own page",
 );
-detailView = "view=prep";
+detailView = "prep";
 const prepTree = nodes(detailTree());
 assert.equal(
   prepTree.find((node) => node.type === detailPrep).props.canEdit,
@@ -2676,29 +2684,8 @@ assert.equal(
   false,
 );
 assert.ok(prepTree.some((node) => node.props.children === "Trip prep"));
-assert.equal(
-  prepTree.find((node) => node.props["aria-current"] === "page").props.href,
-  "/trips/7?view=prep",
-  "The view switch marks Prep as current",
-);
-detailView = "view=prep&activity=3";
-assert.ok(
-  nodes(detailTree()).some((node) => node.type === detailItinerary),
-  "An activity link still opens over the itinerary",
-);
 detailView = "";
 assert.ok(nodes(expenseTree).some((node) => node.props.title === "People"));
-detailView = "view=unknown";
-assert.equal(
-  nodes(detailTree()).find((node) => node.type === detailExpenses).props.active,
-  false,
-  "The ledger stays mounted across views to retain editors",
-);
-assert.equal(
-  nodes(detailTree()).find((node) => node.type === detailItinerary).props
-    .initialDate,
-  "2026-10-02",
-);
 detailView = "";
 const cachedTrip = detailQuery.data;
 detailQuery = {

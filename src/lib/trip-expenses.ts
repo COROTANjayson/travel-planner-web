@@ -1,5 +1,5 @@
 import { memberPaymentState } from "./activity-expenses";
-import type { ActivityLedger, Expense } from "./expenses";
+import type { ActivityLedger, Debt, Expense } from "./expenses";
 
 export const categoryOf = (
   expense: Pick<Expense, "activity_id">,
@@ -7,12 +7,15 @@ export const categoryOf = (
 ) => activities.find((a) => a.id === expense.activity_id)?.category || "Other";
 
 export interface MyEntry {
+  debt?: Debt;
   key: string;
   date: string;
   title: string;
   detail: string;
   currency: string;
   amount_minor: string;
+  total_minor?: string;
+  total_label?: "Your share" | "Lent" | "Borrowed";
   status: "owe" | "owed" | "settled";
   status_label: string;
   status_amount?: string;
@@ -45,6 +48,8 @@ export function myEntries(
         ),
         currency: e.currency,
         amount_minor: String(state.share),
+        total_minor: String(state.share),
+        total_label: "Your share",
         activity_id: e.activity_id,
         ...(state.credit > 0n
           ? {
@@ -73,6 +78,7 @@ export function myEntries(
       );
       return {
         key: `owed-${d.payment_id}-${d.from_user_id}`,
+        debt: d,
         date: expense?.incurred_on ?? "",
         title: `${name(d.from_user_id)} owes you`,
         detail: detail(place(d), d.description),
@@ -92,6 +98,14 @@ export function myEntries(
         .reduce((n, d) => n + BigInt(d.amount_minor), 0n);
       return {
         key: `loan-${l.id}`,
+        debt: lent
+          ? ledger.debts.find(
+              (d) =>
+                d.loan_id === l.id &&
+                d.to_user_id === me &&
+                BigInt(d.amount_minor) > 0n,
+            )
+          : undefined,
         date: l.paid_on,
         title: lent
           ? `You lent ${name(l.to_user_id)}`
@@ -99,6 +113,8 @@ export function myEntries(
         detail: detail(place(l), l.description),
         currency: l.currency,
         amount_minor: l.amount_minor,
+        total_minor: l.amount_minor,
+        total_label: lent ? "Lent" : "Borrowed",
         activity_id: l.activity_id,
         ...(left > 0n
           ? {

@@ -402,6 +402,49 @@ assert.equal(
   "Own expense rows carry what is still owed on them",
 );
 assert.equal(
+  mine[0].total_minor,
+  "80000",
+  "An expense row's total is the member's assigned share",
+);
+const lenderEntries = tripExpenses.myEntries(
+  loanLedgerShape,
+  [resort],
+  1,
+  (id) => `P${id}`,
+);
+assert.equal(
+  lenderEntries.find((e) => e.key === "owed-1-3").total_minor,
+  undefined,
+);
+assert.equal(
+  lenderEntries.find((e) => e.key === "loan-1").total_minor,
+  "25000",
+);
+assert.equal(
+  lenderEntries.find((e) => e.key === "settlement-9").total_minor,
+  undefined,
+);
+const reimbursementEntries = tripExpenses.myEntries(
+  {
+    ...loanLedgerShape,
+    settlements: [
+      {
+        ...loanLedgerShape.settlements[0],
+        loan_id: undefined,
+        payment_id: 1,
+        from_user_id: 3,
+      },
+    ],
+  },
+  [resort],
+  1,
+  (id) => `P${id}`,
+);
+assert.equal(
+  reimbursementEntries.find((e) => e.key === "settlement-9").total_minor,
+  undefined,
+);
+assert.equal(
   JSON.stringify(
     tripExpenses
       .myEntries(loanLedgerShape, [resort], 1, (id) => `P${id}`)
@@ -589,6 +632,12 @@ const CostEditor = () => null;
 const PaymentWorkspace = () => null;
 const PersonalPayments = () => null;
 const viewMocks = {
+  "@/components/ui/popover": {
+    Popover: wrap("div"),
+    PopoverTrigger: wrap("button"),
+    PopoverContent: wrap("div"),
+    PopoverTitle: wrap("span"),
+  },
   react: formReact,
   "next/link": {
     __esModule: true,
@@ -618,6 +667,13 @@ const viewMocks = {
   "@/lib/activity-expenses": activity,
   "@/lib/money": money,
   "@/components/ui/button": { Button: wrap("button") },
+  "@/components/ui/select": {
+    Select: ({ children }) => React.createElement("div", null, children),
+    SelectTrigger: wrap("button"),
+    SelectValue: wrap("span"),
+    SelectContent: ({ children }) => React.createElement("div", null, children),
+    SelectItem: ({ children }) => React.createElement("div", null, children),
+  },
   "@/components/shared/trip-dialog": {
     TripDialog: ({ open, children }) => (open ? children : null),
   },
@@ -677,15 +733,30 @@ enabled.length = 0;
 tree = render(view.Expenses, { ...viewProps, active: true });
 let html = renderToStaticMarkup(tree);
 assert.match(html, /1550|1,550/);
-assert.match(html, /Overall expenses<\/dt><dd>₱6,350/);
+assert.match(html, /Your total share<\/dt><dd>₱1,550/);
+assert.match(html, />Your expenses<\/h2>/);
+assert.match(html, /Tap an amount owed to you to record money received/);
+assert.doesNotMatch(html, /Overall expenses|Total:/);
 assert.match(
   html,
-  /Balance<\/dt><dd>₱1,550/,
-  "Balance is the unpaid share plus borrowed money",
+  /You owe<\/dt><dd>₱1,550/,
+  "You owe is the unpaid share plus borrowed money",
 );
-assert.match(html, /To receive<\/dt><dd>₱0/);
+assert.match(html, /You’re owed<\/dt><dd>₱0/);
+assert.doesNotMatch(html, /<dt>Net</);
+assert.ok(
+  html.indexOf("You owe</dt>") < html.indexOf("Your total share</dt>"),
+  "Your balance comes before your total share",
+);
+assert.doesNotMatch(html, /Trip expenses/);
 assert.doesNotMatch(html, /Your share|To pay to business|Overall, you/);
 assert.match(html, /data-category="Rest"/);
+assert.equal(
+  (html.match(/class="expense-row relative"/g) ?? []).length,
+  (html.match(/<time dateTime=/g) ?? []).length,
+  "Every dated expense row has its own recognizable date",
+);
+assert.doesNotMatch(html, /expense-day-heading|expense-day-rows/);
 assert.doesNotMatch(html, /href=/, "Expense rows do not navigate");
 assert.doesNotMatch(html, /Mark as paid|View payments|Add expense/);
 assert.doesNotMatch(html, />Add cost</);
@@ -694,6 +765,148 @@ assert.doesNotMatch(
   /Paid for someone|Lent money|Historical repayments need allocation/,
 );
 assert.ok(enabled.every(Boolean));
+
+// Mobile and desktop controls share one filter, including empty results.
+const listModule = load(
+  "src/components/features/expenses/trip-expense-list.tsx",
+  viewMocks,
+  viewGlobals,
+);
+const listProps = {
+  ledger: loanLedgerShape,
+  activities: [resort],
+  people,
+  me: 1,
+  currencies,
+  today: "2026-11-08",
+};
+states = [];
+refs = [];
+let listTree = render(listModule.TripExpenseList, listProps);
+const mobilePicker = (node) => nodes(node).find((n) => n.props.onValueChange);
+assert.equal(nodes(listTree).filter((n) => n.type === "li").length, 4);
+mobilePicker(listTree).props.onValueChange("Settled");
+listTree = render(listModule.TripExpenseList, listProps);
+assert.equal(nodes(listTree).filter((n) => n.type === "li").length, 1);
+assert.match(renderToStaticMarkup(listTree), /paid you/);
+assert.ok(
+  nodes(listTree).some(
+    (n) =>
+      n.props["aria-pressed"] &&
+      React.Children.toArray(n.props.children).includes("Settled"),
+  ),
+);
+mobilePicker(listTree).props.onValueChange("Upcoming");
+listTree = render(listModule.TripExpenseList, listProps);
+assert.match(renderToStaticMarkup(listTree), /Nothing matches this filter/);
+mobilePicker(listTree).props.onValueChange(null);
+listTree = render(listModule.TripExpenseList, listProps);
+assert.equal(mobilePicker(listTree).props.value, "Upcoming");
+
+// The overview opens the existing recipient-only form for both kinds of debt.
+const overviewApiSave = viewApi.saveSettlement;
+const overviewWrites = [];
+viewData = loanLedgerShape;
+const recipientProps = {
+  ...viewProps,
+  active: true,
+  current: { user_id: 1, role: "member" },
+};
+for (const kind of ["loan_id", "payment_id"]) {
+  states = [];
+  refs = [];
+  tree = render(view.Expenses, recipientProps);
+  const row = nodes(tree).find((n) => n.props.onReceive);
+  const entry = tripExpenses
+    .myEntries(viewData, [resort], 1, (id) =>
+      ledger.expenseName(people.find((p) => p.user_id === id)),
+    )
+    .find((e) => e.debt?.[kind]);
+  assert.ok(entry);
+  const filterTarget = { focus() {} };
+  row.props.filterRef.current = filterTarget;
+  const action = nodes(tree).find(
+    (n) => n.props["aria-label"] === `Record money received: ${entry.title}`,
+  );
+  assert.ok(action, "Owed rows are keyboard-operable buttons even in All");
+  action.props.onClick({ currentTarget: { isConnected: false } });
+  tree = render(view.Expenses, recipientProps);
+  let form = nodes(tree).find((n) => n.type === formModule.ActivityExpenseForm);
+  assert.equal(form.props.editor.debt[kind], entry.debt[kind]);
+  const drawer = nodes(tree).find(
+    (n) =>
+      n.props.backLabel === "Back to expenses" &&
+      n.props.presentation === "detail",
+  );
+  assert.ok(drawer);
+  assert.equal(
+    drawer.props.finalFocus(),
+    filterTarget,
+    "Removed rows return focus to the selected filter",
+  );
+  const mobileFilterTarget = { getClientRects: () => [{}] };
+  row.props.mobileFilterRef.current = mobileFilterTarget;
+  assert.equal(
+    drawer.props.finalFocus(),
+    mobileFilterTarget,
+    "Removed rows return focus to the visible mobile filter",
+  );
+  mobileFilterTarget.getClientRects = () => [];
+  assert.equal(
+    drawer.props.finalFocus(),
+    filterTarget,
+    "A hidden mobile filter does not steal desktop focus",
+  );
+  const input = { ...entry.debt, paid_on: "2026-11-02", amount_minor: "1000" };
+  viewApi.saveSettlement = async (...args) => {
+    overviewWrites.push(args);
+    throw new Error("Offline");
+  };
+  await assert.rejects(form.props.onSave(input), /Offline/);
+  tree = render(view.Expenses, recipientProps);
+  form = nodes(tree).find((n) => n.type === formModule.ActivityExpenseForm);
+  assert.ok(form, "Overview keeps a failed receipt open");
+  viewApi.saveSettlement = async (...args) => {
+    overviewWrites.push(args);
+    return { id: 100 };
+  };
+  await form.props.onSave(input);
+  assert.equal(overviewWrites.at(-1)[2], overviewWrites.at(-2)[2]);
+  tree = render(view.Expenses, recipientProps);
+  assert.ok(
+    !nodes(tree).some((n) => n.type === formModule.ActivityExpenseForm),
+  );
+}
+viewApi.saveSettlement = overviewApiSave;
+states = [];
+refs = [];
+assert.doesNotMatch(
+  renderToStaticMarkup(
+    render(view.Expenses, {
+      ...recipientProps,
+      current: { user_id: 1, role: "viewer" },
+    }),
+  ),
+  /Record money received:/,
+);
+assert.ok(
+  mine.every((e) => !e.debt),
+  "Debtor and own-share rows are not receipt actions",
+);
+const repaid = tripExpenses.myEntries(
+  { ...loanLedgerShape, debts: [] },
+  [resort],
+  1,
+  (id) => `P${id}`,
+);
+assert.ok(repaid.every((e) => !e.debt));
+assert.equal(repaid.find((e) => e.key === "loan-1").status, "settled");
+assert.equal(
+  lenderEntries.find((e) => e.key === "loan-1").debt.amount_minor,
+  "15000",
+);
+viewData = data;
+
 states = [];
 tree = render(view.Expenses, {
   ...viewProps,
@@ -706,13 +919,14 @@ states = [];
 refs = [];
 tree = render(view.Expenses, { ...viewProps, active: true });
 nodes(tree)
-  .find((n) => n.props.children === "Upcoming")
+  .find((n) => n.props.children?.[0] === "Upcoming")
   .props.onClick();
 html = renderToStaticMarkup(
   render(view.Expenses, { ...viewProps, active: true }),
 );
 assert.match(html, /Nothing matches this filter/);
-assert.doesNotMatch(html, /Sun, Nov 1/);
+assert.match(html, /Your total share<\/dt><dd>₱1,550/);
+assert.doesNotMatch(html, /2026-11-01/);
 states = [];
 refs = [];
 viewData = {
@@ -725,6 +939,104 @@ viewData = {
 };
 tree = render(view.Expenses, { ...viewProps, active: true });
 assert.match(renderToStaticMarkup(tree), /JPY/);
+const personalFixture = {
+  ...data,
+  expenses: [
+    {
+      ...inn,
+      amount_minor: "120000",
+      shares: [1, 2, 3].map((user_id) => ({ user_id, amount_minor: "40000" })),
+    },
+    {
+      ...inn,
+      id: 90,
+      currency: "USD",
+      shares: [{ user_id: 2, amount_minor: "100" }],
+    },
+  ],
+  payments: [],
+  debts: [],
+  loans: [],
+  settlements: [],
+};
+const personalHtml = (fixture, user = 3) => {
+  viewData = fixture;
+  states = [];
+  refs = [];
+  return renderToStaticMarkup(
+    render(view.Expenses, {
+      ...viewProps,
+      active: true,
+      current: { user_id: user, role: "member" },
+    }),
+  );
+};
+html = personalHtml(personalFixture);
+assert.match(html, /Your total share<\/dt><dd>₱400/);
+assert.doesNotMatch(html, /USD|Your share:/);
+const paidFixture = {
+  ...personalFixture,
+  payments: [
+    {
+      id: 80,
+      expense_id: inn.id,
+      payer_user_id: 3,
+      currency: "PHP",
+      amount_minor: "40000",
+      allocations: [{ user_id: 3, amount_minor: "40000" }],
+    },
+  ],
+};
+html = personalHtml(paidFixture);
+assert.match(html, /Your total share<\/dt><dd>₱400/);
+assert.match(html, /paid<\/span><span[^>]*><strong>₱400<\/strong><\/span>/);
+html = personalHtml({
+  ...paidFixture,
+  payments: [
+    {
+      ...paidFixture.payments[0],
+      amount_minor: "25000",
+      allocations: [{ user_id: 3, amount_minor: "25000" }],
+    },
+  ],
+});
+assert.match(
+  html,
+  /you owe<\/span><span[^>]*><strong>₱150<\/strong><span>Your share: ₱400/,
+);
+html = personalHtml({
+  ...paidFixture,
+  expenses: [
+    {
+      ...personalFixture.expenses[0],
+      shares: [{ user_id: 3, amount_minor: "30000" }],
+    },
+  ],
+});
+assert.match(html, /Your total share<\/dt><dd>₱300/);
+assert.match(html, /credit for review<\/span><span[^>]*><strong>₱100/);
+html = personalHtml(loanLedgerShape, 1);
+assert.match(html, /<strong>₱150<\/strong><span>Lent: ₱250/);
+assert.doesNotMatch(html, /Your share:/);
+html = personalHtml(loanLedgerShape, 2);
+assert.match(html, /<strong>₱150<\/strong><span>Borrowed: ₱250/);
+html = personalHtml(
+  {
+    ...personalFixture,
+    expenses: [],
+    loans: [{ ...loanLedgerShape.loans[0], currency: "JPY" }],
+    settlements: [{ ...loanLedgerShape.settlements[0], currency: "EUR" }],
+  },
+  1,
+);
+assert.match(html, /Your total share<\/dt><dd>JPY 0/);
+assert.match(html, /Your total share<\/dt><dd>EUR 0/);
+html = personalHtml({
+  ...personalFixture,
+  expenses: [personalFixture.expenses[1]],
+});
+assert.match(html, /No expenses yet/);
+assert.doesNotMatch(html, /USD|Your total share/);
 viewData = data;
 states = [];
 refs = [];
@@ -1918,7 +2230,7 @@ for (const role of ["member", "editor", "owner", "viewer"]) {
   assert.match(renderToStaticMarkup(tree), /Person 2 borrowed from Person 1/);
   assert.match(renderToStaticMarkup(tree), /Unpaid/);
   assert.equal(
-    nodes(tree).some((n) => n.props.children === "Mark as paid"),
+    nodes(tree).some((n) => n.props.children === "Record repayment"),
     role !== "viewer",
   );
 }
@@ -1926,7 +2238,7 @@ states = [];
 refs = [];
 tree = render(view.ActivityExpenses, { ...ownerProps, compact: true });
 assert.equal(
-  nodes(tree).some((n) => n.props.children === "Mark as paid"),
+  nodes(tree).some((n) => n.props.children === "Record repayment"),
   false,
   "An unrelated owner cannot confirm receipt",
 );
@@ -2085,6 +2397,8 @@ const receiptProps = {
   editor: { type: "repayment", debt: loanLedger.debts[0] },
 };
 tree = render(formModule.ActivityExpenseForm, receiptProps);
+assert.match(renderToStaticMarkup(tree), /Record repayment/);
+assert.doesNotMatch(renderToStaticMarkup(tree), /Mark as paid/);
 assert.equal(find(tree, "cost-amount").props.value, "250.00");
 find(tree, "cost-amount").props.onChange({ target: { value: "251" } });
 tree = render(formModule.ActivityExpenseForm, receiptProps);
@@ -2094,6 +2408,36 @@ find(tree, "cost-amount").props.onChange({ target: { value: "100" } });
 tree = render(formModule.ActivityExpenseForm, receiptProps);
 await tree.props.onSubmit({ preventDefault() {} });
 assert.equal(saved.loan_id, 1);
+assert.equal(saved.amount_minor, "10000");
+
+states = [];
+refs = [];
+saved = undefined;
+const simpleReceiptProps = { ...receiptProps, simpleRepayment: true };
+tree = render(formModule.ActivityExpenseForm, simpleReceiptProps);
+assert.equal(find(tree, "cost-amount").props.value, "250.00");
+html = renderToStaticMarkup(tree);
+assert.doesNotMatch(html, /Received only part|Use full amount|cost-currency/);
+assert.match(html, /Left to receive:.*?0/);
+await tree.props.onSubmit({ preventDefault() {} });
+assert.equal(saved.amount_minor, "25000");
+for (const value of ["251", "0", "-1", "", "abc", "1.001"]) {
+  find(tree, "cost-amount").props.onChange({ target: { value } });
+  tree = render(formModule.ActivityExpenseForm, simpleReceiptProps);
+  assert.equal(find(tree, "cost-amount").props["aria-invalid"], true);
+  assert.ok(nodes(tree).find((n) => n.props.type === "submit").props.disabled);
+  assert.match(renderToStaticMarkup(tree), /repayment-error/);
+}
+assert.match(renderToStaticMarkup(tree), /Left to receive:.*?250/);
+find(tree, "cost-amount").props.onChange({ target: { value: "100" } });
+tree = render(formModule.ActivityExpenseForm, simpleReceiptProps);
+assert.equal(find(tree, "cost-amount").props["aria-invalid"], false);
+assert.equal(
+  nodes(tree).find((n) => n.props.type === "submit").props.disabled,
+  false,
+);
+assert.match(renderToStaticMarkup(tree), /Left to receive:.*?150/);
+await tree.props.onSubmit({ preventDefault() {} });
 assert.equal(saved.amount_minor, "10000");
 
 viewData = {
@@ -2113,17 +2457,21 @@ tree = render(view.Expenses, {
   current: { user_id: 1, role: "member" },
 });
 html = renderToStaticMarkup(tree);
-assert.match(html, /You lent Person 2[^]*?left to repay you ₱250/);
 assert.match(
   html,
-  /To receive<\/dt><dd>₱600/,
-  "To receive includes money lent to others",
+  /You lent Person 2[^]*?left to repay you<\/span><span[^>]*><strong[^>]*>₱250<\/strong><\/span>/,
+  "Rows omit the original loan amount when it equals the amount still open",
+);
+assert.match(
+  html,
+  /You’re owed<\/dt><dd>₱600/,
+  "You're owed includes money lent to others",
 );
 assert.match(html, /JPY 25,000/, "Currencies stay separate");
 assert.match(
   html,
-  /Overall expenses<\/dt><dd>₱0/,
-  "Loans aren't expenses, so they don't add to the overall figure",
+  /Your total share<\/dt><dd>₱0/,
+  "Loans aren't expenses, so they don't add to your total share",
 );
 assert.doesNotMatch(html, /Mark as paid|Add expense/);
 states = [];
@@ -2178,7 +2526,7 @@ tree = render(view.ActivityExpenses, { ...lenderProps, compact: true });
 assert.match(renderToStaticMarkup(tree), /Paid/);
 assert.match(renderToStaticMarkup(tree), /Cash for Person 2/);
 assert.equal(
-  nodes(tree).some((n) => n.props.children === "Mark as paid"),
+  nodes(tree).some((n) => n.props.children === "Record repayment"),
   false,
 );
 console.log(
@@ -2236,6 +2584,30 @@ assert.equal(detailPanel.props["aria-labelledby"], "expense-details-1");
 expenseTabs(tree).props.onValueChange("personal");
 assert.equal(selectedViews.at(-1), "personal");
 assert.match(renderToStaticMarkup(tree), /Hotel/);
+assert.doesNotMatch(
+  renderToStaticMarkup(tree),
+  /History and corrections|View payments/,
+);
+const expenseRow = nodes(tree).find(
+  (n) => n.props["aria-label"] === "View Hotel payments",
+);
+assert.ok(expenseRow, "The expense row opens payments");
+assert.equal(
+  nodes(expenseRow).filter((n) => n.props.onClick).length,
+  1,
+  "Each row has one action, without nested buttons",
+);
+const expenseTrigger = { isConnected: true };
+expenseRow.props.onClick({ currentTarget: expenseTrigger });
+tree = render(view.ActivityExpenses, { ...flowProps, view: "details" });
+const expenseWorkspace = nodes(tree).find((n) => n.type === PaymentWorkspace);
+assert.equal(expenseWorkspace.props.finalFocus(), expenseTrigger);
+expenseWorkspace.props.onBack();
+tree = render(view.ActivityExpenses, { ...flowProps, view: "details" });
+assert.equal(
+  nodes(tree).some((n) => n.type === PaymentWorkspace),
+  false,
+);
 assert.doesNotMatch(
   renderToStaticMarkup(tree),
   /Person 2 borrowed from|My payments/,
@@ -2296,6 +2668,13 @@ assert.equal(
   "Only my loans for this activity appear",
 );
 assert.match(renderToStaticMarkup(tree), /Add borrow/);
+assert.match(renderToStaticMarkup(tree), /2 loans/);
+assert.doesNotMatch(renderToStaticMarkup(tree), /history and corrections/i);
+assert.ok(
+  renderToStaticMarkup(tree).indexOf("Add borrow") <
+    renderToStaticMarkup(tree).indexOf("<article"),
+  "Add borrow is above the loan rows",
+);
 assert.doesNotMatch(
   renderToStaticMarkup(tree),
   /Hotel|My payments|View payments/,
@@ -2303,11 +2682,13 @@ assert.doesNotMatch(
 for (const role of ["member", "editor", "owner", "viewer"]) {
   tree = finance("loans", { current: { user_id: 1, role } });
   assert.equal(
-    nodes(tree).some((n) => n.props.children === "Add borrow"),
+    nodes(tree).some((n) =>
+      React.Children.toArray(n.props.children).includes("Add borrow"),
+    ),
     role !== "viewer",
   );
   assert.equal(
-    nodes(tree).some((n) => n.props.children === "Mark as paid"),
+    nodes(tree).some((n) => n.props.children === "Record repayment"),
     role !== "viewer",
   );
 }
@@ -2331,12 +2712,16 @@ viewData = {
 };
 tree = finance("loans");
 assert.match(renderToStaticMarkup(tree), /Paid/);
+assert.doesNotMatch(
+  renderToStaticMarkup(tree),
+  /Outstanding|history and corrections/i,
+);
 assert.equal(
-  nodes(tree).some((n) => n.props.children === "Mark as paid"),
+  nodes(tree).some((n) => n.props.children === "Record repayment"),
   false,
 );
 await nodes(tree)
-  .find((n) => n.props.children === "Undo")
+  .find((n) => n.props.children === "Undo repayment")
   .props.onClick({ currentTarget: { isConnected: true, closest: () => null } });
 assert.equal(undone[0][0], "settlements");
 assert.equal(
@@ -2345,10 +2730,84 @@ assert.equal(
   "Undo reverses only the latest active receipt",
 );
 assert.equal(undone[0][2], "Repayment entered by mistake");
+assert.equal(
+  nodes(tree).find(
+    (n) => n.props.children === "Remove loan (undo repayments first)",
+  ).props.disabled,
+  true,
+  "Loans with active repayments cannot be removed",
+);
 tree = finance("loans", { current: { user_id: 1, role: "viewer" } });
 assert.equal(
-  nodes(tree).some((n) => n.props.children === "Undo"),
+  nodes(tree).some((n) => n.props.children === "Undo repayment"),
   false,
+);
+for (const [amount, status] of [
+  ["25000", "Unpaid"],
+  ["10000", "Partially paid"],
+  ["-1000", "Credit for review"],
+]) {
+  viewData = {
+    ...viewData,
+    debts: [{ ...viewData.debts[0], amount_minor: amount }],
+  };
+  tree = finance("loans");
+  assert.match(renderToStaticMarkup(tree), new RegExp(status));
+  assert.match(renderToStaticMarkup(tree), /Outstanding/);
+  assert.equal(
+    nodes(tree).some((n) => n.props.children === "Record repayment"),
+    BigInt(amount) > 0n,
+  );
+}
+viewData = {
+  ...viewData,
+  debts: [{ ...viewData.debts[0], amount_minor: "10000" }],
+};
+viewApi.pending = true;
+tree = finance("loans");
+for (const label of ["Record repayment", "Undo repayment"])
+  assert.equal(
+    nodes(tree).find((n) => n.props.children === label).props.disabled,
+    true,
+  );
+viewApi.pending = false;
+viewData = { ...viewData, settlements: [] };
+tree = finance("loans");
+const removeBorrow = nodes(tree).find(
+  (n) => n.props.children === "Remove loan",
+);
+assert.ok(removeBorrow && !removeBorrow.props.disabled);
+const removedBefore = undone.length;
+let removalConfirmation;
+viewGlobals.window.confirm = (message) => {
+  removalConfirmation = message;
+  return false;
+};
+await removeBorrow.props.onClick();
+assert.match(removalConfirmation, /Remove this loan.*Balances will change/);
+assert.equal(
+  undone.length,
+  removedBefore,
+  "Cancel leaves the borrow unchanged",
+);
+viewGlobals.window.confirm = () => true;
+await removeBorrow.props.onClick();
+assert.equal(undone.length, removedBefore + 1);
+assert.equal(undone.at(-1)[0], "expense_loans");
+assert.equal(undone.at(-1)[1].id, loans[0].id);
+assert.equal(
+  nodes(finance("loans", { current: { user_id: 1, role: "viewer" } })).some(
+    (n) => n.props.children === "Remove loan",
+  ),
+  false,
+);
+viewData = { ...viewData, loans: [{ ...loans[0], created_by_user_id: 2 }] };
+assert.equal(
+  nodes(finance("loans", { current: { user_id: 1, role: "member" } })).some(
+    (n) => n.props.children === "Remove loan",
+  ),
+  false,
+  "Members cannot remove another person's loan record",
 );
 viewData = { ...viewData, loans: [] };
 assert.match(

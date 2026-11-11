@@ -43,9 +43,9 @@ Open an activity from the itinerary for a short overview: expense total, your sh
 **My Expenses** shows your shares, settled-share Paid total, amounts to pay,
 reimbursements, and borrowed money for that activity. Back returns to the
 previous view inside the activity window. Existing activity expense links remain
-supported. Currency totals stay separate. The Itinerary | Expenses switch under the trip
-summary opens `?view=expenses`, a read-only trip overview: your per-currency balance and one
-filterable list of your own expenses, loans, amounts owed to you and settlements.
+supported. Currency totals stay separate. **Expenses** in the trip header (desktop) or
+trip menu (mobile) opens `/trips/{id}/expenses`, a read-only trip overview: your per-currency
+balance and one filterable list of your own expenses, loans, amounts owed to you and settlements.
 
 Members, owners, and editors can **Record money lent** to one other active trip
 participant through **Add borrow** in the activity's **Borrow list**, always the
@@ -92,7 +92,7 @@ trip-wide balance page.
 
 ## Trip prep
 
-**Prep** in the trip's view switch opens `?view=prep`, the group's task list. It
+**Prep** in the trip header or trip menu opens `/trips/{id}/prep`, the group's task list. It
 uses `/api/v1/trips/{tripID}/prep-tasks`, so run the API with migrations through
 `00015_prep_task_activity_and_date.sql` applied. Tasks are separate from activity to-dos and come in
 two kinds:

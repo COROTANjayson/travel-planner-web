@@ -7,6 +7,7 @@ import { PaymentCoverage } from "@/components/features/expenses/activity-expense
 import { PlannedCoverer } from "@/components/features/expenses/activity-expense-form/planned-coverer";
 import { SharingSection } from "@/components/features/expenses/activity-expense-form/sharing-section";
 import { TransactionFields } from "@/components/features/expenses/activity-expense-form/transaction-fields";
+import { RepaymentConfirmation } from "@/components/features/expenses/activity-expense-form/repayment-confirmation";
 
 import { useEffect, useRef, useState } from "react";
 import { Temporal } from "@js-temporal/polyfill";
@@ -59,6 +60,7 @@ export function ActivityExpenseForm({
   onSave,
   onCancel,
   canChooseLender = false,
+  simpleRepayment = false,
   currentUserIDs = people.map((p) => p.user_id),
 }: {
   editor: ExpenseEditor;
@@ -71,6 +73,7 @@ export function ActivityExpenseForm({
   ledger: ActivityLedger;
   currentUserIDs?: number[];
   canChooseLender?: boolean;
+  simpleRepayment?: boolean;
   pending: boolean;
   error: Error | null;
   onDirty: () => void;
@@ -276,6 +279,13 @@ export function ActivityExpenseForm({
   } catch (cause) {
     previewError = (cause as Error).message;
   }
+  const repaymentError =
+    simpleRepayment && debt
+      ? previewError ||
+        (BigInt(total) > BigInt(debt.amount_minor)
+          ? `Amount cannot exceed ${money(debt.amount_minor)}.`
+          : "")
+      : "";
   const activityOptions = activities.map((a) => ({
     value: String(a.id),
     label: a.title,
@@ -485,34 +495,49 @@ export function ActivityExpenseForm({
             />
           </div>
         )}
-        {!isCost && (
-          <TransactionFields
-            editor={editor}
-            isCost={isCost}
-            record={record}
-            ledger={ledger}
-            activity={activity}
-            setActivity={setActivity}
-            activityOptions={activityOptions}
-            description={description}
-            setDescription={setDescription}
-            currency={currency}
-            setCurrency={setCurrency}
-            currencies={currencies}
-            basis={basis}
-            amount={amount}
-            setAmount={setAmount}
-            date={date}
-            setDate={setDate}
-            payer={payer}
-            setPayer={setPayer}
-            borrower={borrower}
-            setBorrower={setBorrower}
-            currentPeople={currentPeople}
-            canChooseLender={canChooseLender}
-            changed={changed}
-          />
-        )}
+        {!isCost &&
+          (simpleRepayment && debt ? (
+            <RepaymentConfirmation
+              debt={debt}
+              person={expenseName(
+                people.find((p) => p.user_id === debt.from_user_id),
+              )}
+              currency={meta}
+              amount={amount}
+              setAmount={setAmount}
+              error={repaymentError}
+              remaining={
+                previewError ? null : BigInt(debt.amount_minor) - BigInt(total)
+              }
+            />
+          ) : (
+            <TransactionFields
+              editor={editor}
+              isCost={isCost}
+              record={record}
+              ledger={ledger}
+              activity={activity}
+              setActivity={setActivity}
+              activityOptions={activityOptions}
+              description={description}
+              setDescription={setDescription}
+              currency={currency}
+              setCurrency={setCurrency}
+              currencies={currencies}
+              basis={basis}
+              amount={amount}
+              setAmount={setAmount}
+              date={date}
+              setDate={setDate}
+              payer={payer}
+              setPayer={setPayer}
+              borrower={borrower}
+              setBorrower={setBorrower}
+              currentPeople={currentPeople}
+              canChooseLender={canChooseLender}
+              changed={changed}
+            />
+          ))}
         {editor.type === "payment" && !editor.memberID && (
           <PaymentCoverage
             manual={manual}
@@ -528,7 +553,7 @@ export function ActivityExpenseForm({
             money={money}
           />
         )}
-        {editor.type === "repayment" && debt && (
+        {editor.type === "repayment" && debt && !simpleRepayment && (
           <p className="rounded-xl bg-secondary p-4">
             {expenseName(people.find((p) => p.user_id === debt.from_user_id))} →{" "}
             {expenseName(people.find((p) => p.user_id === debt.to_user_id))}
@@ -566,7 +591,7 @@ export function ActivityExpenseForm({
             Only a planner/editor can confirm a payment to the business.
           </p>
         )}
-        {editor.type === "repayment" && !editor.receipt && (
+        {editor.type === "repayment" && !editor.receipt && !simpleRepayment && (
           <p className="text-sm text-muted-foreground">
             Only the recipient can confirm this money was received.
           </p>
@@ -576,11 +601,19 @@ export function ActivityExpenseForm({
             <TripError error={validation ?? error!} />
           </div>
         )}
-        <div className="sticky bottom-0 -mx-6 flex flex-wrap justify-end gap-2 border-t bg-card px-6 py-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit">
+        <div
+          className={`expense-form-actions sticky bottom-0 -mx-6 flex flex-wrap justify-end gap-2 bg-card px-6 py-4${simpleRepayment ? "" : " border-t"}`}
+        >
+          {!simpleRepayment && (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+          <Button
+            type="submit"
+            disabled={!!repaymentError}
+            className={simpleRepayment ? "w-full" : undefined}
+          >
             {pending
               ? "Saving…"
               : review
@@ -588,7 +621,11 @@ export function ActivityExpenseForm({
                 : editor.receipt
                   ? "Save correction"
                   : editor.type === "repayment"
-                    ? "Mark as paid"
+                    ? simpleRepayment
+                      ? "Confirm received"
+                      : debt?.loan_id
+                        ? "Record repayment"
+                        : "Mark as paid"
                     : editor.type === "payment"
                       ? "Confirm payment"
                       : editor.type === "loan"

@@ -17,7 +17,12 @@ export function OptionsMenu({
 }: {
   name: string;
   disabled?: boolean;
-  items: { label: string; onClick: () => void; destructive?: boolean }[];
+  items: {
+    label: string;
+    onClick: () => void;
+    destructive?: boolean;
+    disabled?: boolean;
+  }[];
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -43,7 +48,8 @@ export function OptionsMenu({
           <Button
             key={item.label}
             variant="ghost"
-            className={`min-h-11 w-full justify-start${item.destructive ? " text-destructive hover:bg-destructive/10 hover:text-destructive" : ""}`}
+            disabled={disabled || item.disabled}
+            className={`min-h-11 w-full justify-start whitespace-normal text-left${item.destructive ? " text-destructive hover:bg-destructive/10 hover:text-destructive" : ""}`}
             onClick={() => {
               setOpen(false);
               item.onClick();

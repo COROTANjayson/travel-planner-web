@@ -68,11 +68,11 @@ their existing layouts and behavior.
   behavior. Distinguish an empty account from empty search/status results. Provide
   reset, loading skeletons, safe errors and retry, pagination and visible focus.
 - Open trips into the existing itinerary, directly below the shared trip summary,
-  with no day-rail label. A pill Itinerary | Expenses | Prep switch sits under the
-  summary on mobile and desktop; Expenses opens the read-only trip expenses page at
-  `?view=expenses`, and Prep opens the group's task list at `?view=prep`. Expense
-  management stays inside each activity. People and Settings remain secondary and
-  available in every view.
+  with no day-rail label. Expenses and Prep are separate pages: Expenses and Prep
+  buttons in the desktop header (and entries in the mobile trip menu) open
+  `/trips/{id}/expenses` and `/trips/{id}/prep`; each shows a "Back to itinerary"
+  link instead of the Expenses/Prep buttons. Expense management stays inside each
+  activity. People and Settings remain secondary and available in every view.
   The following itinerary requirements describe the approved Step 2 implementation.
 - Activity cards use 16px mobile padding and 20px desktop padding with a 128px
   desktop minimum height, semibold 18px mobile and 20px desktop titles and 16px
@@ -286,11 +286,12 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
   both in one transaction. Preserve drafts on errors,
   submission keys across retries, and focus when dialogs close. Review paid-cost
   balance changes before saving; retain payments and show resulting credits.
-- The `?view=expenses` page is a read-only Splitwise-style overview: a pale sea
-  balance panel per currency that leads with Overall expenses in large type, the
-  trip's total spending. Under it, Balance (red) is what you still have to pay,
-  including money you borrowed, and To receive (teal) is what you should get back,
-  whether lent or owed to you.
+- The `/trips/{id}/expenses` page is a personal overview headed Your expenses.
+  Its pale sea panel shows You owe and You're owed separately, followed by Your total
+  share: all paid and unpaid expense shares assigned to the signed-in person, excluding
+  loans and repayments. Balances include personal loan obligations and receivables.
+  Show only currencies in that person's shares, debts, loans, or settlement history;
+  keep currencies separate and summary values independent of list filters.
   Below it, one flat Expenses list from the signed-in person's view, newest
   first: each own expense share with what is still owed on it, money lent or
   borrowed with the amount left, people who owe a reimbursement, and settlements
@@ -298,8 +299,29 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
   you, Settled) filters the list. Upcoming means the record date is after today
   in the trip zone. Per-person rows and category totals were dropped; People
   stays in the header dialog.
-  Rows are read-only and do not link anywhere for now; Mark as paid, View
-  payments and Add expense live inside each activity.
+  Each row inside the bordered list repeats its own month over a bold day in a
+  dedicated date column, followed by the activity's category icon in a
+  rounded square, the expense or person's name over other details such as the activity, and
+  right-aligned status over the amount still open (or the share/loan amount when settled).
+  Show a secondary Your share, Lent, or Borrowed amount only when different from the
+  primary amount. Reimbursements show only the amount owed to you; payment history
+  shows only the amount paid or received, with no source totals. Preserve credit-review
+  labels. Below 640px, status and amounts take their own
+  line under the name so the name keeps its width.
+  Outstanding loan and reimbursement rows owed to the signed-in recipient open a
+  right-side repayment drawer (full-screen on mobile), including from All. Reuse
+  the existing receipt validation, with Back to expenses. The drawer asks to
+  Confirm money received, shows the sender and balance once, and defaults to full
+  repayment in an always-visible editable amount field. Keep sender and expense
+  details left-aligned above a dark teal payment panel containing the amount,
+  currency, and remaining balance. Keep the amount underline short and straight.
+  Show the remaining
+  balance live; invalid or excessive amounts show an inline error and disable confirmation. Record today in the trip timezone without a date control. Use one Confirm received action,
+  omit the locked currency selector and repeated recipient instructions. Viewers, other
+  rows, and credit-review entries remain read-only. After saving, refresh balances
+  and filters and restore focus to the row or selected filter if it disappeared.
+  Explain that amounts owed to you can be opened to record money received; other
+  payment management stays inside activities. Prefer display names and wrap fallback emails.
   Inside an activity, My Expenses shows every own expense share, including fully paid items, plus
   money owed and receivable from reimbursements and loans. Paid means the settled
   part of the signed-in person's expense shares, not their cash outlay or loans.
@@ -307,7 +329,9 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
   Personal balance rows put the person first, then the expense, with the amount
   aligned right. Show each currency total once beside You owe or Owed to you.
   Mark as paid is a compact text action with a 44px minimum touch target.
-- All expenses shows expense rows with View payments and permitted Add expense.
+- All expenses shows whole-row payment buttons with a right chevron and permitted Add expense.
+  Use one keyboard stop per expense, with name and amount above participant count,
+  total, and concise payment status. Restore focus to the row after returning from payments.
   Use underlined All expenses and My expenses tabs with keyboard arrow navigation
   on mobile and desktop. Show estimated total and your share in a pale sea panel,
   labels above amounts. Below it, align the expense count and + Add expense action
@@ -315,8 +339,17 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
   Borrow list is always the last entry, with a loan count and original amount lent
   per currency. It opens only loans made by the signed-in person for that activity,
   one row per loan, including paid loans. Show borrower, description, original and
-  outstanding amounts, status, and permitted Mark as paid/Undo actions.
-  Add borrow sits after the list and opens Record money lent.
+  outstanding amounts and status. Group borrower and description on the left, with
+  amount and status aligned right; stack these groups on narrow screens. Keep row
+  dividers continuous with the count header and close the list with a bottom divider.
+  Use Record repayment for loan receipt actions and their form, supporting both
+  partial and full amounts. Put Undo repayment
+  and Remove loan in the row's compact options popover, with 44px minimum targets.
+  Paid loans omit Outstanding zero. Loan rows are not clickable.
+  Add borrow sits beside the loan count above the list and opens Record money lent.
+  Keep the Borrow list title and activity subtitle close together, with no extra
+  separator above the loan-count toolbar. Align Record repayment beneath the amounts.
+  Borrow list navigation is a flat row with its count, per-currency totals, and chevron.
   Loans never increase activity spending, expense shares, or personal Paid totals.
 - Use contextual Back actions: payment screens return to their originating expense
   or personal view; Borrow list returns to All expenses; both expense views
@@ -325,10 +358,14 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
   and activity editing controls in financial steps. Preserve the selected day.
 - Members, owners and editors record money they personally lent to one other active
   participant. Only the recipient marks full/partial repayments as paid. Put loan
-  removal and receipt corrections under History and corrections in detailed expenses,
-  with loan-specific history also in Borrow list. Undo reverses only the latest
+  removal in the Borrow list options popover and existing non-sidebar history views.
+  Removing a loan requires explicit confirmation that balances will change; cancel
+  preserves the record. Disable removal while repayments exist and explain that
+  repayments must be undone first. Receipt corrections remain in existing history views. Activity
+  All expenses and Borrow list temporarily hide history and corrections sections.
+  Undo repayment reverses only the latest
   active repayment receipt, requiring the existing reason and confirmation;
-  earlier receipts stay accessible through history. Reverse repayment receipts
+  earlier receipts remain stored and accessible in other existing history views. Reverse repayment receipts
   before removing a loan. Viewers remain read-only.
 - Preserve unassigned costs, removed activity names, former members, old loans and
   unallocated historical receipts. Covered-food entry is deferred.

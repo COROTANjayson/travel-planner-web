@@ -134,6 +134,15 @@ export const dateLabel = (date: string) =>
     day: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${date}T12:00:00Z`));
+export const monthDay = (date: string) => {
+  const parts = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).formatToParts(new Date(`${date}T12:00:00Z`));
+  const part = (type: string) => parts.find((p) => p.type === type)?.value;
+  return { month: part("month"), day: part("day") };
+};
 export const timeLabel = (instant: string, zone: string) =>
   new Intl.DateTimeFormat(undefined, {
     timeZone: zone,

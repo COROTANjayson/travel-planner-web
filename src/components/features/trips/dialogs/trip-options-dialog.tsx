@@ -1,10 +1,18 @@
 "use client";
 
-import { MoreHorizontal, Settings, Users } from "lucide-react";
+import Link from "next/link";
+import {
+  ListChecks,
+  MoreHorizontal,
+  Receipt,
+  Settings,
+  Users,
+} from "lucide-react";
 import { TripDialog } from "@/components/shared/trip-dialog";
 import { Button } from "@/components/ui/button";
 
 export function TripOptionsDialog({
+  tripID,
   tripName,
   memberCount,
   canEdit,
@@ -15,6 +23,7 @@ export function TripOptionsDialog({
   editing,
   setEditing,
 }: {
+  tripID: number;
   tripName: string;
   memberCount?: number;
   canEdit: boolean;
@@ -60,6 +69,24 @@ export function TripOptionsDialog({
         >
           <Users aria-hidden="true" />
           People {memberCount ?? ""}
+        </Button>
+        <Button
+          variant="ghost"
+          className="w-full justify-start"
+          render={<Link href={`/trips/${tripID}/expenses`} />}
+          nativeButton={false}
+        >
+          <Receipt aria-hidden="true" />
+          Expenses
+        </Button>
+        <Button
+          variant="ghost"
+          className="w-full justify-start"
+          render={<Link href={`/trips/${tripID}/prep`} />}
+          nativeButton={false}
+        >
+          <ListChecks aria-hidden="true" />
+          Prep
         </Button>
         {canEdit && (
           <Button

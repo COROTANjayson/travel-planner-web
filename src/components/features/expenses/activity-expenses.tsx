@@ -195,6 +195,8 @@ export function ActivityExpenses(
       return;
     try {
       await api.remove(kind, record, reason ?? undefined);
+      if (flow && props.view === "loans")
+        heading.current?.focus({ preventScroll: true });
     } catch (cause) {
       setLocalError(cause as Error);
     }
@@ -236,7 +238,7 @@ export function ActivityExpenses(
     <section
       className={
         flow
-          ? "activity-finance space-y-5"
+          ? "activity-finance space-y-4"
           : props.compact
             ? "activity-cost-section"
             : "space-y-4 pt-4"
@@ -329,6 +331,19 @@ export function ActivityExpenses(
                 )}
               </div>
             )}
+            {flow && props.view === "loans" && (
+              <div className="activity-expense-list-heading">
+                <h3 ref={heading} tabIndex={-1}>
+                  {ownLoans.length} {ownLoans.length === 1 ? "loan" : "loans"}
+                </h3>
+                {writable && hasActivity && (
+                  <Button onClick={() => open({ type: "loan" })}>
+                    <Plus aria-hidden="true" />
+                    Add borrow
+                  </Button>
+                )}
+              </div>
+            )}
             {(showCosts || props.view === "overview") &&
               !costs.length &&
               (!loans.length || flow) && (
@@ -394,7 +409,6 @@ export function ActivityExpenses(
                       flow={flow}
                       compact={props.compact}
                       managementOnly={props.managementOnly}
-                      view={props.view}
                       name={name}
                       money={money}
                       open={open}
@@ -404,20 +418,6 @@ export function ActivityExpenses(
                     />
                   ))}
               </div>
-            )}
-            {flow && props.view === "details" && (
-              <details>
-                <summary className="min-h-11 cursor-pointer py-2 text-sm text-muted-foreground">
-                  History and corrections
-                </summary>
-                <ActivityExpenses
-                  {...props}
-                  view={undefined}
-                  onViewChange={undefined}
-                  compact={false}
-                  managementOnly
-                />
-              </details>
             )}
             {flow && props.view === "details" && (
               <BorrowListLink
@@ -432,11 +432,6 @@ export function ActivityExpenses(
                   <p className="text-muted-foreground">
                     You haven’t recorded any money lent for this activity.
                   </p>
-                )}
-                {writable && hasActivity && (
-                  <Button onClick={() => open({ type: "loan" })}>
-                    Add borrow
-                  </Button>
                 )}
               </>
             )}

@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type RefObject } from "react";
 import { CategoryBadge } from "@/components/features/itinerary/category-badge";
 import { Button } from "@/components/ui/button";
-import { dateLabel } from "@/lib/activity-time";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { monthDay } from "@/lib/activity-time";
 import {
   expenseName,
   type ActivityLedger,
@@ -12,7 +19,7 @@ import {
 } from "@/lib/expenses";
 import type { Activity } from "@/lib/itinerary";
 import { moneyIn } from "@/lib/money";
-import { categoryOf, myEntries } from "@/lib/trip-expenses";
+import { categoryOf, myEntries, type MyEntry } from "@/lib/trip-expenses";
 
 const filters = [
   "All",
@@ -21,6 +28,14 @@ const filters = [
   "Owed to you",
   "Settled",
 ] as const;
+type Filter = (typeof filters)[number];
+
+const matches = (filter: Filter, e: MyEntry, today: string) =>
+  filter === "All" ||
+  (filter === "Upcoming" && e.date > today) ||
+  (filter === "You owe" && e.status === "owe") ||
+  (filter === "Owed to you" && e.status === "owed") ||
+  (filter === "Settled" && e.status === "settled");
 
 export function TripExpenseList({
   ledger,
@@ -29,6 +44,9 @@ export function TripExpenseList({
   me,
   currencies,
   today,
+  onReceive,
+  filterRef,
+  mobileFilterRef,
 }: {
   ledger: ActivityLedger;
   activities: Activity[];
@@ -36,26 +54,58 @@ export function TripExpenseList({
   me: number;
   currencies: Currency[];
   today: string;
+  onReceive?: (entry: MyEntry, trigger: HTMLButtonElement) => void;
+  filterRef?: RefObject<HTMLButtonElement | null>;
+  mobileFilterRef?: RefObject<HTMLButtonElement | null>;
 }) {
-  const [filter, setFilter] = useState<(typeof filters)[number]>("All");
+  const [filter, setFilter] = useState<Filter>("All");
   const money = moneyIn(currencies);
   const name = (id: number) =>
     expenseName(people.find((p) => p.user_id === id));
   const entries = myEntries(ledger, activities, me, name);
-  const rows = entries.filter(
-    (e) =>
-      filter === "All" ||
-      (filter === "Upcoming" && e.date > today) ||
-      (filter === "You owe" && e.status === "owe") ||
-      (filter === "Owed to you" && e.status === "owed") ||
-      (filter === "Settled" && e.status === "settled"),
-  );
+  const rows = entries.filter((e) => matches(filter, e, today));
   return (
-    <section aria-labelledby="trip-expense-list-heading" className="space-y-4">
-      <h3 id="trip-expense-list-heading" className="text-lg font-semibold">
-        Expenses
-      </h3>
-      <nav aria-label="Filter expenses" className="trip-filters">
+    <section aria-label="Expense list" className="space-y-3 md:space-y-4">
+      <div className="expense-mobile-filter">
+        <h3 className="text-base font-semibold">
+          Expenses{" "}
+          <span className="ml-1 text-sm font-normal text-muted-foreground">
+            {rows.length}
+          </span>
+        </h3>
+        <Select<Filter>
+          value={filter}
+          onValueChange={(value) => {
+            if (value !== null) setFilter(value);
+          }}
+        >
+          <SelectTrigger ref={mobileFilterRef} aria-label="Filter expenses">
+            <SelectValue>{filter}</SelectValue>
+          </SelectTrigger>
+          <SelectContent
+            align="end"
+            alignItemWithTrigger={false}
+            className="min-w-52"
+          >
+            {filters.map((option) => (
+              <SelectItem
+                key={option}
+                value={option}
+                className="min-h-11 px-3 pr-8"
+              >
+                <span className="flex-1">{option}</span>
+                <span className="text-muted-foreground tabular-nums">
+                  {entries.filter((e) => matches(option, e, today)).length}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <nav
+        aria-label="Filter expenses"
+        className="trip-filters expense-filters"
+      >
         {filters.map((option) => (
           <Button
             key={option}
@@ -63,55 +113,74 @@ export function TripExpenseList({
             className="trip-filter"
             variant="ghost"
             aria-pressed={filter === option}
+            ref={filter === option ? filterRef : undefined}
             onClick={() => setFilter(option)}
           >
             {option}
+            <span className="filter-count">
+              {entries.filter((e) => matches(option, e, today)).length}
+            </span>
           </Button>
         ))}
       </nav>
       {!rows.length ? (
-        <p className="text-sm text-muted-foreground">
-          {entries.length ? "Nothing matches this filter." : "No expenses yet."}
+        <p className="expense-empty">
+          {entries.length
+            ? "Nothing matches this filter."
+            : "No expenses yet. Open an activity in the itinerary to add or settle expenses."}
         </p>
       ) : (
-        <ul className="divide-y">
+        <ol className="expense-ledger">
           {rows.map((e) => {
-            const tone =
-              e.status === "owe"
-                ? "text-destructive"
-                : e.status === "owed"
-                  ? "text-primary"
-                  : "text-muted-foreground";
+            const date = e.date ? monthDay(e.date) : null;
             return (
-              <li
-                key={e.key}
-                className="flex min-h-11 items-start justify-between gap-4 py-4 [overflow-wrap:anywhere]"
-              >
-                <span className="min-w-0 space-y-1">
-                  <CategoryBadge category={categoryOf(e, activities)} />
-                  <strong className="block font-medium break-words">
-                    {e.title}
-                  </strong>
-                  <span className="block text-sm text-muted-foreground">
-                    {e.date ? `${dateLabel(e.date)} · ` : ""}
-                    {e.detail}
-                  </span>
+              <li key={e.key} className="expense-row relative">
+                {e.debt && onReceive && (
+                  <button
+                    type="button"
+                    className="absolute inset-0 cursor-pointer rounded-sm hover:bg-primary/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                    aria-label={`Record money received: ${e.title}`}
+                    aria-haspopup="dialog"
+                    onClick={(event) => onReceive(e, event.currentTarget)}
+                  />
+                )}
+                <span className="expense-row-date">
+                  {date ? (
+                    <time dateTime={e.date} aria-label={e.date}>
+                      <span>{date.month}</span>
+                      <strong>{date.day}</strong>
+                    </time>
+                  ) : (
+                    <span>No date</span>
+                  )}
                 </span>
-                <span className="max-w-1/2 shrink-0 text-right tabular-nums">
-                  <strong className="block font-medium">
-                    {money(e.amount_minor, e.currency)}
-                  </strong>
-                  <span className={`block text-sm ${tone}`}>
+                <CategoryBadge category={categoryOf(e, activities)} iconOnly />
+                <span className="expense-row-text">
+                  <strong className="expense-row-title">{e.title}</strong>
+                  <span className="expense-row-detail">{e.detail}</span>
+                </span>
+                <span className="expense-row-money">
+                  <span className="expense-row-status" data-tone={e.status}>
                     {e.status_label}
-                    {e.status_amount
-                      ? ` ${money(e.status_amount, e.currency)}`
-                      : ""}
+                  </span>
+                  <span className="expense-row-amount">
+                    <strong>
+                      {money(e.status_amount ?? e.amount_minor, e.currency)}
+                    </strong>
+                    {e.total_minor !== undefined &&
+                      e.total_label &&
+                      BigInt(e.total_minor) !==
+                        BigInt(e.status_amount ?? e.amount_minor) && (
+                        <span>
+                          {e.total_label}: {money(e.total_minor, e.currency)}
+                        </span>
+                      )}
                   </span>
                 </span>
               </li>
             );
           })}
-        </ul>
+        </ol>
       )}
     </section>
   );

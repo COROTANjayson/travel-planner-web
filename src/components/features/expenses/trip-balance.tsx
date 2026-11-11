@@ -1,60 +1,58 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { personalTotals } from "@/lib/activity-expenses";
 import type { ActivityLedger, Currency } from "@/lib/expenses";
 import { moneyIn } from "@/lib/money";
 
 export function TripBalance({
+  title,
   ledger,
   me,
   currencies,
 }: {
+  title: ReactNode;
   ledger: ActivityLedger;
   me: number;
   currencies: Currency[];
 }) {
   const codes = [
     ...new Set([
-      ...ledger.expenses.map((e) => e.currency),
-      ...ledger.debts
+      ...ledger.expenses
+        .filter((e) => e.shares.some((s) => s.user_id === me))
+        .map((e) => e.currency),
+      ...[...ledger.debts, ...ledger.loans, ...ledger.settlements]
         .filter((d) => d.from_user_id === me || d.to_user_id === me)
         .map((d) => d.currency),
     ]),
   ];
-  if (!codes.length)
-    return (
-      <p className="text-muted-foreground">
-        No expenses yet. Add costs from an activity in the itinerary.
-      </p>
-    );
+  if (!codes.length) return title;
   const money = moneyIn(currencies);
   return (
-    <section aria-label="Trip balance" className="trip-balance">
+    <div className="trip-balance">
+      {title}
       {codes.map((code) => {
-        const spent = ledger.expenses
-          .filter((e) => e.currency === code)
-          .reduce((n, e) => n + BigInt(e.amount_minor), 0n);
         const totals = personalTotals(ledger, me, code);
         return (
           <div key={code} className="trip-balance-currency">
             {codes.length > 1 && <p className="trip-balance-code">{code}</p>}
             <dl className="trip-balance-totals">
-              <div className="trip-balance-overall">
-                <dt>Overall expenses</dt>
-                <dd>{money(spent, code)}</dd>
-              </div>
               <div data-tone="owe">
-                <dt>Balance</dt>
+                <dt>You owe</dt>
                 <dd>{money(totals.remaining, code)}</dd>
               </div>
               <div data-tone="owed">
-                <dt>To receive</dt>
+                <dt>You&rsquo;re owed</dt>
                 <dd>{money(totals.owed, code)}</dd>
+              </div>
+              <div className="trip-balance-overall">
+                <dt>Your total share</dt>
+                <dd>{money(totals.cost, code)}</dd>
               </div>
             </dl>
           </div>
         );
       })}
-    </section>
+    </div>
   );
 }

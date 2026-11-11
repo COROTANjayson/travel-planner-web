@@ -81,7 +81,9 @@ export function ExpenseEditorDialog({
               ? "Record business payment"
               : editing?.receipt
                 ? "Correct receipt"
-                : "Mark as paid"
+                : editing?.debt?.loan_id
+                  ? "Record repayment"
+                  : "Mark as paid"
       }
       description={activityTitle}
       busy={api.pending}
