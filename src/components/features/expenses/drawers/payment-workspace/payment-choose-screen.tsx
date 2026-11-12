@@ -25,7 +25,7 @@ export function PaymentChooseScreen({
       {data.members.map((row) => (
         <Button
           variant="outline"
-          className="figma-select-button"
+          className="figma-select-button [&[data-slot='button']]:[font-size:1rem] [&[data-slot='button']]:[width:100%] [&[data-slot='button']]:[min-height:3rem] [&[data-slot='button']]:[height:auto] [&[data-slot='button']]:[justify-content:space-between] [&[data-slot='button']]:[border-radius:0.875rem] [&[data-slot='button']]:[padding:0.75rem] [&[data-slot='button']]:[white-space:normal] [&[data-slot='button']]:[text-align:left]"
           key={row.user_id}
           disabled={BigInt(row.remaining_minor) <= 0n}
           onClick={() => setScreen({ type: "payment", user: row.user_id })}

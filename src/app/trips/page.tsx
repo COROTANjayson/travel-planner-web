@@ -67,30 +67,36 @@ export default function TripsPage() {
   }
 
   return (
-    <div className="trips-overview">
-      <div className="trips-context">
-        <Briefcase aria-hidden="true" />
+    <div className="trips-overview grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-6 lg:gap-6 [@media(width<360px)]:gap-x-0 [@media(width<360px)]:gap-y-5 [&>:not(nav,[data-order])]:col-span-full">
+      <div className="hidden items-center lg:flex gap-2 text-sm text-muted-foreground">
+        <Briefcase aria-hidden="true" className="size-4" />
         My trips
       </div>
-      <div className="trips-heading">
+      <div className="col-span-full mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-5 lg:mb-3 lg:gap-8">
         <div className="min-w-0 space-y-2">
-          <h1 className="page-title">Your trips</h1>
-          <p className="text-muted-foreground">
+          <h1 className="page-title !text-[clamp(2rem,3.2vw,3rem)] font-[650] leading-[1.2] tracking-[-0.03em] text-balance md:[&]:[font-size:2.25rem]">
+            Your trips
+          </h1>
+          <p className="text-sm text-muted-foreground">
             A little planning. A lot to look forward to.
           </p>
         </div>
         <Button
-          className="trips-create"
+          className="min-h-11 min-w-11 rounded-full p-3 md:px-5 lg:hidden"
           aria-label="Create a trip"
           render={<Link href="/trips/new" />}
           nativeButton={false}
         >
-          <Plus aria-hidden="true" />
-          <span>Create a trip</span>
+          <Plus aria-hidden="true" className="size-5" />
+          <span className="hidden md:inline">Create a trip</span>
         </Button>
-        <label className="trips-search">
-          <Search aria-hidden="true" />
+        <label className="relative col-span-full flex items-center md:max-w-96 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:w-[clamp(15rem,24vw,24rem)]">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-4 size-4 text-muted-foreground"
+          />
           <Input
+            className="rounded-full bg-background pl-11 [&::-webkit-search-cancel-button]:cursor-pointer"
             ref={searchRef}
             type="search"
             aria-label="Find a trip or destination"
@@ -109,8 +115,11 @@ export default function TripsPage() {
         setStatus={setStatus}
         setOffset={setOffset}
       />
-      <p className="trips-order">
-        <CalendarDays aria-hidden="true" />
+      <p
+        data-order
+        className="hidden items-center justify-self-end gap-2 text-xs text-muted-foreground lg:flex"
+      >
+        <CalendarDays aria-hidden="true" className="size-3.5" />
         Ongoing first, then upcoming
       </p>
       <p
@@ -139,14 +148,14 @@ export default function TripsPage() {
           resetFilters={resetFilters}
         />
       ) : (
-        <div className="trip-grid">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2 [&>:only-child]:col-span-full [&>:only-child]:w-full [&>:only-child]:max-w-none">
           {visible.map((trip) => (
             <TripCard key={trip.id} trip={trip} featuredID={featuredID} />
           ))}
         </div>
       )}
       {trips.isSuccess && filtered.length > 0 && (
-        <p className="trips-results">
+        <p className="m-0 text-xs text-muted-foreground">
           {filtered.length} {filtered.length === 1 ? "trip" : "trips"}, many
           possibilities.
         </p>

@@ -67,7 +67,10 @@ export function PendingInvitations({
                 key={invitation.id}
                 className="flex items-center gap-3 border-b py-3 first:pt-0 last:border-0 last:pb-0"
               >
-                <span className="participant-avatar" aria-hidden="true">
+                <span
+                  className="participant-avatar flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary font-semibold text-primary"
+                  aria-hidden="true"
+                >
                   {participantInitials({
                     display_name: "",
                     email: invitation.email,

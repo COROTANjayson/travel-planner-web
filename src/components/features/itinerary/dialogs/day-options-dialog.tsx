@@ -44,7 +44,9 @@ export function DayOptionsDialog({
         </Button>
       }
     >
-      <div className="mobile-day-options">{dayTools}</div>
+      <div className="mobile-day-options [&_nav]:[flex-direction:column] [&_nav]:[gap:0.25rem] [&_[data-slot='button']]:[min-height:48px] [&_[data-slot='button']]:[justify-content:flex-start] [&_[data-slot='button']]:[padding-inline:0.75rem]">
+        {dayTools}
+      </div>
     </TripDialog>
   );
 }

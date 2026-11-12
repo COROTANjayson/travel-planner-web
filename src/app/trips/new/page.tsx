@@ -20,9 +20,11 @@ export default function NewTripPage() {
   });
 
   return (
-    <section className="form-surface space-y-6">
-      <div className="form-heading space-y-3">
-        <h1 className="page-title">Where to next?</h1>
+    <section className="form-surface [--form-surface:var(--card)] mx-auto w-full max-w-[44rem] rounded-2xl border border-border bg-card p-8 space-y-6">
+      <div className="form-heading pb-6 border-b border-border space-y-3">
+        <h1 className="page-title text-3xl font-[650] leading-[1.2] tracking-[-0.03em] text-balance md:[&]:[font-size:2.25rem]">
+          Where to next?
+        </h1>
         <p className="text-sm leading-6 text-muted-foreground">
           Choose a destination and dates. Your daily itinerary comes next.
         </p>

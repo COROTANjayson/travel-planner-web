@@ -26,7 +26,7 @@ export function ExactTimesSection({
   setValidationError: (error: string | undefined) => void;
 }) {
   return (
-    <div className="optional-times space-y-3">
+    <div className="optional-times rounded-xl bg-muted px-4 py-3 space-y-3">
       <Label className="flex min-h-11 cursor-pointer items-center gap-3 leading-6">
         <input
           type="checkbox"

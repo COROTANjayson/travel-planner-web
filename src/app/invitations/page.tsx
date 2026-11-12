@@ -54,15 +54,15 @@ export default function InvitationsPage() {
 
   return (
     <section
-      className="form-surface space-y-6"
+      className="form-surface [--form-surface:var(--card)] mx-auto w-full max-w-[44rem] rounded-2xl border border-border bg-card p-8 space-y-6"
       aria-labelledby="invitations-heading"
     >
-      <div className="form-heading space-y-3">
+      <div className="form-heading pb-6 border-b border-border space-y-3">
         <h1
           id="invitations-heading"
           ref={heading}
           tabIndex={-1}
-          className="page-title"
+          className="page-title text-3xl font-[650] leading-[1.2] tracking-[-0.03em] text-balance md:[&]:[font-size:2.25rem]"
         >
           Invitations
         </h1>

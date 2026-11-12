@@ -208,7 +208,7 @@ export function TripForm({
           searchPending={searchPending}
           searchError={searchError}
         />
-        <div className="form-section grid gap-5 sm:grid-cols-2">
+        <div className="form-section border-t border-border pt-6 grid gap-5 sm:grid-cols-2">
           {(["start", "end"] as const).map((field) => (
             <div key={field} className="min-w-0 space-y-2">
               <Label htmlFor={`trip-${field}-date`}>
@@ -241,7 +241,7 @@ export function TripForm({
             </div>
           ))}
         </div>
-        <div className="form-section space-y-2">
+        <div className="form-section border-t border-border pt-6 space-y-2">
           <Label htmlFor="trip-name">Give your trip a name</Label>
           <Input
             id="trip-name"
@@ -268,7 +268,7 @@ export function TripForm({
         </Alert>
       )}
       {!!error && <TripError error={error} />}
-      <div className="form-actions">
+      <div className="form-actions sticky bottom-0 z-10 flex flex-wrap gap-3 border-t border-border bg-[var(--form-surface,var(--background))] py-4 [.activity-form_>_&]:[justify-content:flex-end] [.activity-form_>_&]:[margin-inline:-1.5rem] [.activity-form_>_&]:[padding-inline:1.5rem] [.activity-form_>_&_>_:first-child]:[flex:0_1_auto] max-md:[&_>_*]:[min-width:0] max-md:[&_>_*]:[white-space:normal] max-md:[&_>_:first-child]:[flex:1_1_10rem] [.activity-planning-form_>_&]:[padding-bottom:max(1rem,_env(safe-area-inset-bottom))] [.activity-planning-form_>_&]:[background:var(--background)] [.activity-section-form_>_&]:[position:static] [.activity-section-form_>_&]:[justify-content:flex-end] [.activity-section-form_>_&]:[margin-top:16px] [.activity-section-form_>_&]:[padding:0] [.activity-section-form_>_&]:[border-top:0] [.activity-section-form_>_&]:[background:transparent] [.activity-section-form_>_&_>_[data-slot='button']]:[flex:0_0_6rem] [.activity-section-form_>_&_>_[data-slot='button']]:[width:6rem] [.activity-section-form_>_&_>_[data-slot='button']]:[min-height:44px] [.activity-section-form_>_&_>_[data-slot='button']]:[border-radius:0.75rem]">
         <Button
           type="submit"
           className="min-h-11"

@@ -226,6 +226,12 @@ support use the same local version and configuration.
 The regression scripts use mocks/static rendering, not an authenticated browser
 or a live API. Run an individual `node scripts/check-*.mjs` file for focused
 feedback. UI changes also need the browser checks in the UI/UX guide.
+
+For the CSS migration, start the production server on port 3100 and run the
+exported function in "scripts/check-css-browser.mjs" with a Playwright Page.
+It checks the preview and landing page at 320, 390 and 1440px, the repayment
+amount font size, drawer bounds, keyboard focus, reduced motion and high contrast.
+This browser check is separate from the mocked checks in npm test.
 Development/build automatically copy MapLibre workers into ignored
 `public/maplibre/`; never commit generated copies.
 

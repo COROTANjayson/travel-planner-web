@@ -32,14 +32,17 @@ export function ActivityCard({
             setViewing(activity.id);
           }}
         />
-        <div className="activity-card-body pointer-events-none relative">
-          <div className="activity-card-meta">
+        <div className="activity-card-body pointer-events-none relative [&>h4]:[margin-top:0.5rem] [&>p]:[margin-top:1rem] md:[&_>_p]:[font-size:0.75rem] md:[&_>_p]:[line-height:1.25rem]">
+          <div className="activity-card-meta [display:flex] [align-items:flex-start] [justify-content:space-between] [gap:0.75rem]">
             <CategoryBadge category={activity.category} />
-            <span className="activity-card-actions">
-              <span className="activity-duration">
+            <span className="activity-card-actions [display:flex] [align-items:center] [gap:1.5rem] [flex-shrink:0] [padding-top:0.25rem] md:[&]:[padding-top:0]">
+              <span className="activity-duration [font-size:0.75rem] [line-height:1.25rem] [color:var(--muted-foreground)] [white-space:nowrap]">
                 {formatActivityDuration(activity.starts_at, activity.ends_at)}
               </span>
-              <ChevronRight aria-hidden="true" className="activity-open-cue" />
+              <ChevronRight
+                aria-hidden="true"
+                className="activity-open-cue [width:1rem] [height:1rem] [color:var(--primary)] [flex-shrink:0]"
+              />
             </span>
           </div>
           <h4 className="break-words text-lg leading-7 font-semibold md:text-xl">

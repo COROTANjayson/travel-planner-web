@@ -337,11 +337,11 @@ assert.match(
 );
 assert.match(tripListHtml(), /Time zone:.*UTC/);
 tripQuery.isSuccess = true;
-assert.match(tripListHtml(), /All<span class="filter-count">10<\/span>/);
-assert.match(tripListHtml(), /Ongoing<span class="filter-count">10<\/span>/);
+assert.match(tripListHtml(), /All<span class="[^"]*">10<\/span>/);
+assert.match(tripListHtml(), /Ongoing<span class="[^"]*">10<\/span>/);
 assert.match(
   tripListHtml(),
-  /Upcoming<span class="filter-count">0<\/span>/,
+  /Upcoming<span class="[^"]*">0<\/span>/,
   "Filter counts describe all loaded trips, including empty groups",
 );
 tripQuery.data.push({
@@ -376,11 +376,11 @@ assert.doesNotMatch(
 );
 assert.match(
   tripListHtml(),
-  /Ongoing<span class="filter-count">11<\/span>/,
+  /Ongoing<span class="[^"]*">11<\/span>/,
   "Counts still include trips outside the selected filter",
 );
-const emptyCard = nodes(tripPage.default()).find(
-  (child) => child?.props?.className === "trips-empty",
+const emptyCard = nodes(tripPage.default()).find((child) =>
+  child?.props?.className?.split(" ").includes("md:py-16"),
 );
 emptyCard.props.children.props.children.at(-1).props.onClick();
 assert.equal(tripFilter, "All", "The empty-state action restores all trips");
@@ -402,7 +402,7 @@ assert.doesNotMatch(tripListHtml(), /Trip 1<\/h2>/);
 assert.match(tripListHtml(), /1 trip/);
 assert.match(
   tripListHtml(),
-  /Ongoing<span class="filter-count">11<\/span>/,
+  /Ongoing<span class="[^"]*">11<\/span>/,
   "Counts remain global while searching",
 );
 tripSearch = "kyoto";
@@ -1103,7 +1103,7 @@ assert.equal(
 );
 assert.deepEqual(
   newActivityForm
-    .filter((node) => node.props.className === "field-required")
+    .filter((node) => node.props.className?.includes("after:content-['*']"))
     .map((node) => node.props.children),
   ["Activity name", "Duration"],
   "Required fields are marked",
@@ -1554,7 +1554,7 @@ for (const [category, icon] of [
       onFailure() {},
     }),
   );
-  assert.match(html, /class="activity-category"/);
+  assert.match(html, /class="activity-category[^"]*"/);
   assert.ok(
     html.includes(`data-category="${category}"`),
     "Badges preserve category labels, including custom and legacy values",
@@ -1727,7 +1727,8 @@ const chooseRelativeDay = (offset) => {
   board()
     .find(
       (node) =>
-        node.props.className === "itinerary-day" && node.key === bounded,
+        node.props.className?.split(" ").includes("itinerary-day") &&
+        node.key === bounded,
     )
     .props.onClick();
 };
@@ -2019,7 +2020,9 @@ assert.equal(
 );
 assert.deepEqual(
   board()
-    .filter((node) => node.props.className === "itinerary-day")
+    .filter((node) =>
+      node.props.className?.split(" ").includes("itinerary-day"),
+    )
     .map((node) => node.key),
   ["2026-10-01", "2026-10-02", "2026-10-03"],
 );
@@ -2047,7 +2050,9 @@ chooseRelativeDay(-1);
 const singleDay = { ...trip, end_date: trip.start_date };
 assert.deepEqual(
   board(singleDay)
-    .filter((node) => node.props.className === "itinerary-day")
+    .filter((node) =>
+      node.props.className?.split(" ").includes("itinerary-day"),
+    )
     .map((node) => node.key),
   [trip.start_date],
   "A one-day trip has one selectable date",
@@ -2400,8 +2405,8 @@ uiRefs = [];
 const railTrip = { ...trip, end_date: "2026-11-12" };
 itineraryNow = "2026-09-30T00:00:00Z";
 const railDays = () =>
-  board(railTrip, false).filter(
-    (node) => node.props.className === "itinerary-day",
+  board(railTrip, false).filter((node) =>
+    node.props.className?.split(" ").includes("itinerary-day"),
   );
 assert.equal(railDays().length, 7);
 assert.equal(railDays()[0].props["aria-current"], "date");
@@ -2555,7 +2560,9 @@ for (detailRole of ["owner", "editor", "viewer"]) {
     detailRole !== "viewer",
   );
   const metadata = renderToStaticMarkup(
-    nodes(tree).find((node) => node.props.className === "trip-summary"),
+    nodes(tree).find((node) =>
+      node.props.className?.split(" ").includes("trip-summary"),
+    ),
   );
   assert.match(metadata, /Cebu &amp; friends/);
   assert.match(metadata, /Cebu City/);
@@ -2588,8 +2595,8 @@ detailQuery.data = {
   starts_at: null,
   ends_at: null,
 };
-const longDetail = nodes(detailTree()).find(
-  (node) => node.props.className === "trip-summary",
+const longDetail = nodes(detailTree()).find((node) =>
+  node.props.className?.split(" ").includes("trip-summary"),
 );
 assert.ok(
   renderToStaticMarkup(longDetail).includes(detailQuery.data.destination),
@@ -2699,7 +2706,9 @@ assert.ok(
   "A failed background trip refresh must not unmount ledger drafts",
 );
 assert.ok(
-  nodes(staleTripTree).some((node) => node.props.className === "trip-summary"),
+  nodes(staleTripTree).some((node) =>
+    node.props.className?.split(" ").includes("trip-summary"),
+  ),
 );
 assert.ok(
   nodes(staleTripTree).some((node) => node.props.error?.message === "Offline"),

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { ExpenseEditor } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { OptionsMenu } from "@/components/shared/options-menu";
 import type {
@@ -90,12 +91,16 @@ export function LoanArticle({
   ];
   return (
     <article
-      className={flow ? "activity-loan-row" : "space-y-2 py-5 break-words"}
+      className={
+        flow
+          ? "relative border-b border-border p-3 last:border-b-0 [overflow-wrap:anywhere]"
+          : "space-y-2 border-b border-border pt-[22px] pb-[13px] break-words last:border-b-0 last:pb-[30px]"
+      }
     >
       {flow && !managementOnly && (
         <>
           {options.length > 0 && (
-            <div className="activity-loan-options">
+            <div className="activity-loan-options [position:absolute] [top:2px] [right:0] [margin:0]">
               <OptionsMenu
                 name={`${name(loan.to_user_id)} · ${loan.description}`}
                 disabled={api.pending}
@@ -103,16 +108,25 @@ export function LoanArticle({
               />
             </div>
           )}
-          <div className="activity-loan-heading">
-            <div className="activity-loan-person">
-              <h4>{name(loan.to_user_id)}</h4>
-              <p className="activity-loan-description">{loan.description}</p>
+          <div
+            className={cn(
+              "flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm leading-[22px] max-[480px]:block",
+              options.length > 0 && "pr-11",
+            )}
+          >
+            <div className="min-w-0 flex-[1_1_180px]">
+              <h4 className="min-w-0 text-[15px] font-semibold">
+                {name(loan.to_user_id)}
+              </h4>
+              <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
+                {loan.description}
+              </p>
             </div>
-            <div className="activity-loan-amount">
-              <span className="tabular-nums">
+            <div className="ml-auto max-w-full text-right max-[480px]:mt-1 max-[480px]:flex max-[480px]:flex-wrap max-[480px]:items-baseline max-[480px]:gap-x-2 max-[480px]:gap-y-0.5 max-[480px]:text-left">
+              <span className="font-semibold tabular-nums">
                 {money(loan.amount_minor, loan.currency)}
               </span>
-              <p className="activity-loan-status">
+              <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
                 {status}
                 {remaining !== 0n &&
                   ` · Outstanding ${money(remaining.toString(), loan.currency)}`}
@@ -120,10 +134,15 @@ export function LoanArticle({
             </div>
           </div>
           {canReceive && (
-            <div className="activity-loan-footer">
+            <div
+              className={cn(
+                "mt-0.5 flex flex-wrap items-center justify-end gap-x-3 gap-y-0",
+                options.length > 0 && "pr-11",
+              )}
+            >
               <Button
                 variant="link"
-                className="min-h-11 px-0 py-2"
+                className="-my-2 min-h-11 px-0 py-2 [font-size:13px]"
                 disabled={api.pending}
                 onClick={() => open({ type: "repayment", debt })}
               >

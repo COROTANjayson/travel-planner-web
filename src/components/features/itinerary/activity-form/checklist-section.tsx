@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import type { ReactNode, RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,23 +24,33 @@ export function ChecklistSection({
   addButton: ReactNode;
 }) {
   return (
-    <section className={section ? "space-y-2" : undefined}>
-      <div className="activity-section-heading">
-        <h3 id={`${prefix}-checklist-label`}>To do</h3>
+    <section
+      className={cn(section ? "space-y-2" : "border-t border-border py-2")}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h3
+          id={`${prefix}-checklist-label`}
+          className="text-[18px] leading-7 font-bold text-foreground"
+        >
+          To do
+        </h3>
       </div>
       <div
-        className="space-y-3 pt-4"
+        className={cn("space-y-3", section ? "pt-4" : "pt-1 pb-4")}
         role="group"
         aria-labelledby={`${prefix}-checklist-label`}
       >
         {section && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm leading-6 text-muted-foreground lg:max-w-[70ch]">
             A simple list of things to do during this activity.
           </p>
         )}
         <ol className="space-y-3">
           {checklist.map((item, index) => (
-            <li key={item.key} className="flex flex-wrap items-center gap-2">
+            <li
+              key={item.key}
+              className="flex flex-wrap items-center gap-2 text-sm leading-6"
+            >
               <Input
                 className="min-h-11 min-w-0 flex-1 basis-32"
                 aria-label={`To-do item ${index + 1}`}
@@ -77,7 +88,7 @@ export function ChecklistSection({
           ))}
         </ol>
         {addButton}
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm leading-6 text-muted-foreground lg:max-w-[70ch]">
           {checklist.length}/50 items
         </p>
       </div>

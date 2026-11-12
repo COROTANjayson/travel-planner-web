@@ -3,7 +3,7 @@ import { CalendarDays, MapPin, Users } from "lucide-react";
 export function PlanningSteps() {
   return (
     <section aria-labelledby="planning-heading" className="border-t bg-card">
-      <div className="content-shell py-10 md:py-12">
+      <div className="content-shell w-full max-w-[90rem] mx-auto px-[max(1.5rem,env(safe-area-inset-left,0px))] [padding-right:max(1.5rem,env(safe-area-inset-right,0px))] py-10 md:py-12 md:[&]:[padding-left:max(2rem,_env(safe-area-inset-left,_0px))] md:[&]:[padding-right:max(2rem,_env(safe-area-inset-right,_0px))] xl:[&]:[padding-left:max(4rem,_env(safe-area-inset-left,_0px))] xl:[&]:[padding-right:max(4rem,_env(safe-area-inset-right,_0px))]">
         <h2
           id="planning-heading"
           className="text-2xl font-semibold tracking-tight md:text-3xl"
@@ -11,7 +11,7 @@ export function PlanningSteps() {
           Less to juggle. More to look forward to.
         </h2>
         <div className="planning-steps mt-7 grid gap-6 md:grid-cols-3 md:gap-8">
-          <article>
+          <article className="border-t border-border pt-5">
             <h3 className="flex items-center gap-2 font-semibold">
               <MapPin aria-hidden="true" className="size-4 text-primary" />
               Choose your destination
@@ -20,7 +20,7 @@ export function PlanningSteps() {
               Start with a place and dates. Keep your trip details easy to find.
             </p>
           </article>
-          <article>
+          <article className="border-t border-border pt-5">
             <h3 className="flex items-center gap-2 font-semibold">
               <CalendarDays
                 aria-hidden="true"
@@ -33,7 +33,7 @@ export function PlanningSteps() {
               your mind.
             </p>
           </article>
-          <article>
+          <article className="border-t border-border pt-5">
             <h3 className="flex items-center gap-2 font-semibold">
               <Users aria-hidden="true" className="size-4 text-primary" />
               Bring your people

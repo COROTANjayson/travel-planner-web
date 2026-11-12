@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { fieldRequired } from "@/components/shared/field-required";
 import { useId, useRef, useState, type Ref, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
@@ -362,18 +364,21 @@ export function ActivityForm({
       className={
         section
           ? "activity-section-form"
-          : "activity-form activity-planning-form"
+          : "activity-form activity-planning-form flex flex-1 flex-col [&_label]:text-sm [&_label]:leading-[22px] [&_label]:font-normal [&_label]:text-muted-foreground"
       }
     >
       <fieldset
         disabled={pending || placePending}
-        className="min-w-0 space-y-5"
+        className={cn(
+          "min-w-0 space-y-5",
+          section ? "[&>:first-child_input]:[font-size:1rem]" : "flex-1 pb-6",
+        )}
       >
         {(!section || section === "details") && (
           <>
             {section && categoryField}
             <div className="space-y-2">
-              <Label htmlFor={`${prefix}-title`} className="field-required">
+              <Label htmlFor={`${prefix}-title`} className={fieldRequired}>
                 Activity name
               </Label>
               <Input
@@ -405,6 +410,7 @@ export function ActivityForm({
               setDuration={setDuration}
               customHours={customHours}
               setCustomHours={setCustomHours}
+              planning={!section}
             />
             {interval && <OverlapNotice overlaps={overlaps} />}
           </>
@@ -414,7 +420,9 @@ export function ActivityForm({
           : placeOpen || notesOpen || checklist.length > 0) && (
           <div
             className={
-              section ? "activity-more-details" : "activity-detail-notes"
+              section
+                ? "text-[12px] text-muted-foreground"
+                : "activity-detail-notes mt-2"
             }
           >
             {(section === "place" || (!section && placeOpen)) && (
@@ -454,12 +462,19 @@ export function ActivityForm({
           </div>
         )}
         {!section && (
-          <div className="activity-add-more" role="group" aria-label="Add more">
+          <div
+            className="activity-add-more flex flex-wrap items-center gap-2"
+            role="group"
+            aria-label="Add more"
+          >
             {(!placeOpen ||
               !notesOpen ||
               !checklist.length ||
               !expenseChanges.length) && (
-              <p aria-hidden="true" className="activity-add-more-label">
+              <p
+                aria-hidden="true"
+                className="basis-full text-sm leading-[22px] text-muted-foreground"
+              >
                 Add more
               </p>
             )}
@@ -486,7 +501,7 @@ export function ActivityForm({
         </Alert>
       )}
       {!!error && <TripError error={error} />}
-      <div className="form-actions">
+      <div className="form-actions sticky bottom-0 z-10 flex flex-wrap gap-3 border-t border-border bg-[var(--form-surface,var(--background))] py-4 [.activity-form_>_&]:[justify-content:flex-end] [.activity-form_>_&]:[margin-inline:-1.5rem] [.activity-form_>_&]:[padding-inline:1.5rem] [.activity-form_>_&_>_:first-child]:[flex:0_1_auto] max-md:[&_>_*]:[min-width:0] max-md:[&_>_*]:[white-space:normal] max-md:[&_>_:first-child]:[flex:1_1_10rem] [.activity-planning-form_>_&]:[padding-bottom:max(1rem,_env(safe-area-inset-bottom))] [.activity-planning-form_>_&]:[background:var(--background)] [.activity-section-form_>_&]:[position:static] [.activity-section-form_>_&]:[justify-content:flex-end] [.activity-section-form_>_&]:[margin-top:16px] [.activity-section-form_>_&]:[padding:0] [.activity-section-form_>_&]:[border-top:0] [.activity-section-form_>_&]:[background:transparent] [.activity-section-form_>_&_>_[data-slot='button']]:[flex:0_0_6rem] [.activity-section-form_>_&_>_[data-slot='button']]:[width:6rem] [.activity-section-form_>_&_>_[data-slot='button']]:[min-height:44px] [.activity-section-form_>_&_>_[data-slot='button']]:[border-radius:0.75rem]">
         <Button
           type="button"
           variant="outline"

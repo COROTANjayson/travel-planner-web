@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 
 export function NotesSection({
@@ -14,11 +15,15 @@ export function NotesSection({
   setNotes: (notes: string) => void;
 }) {
   return (
-    <section className={section ? "space-y-2" : undefined}>
-      <div className="activity-section-heading">
-        <h3>Notes</h3>
+    <section
+      className={cn(section ? "space-y-2" : "border-t border-border py-2")}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-[18px] leading-7 font-bold text-foreground">
+          Notes
+        </h3>
       </div>
-      <div className="pt-4 space-y-4">
+      <div className={cn("space-y-4", section ? "pt-4" : "pt-1 pb-4")}>
         <div className="space-y-2">
           <Label htmlFor={`${prefix}-notes`}>Activity notes</Label>
           <textarea

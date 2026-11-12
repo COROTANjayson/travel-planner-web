@@ -27,7 +27,7 @@ export function CustomSharesStep({
   change: () => void;
 }) {
   return (
-    <div className="figma-custom-shares">
+    <div className="figma-custom-shares [&>div]:grid [&>div]:items-center [&>div]:gap-4 [display:grid] [gap:16px] [&>div]:[grid-template-columns:minmax(0,_1fr)_minmax(0,_158px)] [&>div]:[row-gap:4px] [&_label]:[font-size:16px] [&_label]:[font-weight:400] [&_label]:[line-height:1.35] [&_label]:[overflow-wrap:anywhere] [&_input]:[padding-inline:12px] [&_input]:[text-align:right] [&_input]:[font-variant-numeric:tabular-nums] [&_label]:[color:var(--foreground)] max-[359px]:[&_>_div]:[grid-template-columns:minmax(0,_1fr)_minmax(0,_42%)] [&_.reference-field_>_span]:[justify-content:flex-end] [&_.reference-field_>_span]:[padding-inline:12px] [&_.reference-field_>_span]:[font-variant-numeric:tabular-nums]">
       {selectedPeople.map((person) => {
         const shareID = `${formID}-share-${person.user_id}`;
         const shareProblem = readShare(person.user_id).problem;
@@ -69,7 +69,7 @@ export function CustomSharesStep({
               <p
                 id={`${shareID}-error`}
                 role="alert"
-                className="figma-share-error text-sm text-destructive"
+                className="figma-share-error [grid-column:1_/_-1] text-sm text-destructive"
               >
                 {shareProblem}
               </p>

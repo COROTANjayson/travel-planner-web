@@ -25,7 +25,8 @@ export function AddActivityDrawer({
     <TripDialog
       open={open}
       presentation="detail"
-      className="activity-details-dialog reference-activity-dialog activity-planning-dialog"
+      className="activity-details-dialog reference-activity-dialog activity-planning-dialog [&_[data-slot='input']]:min-h-12 [&_[data-slot='input']]:rounded-[0.875rem] [&_[data-slot='select-trigger']]:min-h-12 [&_[data-slot='select-trigger']]:rounded-[0.875rem]"
+      variant="planning"
       backLabel="Back to itinerary"
       title="Add activity"
       headerContent={<h2>{fullDateLabel(date)}</h2>}

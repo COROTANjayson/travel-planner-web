@@ -39,13 +39,16 @@ export function TripPeopleDialog({
       trigger={
         <Button
           variant="ghost"
-          className="trip-people min-h-11"
+          className="trip-people min-h-11 [&[data-slot='button']]:[border-radius:9999px] [&[data-slot='button']]:[padding-inline:0.375rem]"
           aria-label={
             members.data ? `People, ${members.data.length}` : "People"
           }
         >
           {members.data?.length ? (
-            <span aria-hidden="true" className="trip-people-avatars">
+            <span
+              aria-hidden="true"
+              className="trip-people-avatars [display:flex] [&>span]:[display:grid] [&>span]:[min-width:2rem] [&>span]:[min-height:2rem] [&>span]:[place-items:center] [&>span]:[border:2px_solid_var(--background)] [&>span]:[border-radius:9999px] [&>span]:[background:var(--trip-sea)] [&>span]:[color:var(--foreground)] [&>span]:[padding-inline:0.125rem] [&>span]:[font-size:0.6875rem] [&>span]:[font-weight:600] [&_>_span_+_span]:[margin-left:-0.5rem]"
+            >
               {members.data.slice(0, 3).map((person) => (
                 <span key={person.user_id}>{participantInitials(person)}</span>
               ))}

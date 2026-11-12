@@ -45,7 +45,7 @@ export function RepaymentConfirmation({
           </div>
         </div>
       </div>
-      <div className="repayment-panel rounded-xl p-5 sm:p-6">
+      <div className="repayment-panel [background:var(--ocean)] [color:var(--ocean-text)] rounded-xl p-5 sm:p-6 [&_strong]:[color:#fff] [&_.repayment-error]:[color:#ffd5ca] [&_.repayment-error:not(:empty)]:[margin-top:12px] max-md:[&]:[padding:16px]">
         <div className="flex items-center justify-between gap-3">
           <Label
             htmlFor="cost-amount"
@@ -54,7 +54,7 @@ export function RepaymentConfirmation({
             Amount received
           </Label>
           <span
-            className="repayment-currency text-xs font-semibold"
+            className="repayment-currency text-xs font-semibold [&]:[border:1px_solid_var(--ocean-text)] [&]:[border-radius:6px] [&]:[padding:2px_8px]"
             id="repayment-currency"
           >
             {currency.code}

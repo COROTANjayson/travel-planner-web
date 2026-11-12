@@ -397,7 +397,7 @@ export function Itinerary({
       <Button
         type="button"
         variant="ghost"
-        className="activity-section-edit size-11 min-h-11 shrink-0 text-muted-foreground hover:text-primary focus-visible:text-primary"
+        className="-mr-[15px] size-11 min-h-11 shrink-0 text-muted-foreground hover:text-primary focus-visible:text-primary"
         aria-label={label}
         data-edit-section={section}
         disabled={api.pending || editing !== null}
@@ -422,10 +422,10 @@ export function Itinerary({
     );
 
   return (
-    <div className="coastal-itinerary flex min-w-0 flex-col gap-6">
+    <div className="coastal-itinerary flex min-w-0 flex-col gap-6 max-md:[&]:[gap:1rem]">
       <section
         aria-labelledby="itinerary-heading"
-        className="itinerary-workspace"
+        className="itinerary-workspace [min-width:0] lg:[&]:[display:grid] lg:[&]:[grid-template-columns:10rem_minmax(0,_1fr)] lg:[&]:[gap:1.75rem] lg:[&]:[align-items:start]"
       >
         <DayRail
           trip={trip}
@@ -436,24 +436,24 @@ export function Itinerary({
           activitiesQuery={activities}
           dayRail={dayRail}
         />
-        <div className="itinerary-agenda">
-          <div className="itinerary-toolbar flex flex-wrap items-center justify-between gap-2">
+        <div className="itinerary-agenda [min-width:0] [display:flex] [flex-direction:column] [gap:1rem]">
+          <div className="itinerary-toolbar [background:var(--background)] flex flex-wrap items-center justify-between gap-2 md:[&]:[padding-bottom:0.5rem] md:[&_>_[data-slot='button']]:[min-height:2.75rem]">
             <h2 id="itinerary-heading" className="sr-only">
               Daily itinerary
             </h2>
-            <div className="itinerary-day-heading">
+            <div className="itinerary-day-heading [flex:1] [min-width:0] md:[&]:[flex:1_1_14rem]">
               <h3
                 id={`day-${selected}-heading`}
                 ref={selectedHeading}
                 tabIndex={-1}
-                className="day-summary outline-none focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-ring"
+                className="day-summary [font-size:1.25rem] [font-weight:600] [letter-spacing:-0.02em] [line-height:1.4] outline-none focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <time dateTime={selected}>{fullDateLabel(selected)}</time>
               </h3>
               <p
                 role="status"
                 aria-live="polite"
-                className="itinerary-day-meta"
+                className="itinerary-day-meta [font-size:0.75rem] [line-height:1.75] [color:var(--muted-foreground)] [margin-top:0.25rem]"
               >
                 Day {dayNumber} of {dayCount} ·{" "}
                 {activities.isPending
@@ -463,7 +463,7 @@ export function Itinerary({
                     : `${selectedActivities.length} ${selectedActivities.length === 1 ? "activity" : "activities"} planned`}
               </p>
             </div>
-            <div className="itinerary-day-summary">
+            <div className="itinerary-day-summary [display:flex] [flex-direction:column] [gap:0.25rem] [&_nav_[data-slot='button']]:[color:var(--muted-foreground)] [&_nav_[data-slot='button']:hover]:[color:var(--foreground)] [&_nav_[data-slot='button']_>_svg]:[display:none] [&_nav_.day-tool-overlaps[data-slot='button']]:[color:#625333] max-md:[&]:[display:none] md:[&]:[flex-direction:row] md:[&]:[align-items:center] md:[&]:[justify-content:flex-end] md:[&]:[gap:0.75rem]">
               <div className="hidden md:block">{dayTools}</div>
             </div>
             <div className="md:hidden">
@@ -505,7 +505,10 @@ export function Itinerary({
           </AddActivityDrawer>
           {!unavailable &&
             (activities.isPending ? (
-              <div role="status" className="timeline-loading space-y-3">
+              <div
+                role="status"
+                className="timeline-loading space-y-3 [&>div]:[height:6rem] [&>div]:[margin-left:4.25rem] [&>div]:[border-radius:1rem] [&>div]:[background:var(--muted)] max-md:[&_>_div]:[margin-left:0]"
+              >
                 <span className="sr-only">Loading activities…</span>
                 <div />
                 <div />
@@ -531,7 +534,7 @@ export function Itinerary({
               </>
             ))}
           {canEdit && !unavailable && activities.isSuccess && (
-            <div className="mobile-add-activity fixed inset-x-0 z-30 border-t bg-background px-6 py-3 md:hidden">
+            <div className="mobile-add-activity fixed right-[max(1.5rem,env(safe-area-inset-right,0px))] bottom-[var(--app-bottom)] z-30 md:hidden">
               <Button
                 className="min-h-12"
                 disabled={api.pending || editing !== null}

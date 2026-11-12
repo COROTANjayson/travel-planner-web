@@ -54,8 +54,11 @@ export function Participants({
             key={person.user_id}
             className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b py-3 first:pt-0 last:border-0 last:pb-0"
           >
-            <div className="participant-row min-w-0 flex-1">
-              <span className="participant-avatar" aria-hidden="true">
+            <div className="participant-row flex items-center gap-3 min-w-0 flex-1">
+              <span
+                className="participant-avatar flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary font-semibold text-primary"
+                aria-hidden="true"
+              >
                 {Array.from(participantName(person))[0].toLocaleUpperCase()}
               </span>
               <p className="min-w-0 font-medium break-words">

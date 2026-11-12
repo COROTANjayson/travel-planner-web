@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { TripError } from "@/components/shared/trip-states";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,18 +33,26 @@ export function PlaceSection({
   placeError: unknown;
 }) {
   return (
-    <section className={section ? "space-y-2" : undefined}>
-      <div className="activity-section-heading">
-        <h3>Place</h3>
+    <section
+      className={cn(section ? "space-y-2" : "border-t border-border py-2")}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-[18px] leading-7 font-bold text-foreground">
+          Place
+        </h3>
       </div>
-      <div className="space-y-3 pt-4">
+      <div className={cn("space-y-3", section ? "pt-4" : "pt-1 pb-4")}>
         <Label htmlFor={`${prefix}-place-search`} className="sr-only">
           Search for a place (optional)
         </Label>
         {place && (
           <div className="rounded-xl border bg-secondary/40 p-4 text-sm">
-            <p className="font-medium">{place.name}</p>
-            <p className="break-words text-muted-foreground">{place.address}</p>
+            <p className="font-medium leading-6 lg:max-w-[70ch]">
+              {place.name}
+            </p>
+            <p className="break-words leading-6 text-muted-foreground lg:max-w-[70ch]">
+              {place.address}
+            </p>
             <Button
               type="button"
               variant="outline"
@@ -84,11 +93,16 @@ export function PlaceSection({
         {results && (
           <div aria-live="polite">
             {results.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No places found.</p>
+              <p className="text-sm leading-6 text-muted-foreground lg:max-w-[70ch]">
+                No places found.
+              </p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-2 lg:max-w-[70ch]">
                 {results.map((candidate) => (
-                  <li key={candidate.provider_place_id}>
+                  <li
+                    key={candidate.provider_place_id}
+                    className="text-sm leading-6"
+                  >
                     <Button
                       type="button"
                       variant="outline"
@@ -110,7 +124,7 @@ export function PlaceSection({
           </div>
         )}
         {!!placeError && <TripError error={placeError} />}
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm leading-6 text-muted-foreground lg:max-w-[70ch]">
           Searches run only when you press Search. Place data ©{" "}
           <a
             className="underline"

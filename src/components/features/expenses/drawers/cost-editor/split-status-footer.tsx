@@ -24,9 +24,12 @@ export function SplitStatusFooter({
   balanceShares: () => void;
 }) {
   return (
-    <div className="expense-split-status" data-balanced={unassigned === 0n}>
+    <div
+      className="expense-split-status [display:grid] [gap:4px] [margin-bottom:12px] [padding:12px_16px] [border:1px_solid_var(--border)] [border-radius:16px] [background:var(--secondary)] [overflow-wrap:anywhere] [&_.figma-summary-value]:[font-size:18px] [&_.figma-summary-value]:[line-height:24px] [&[data-balanced='false']]:[background:var(--trip-sand)] [&_p:not(.figma-summary-value)]:[font-size:14px] [&_p:not(.figma-summary-value)]:[line-height:20px]"
+      data-balanced={unassigned === 0n}
+    >
       <div aria-live="polite">
-        <p className="figma-summary-value">
+        <p className="figma-summary-value [font-weight:700] [font-size:22px] [line-height:30px]">
           {unassigned === 0n
             ? "Matches the total"
             : unassigned > 0n

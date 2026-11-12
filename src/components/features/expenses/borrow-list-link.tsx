@@ -18,11 +18,11 @@ export function BorrowListLink({
     <Button
       variant="ghost"
       data-finance-link="loans"
-      className="activity-borrow-link"
+      className="activity-borrow-link grid h-auto min-h-11 w-full grid-cols-[auto_minmax(0,1fr)_auto] gap-3 rounded-[6px] border-t-border px-3 py-3.5 text-left whitespace-normal hover:bg-[color-mix(in_srgb,var(--foreground)_3%,transparent)] hover:text-foreground active:not-focus-visible:scale-100 [&>svg]:text-muted-foreground"
       onClick={() => onViewChange?.("loans")}
     >
       <span>Borrow list</span>
-      <span className="activity-borrow-summary text-sm text-muted-foreground">
+      <span className="activity-borrow-summary [min-width:0] [text-align:right] [overflow-wrap:anywhere] [font-size:13px] [line-height:20px] text-sm text-muted-foreground">
         {ownLoans.length} {ownLoans.length === 1 ? "loan" : "loans"}
         {[...new Set(ownLoans.map((l) => l.currency))]
           .map(

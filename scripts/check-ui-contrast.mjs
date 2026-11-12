@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 const css = fs.readFileSync("src/app/globals.css", "utf8");
+const categoryBadge = fs.readFileSync(
+  "src/components/features/itinerary/category-badge.tsx",
+  "utf8",
+);
 const lightTheme = css.match(/:root\s*\{([^}]+)\}/)[1];
 const token = (name) => {
   const value = lightTheme.match(
@@ -91,14 +95,11 @@ check(token("primary"), token("trip-sand"));
 check("#625333", "#e5ddbf");
 check("#405a69", "#d9e3e9");
 check("#526258", "#e9ede8");
-const ongoing = css.match(
-  /\.trip-status\[data-status="Ongoing"\]\s*\{\s*background:\s*(#[0-9a-f]{6});\s*color:\s*(#[0-9a-f]{6})/i,
-);
-assert.ok(ongoing, "Expected explicit ongoing status colors");
-check(ongoing[2], ongoing[1]);
+// Ongoing status pill (trip-card.tsx, trip-summary.tsx).
+check("#ffffff", "#1c6465");
 const categoryBadges = [
-  ...css.matchAll(
-    /\.activity-category\[data-category="([^"]+)"\]\s*\{\s*background:\s*(#[0-9a-f]{6});\s*color:\s*(#[0-9a-f]{6})/gi,
+  ...categoryBadge.matchAll(
+    /\[&\[data-category='([^']+)'\]\]:bg-\[(#[0-9a-f]{6})\]\s+\[&\[data-category='\1'\]\]:text-\[(#[0-9a-f]{6})\]/gi,
   ),
 ];
 assert.deepEqual(

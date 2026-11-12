@@ -4,7 +4,7 @@ export function SampleItinerary() {
   return (
     <aside
       aria-label="Sample itinerary"
-      className="sample-itinerary surface min-w-0 p-5 sm:p-6"
+      className="sample-itinerary surface border border-border rounded-2xl bg-card min-w-0 p-5 sm:p-6 [&]:[border-top:3px_solid_var(--primary)]"
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-5">
         <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-primary">
@@ -56,7 +56,7 @@ export function SampleItinerary() {
             </span>
             <div className="rounded-xl border p-3">
               <span
-                className="activity-category mb-2"
+                className="activity-category [display:inline-flex] [max-width:100%] [align-items:center] [gap:0.375rem] [border-radius:9999px] [background:var(--muted)] [color:var(--muted-foreground)] [padding:0.125rem_0.625rem] [font-size:0.75rem] [line-height:1.25rem] [font-weight:500] mb-2 [&[data-icon-only]]:[width:2.75rem] [&[data-icon-only]]:[height:2.75rem] [&[data-icon-only]]:[flex-shrink:0] [&[data-icon-only]]:[justify-content:center] [&[data-icon-only]]:[border-radius:0.75rem] [&[data-icon-only]]:[padding:0] [&[data-icon-only]_svg]:[width:1.25rem] [&[data-icon-only]_svg]:[height:1.25rem] [&[data-category='Rest']]:[background:#f0ebfa] [&[data-category='Rest']]:[color:#65438b] [&[data-category='Eating']]:[background:#fff0e2] [&[data-category='Eating']]:[color:#945020] [&[data-category='Travel']]:[background:#e8f0ff] [&[data-category='Travel']]:[color:#315da3] [&[data-category='Activity']]:[background:#e6f4ec] [&[data-category='Activity']]:[color:#316747]"
                 data-category={stop.category}
               >
                 <stop.Icon aria-hidden="true" className="size-3.5" />

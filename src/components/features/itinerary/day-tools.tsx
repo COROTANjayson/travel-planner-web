@@ -71,7 +71,7 @@ export function DayTools({
       {(conflictsFailed || dayConflictCount > 0) && (
         <Button
           variant="ghost"
-          className="day-tool-overlaps min-h-11 px-2"
+          className="day-tool-overlaps min-h-11 px-2 [&>span]:[background:#e5ddbf] [&[data-slot='button']]:[color:#625333]"
           onClick={(event) => {
             dayToolTriggerRef.current = dayOptionsOpen
               ? dayOptionsTriggerRef.current

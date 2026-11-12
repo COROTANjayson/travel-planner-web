@@ -48,7 +48,7 @@ export function MyExpensesSummary({
           expenseMoney(String(amount), currency(code));
         return (
           <div key={code} className="space-y-3">
-            <dl className="personal-expense-summary">
+            <dl className="personal-expense-summary [display:flex] [flex-wrap:wrap] [gap:12px_28px] [padding-bottom:16px] [border-bottom:1px_solid_var(--border)] [&_dt]:[font-size:14px] [&_dt]:[color:var(--muted-foreground)] [&_dd]:[margin-top:4px] [&_dd]:[font-weight:600] [&_dd]:[font-variant-numeric:tabular-nums]">
               <div>
                 <dt>Your share</dt>
                 <dd>{money(totals.cost)}</dd>
@@ -74,7 +74,7 @@ export function MyExpensesSummary({
                     <li key={expense.id}>
                       <button
                         type="button"
-                        className="personal-expense-row"
+                        className="personal-expense-row focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-ring [display:flex] [align-items:start] [justify-content:space-between] [gap:16px] [width:100%] [min-height:44px] [padding:16px_0] [text-align:left] [cursor:pointer] [overflow-wrap:anywhere] [&_>_:first-child]:[min-width:0] [&_>_:last-child]:[flex-shrink:0] [&_>_:last-child]:[max-width:50%]"
                         aria-label={`View ${expense.description} payments`}
                         onClick={(event) => {
                           triggerRef.current = event.currentTarget;

@@ -44,7 +44,10 @@ export function AccountContent({
         </div>
       ) : (
         <div className="space-y-2 break-words">
-          <span className="participant-avatar" aria-hidden="true">
+          <span
+            className="participant-avatar flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary font-semibold text-primary"
+            aria-hidden="true"
+          >
             <UserRound className="size-5" />
           </span>
           <p className="font-semibold">Welcome back, {name}</p>

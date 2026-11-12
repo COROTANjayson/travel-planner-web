@@ -50,7 +50,7 @@ export function TripSettingsDialog({
       trigger={
         <Button
           variant="ghost"
-          className="trip-settings size-11 min-h-11"
+          className="trip-settings [padding:0] size-11 min-h-11 [&]:[color:var(--muted-foreground)] [&:hover]:[color:var(--foreground)]"
           aria-label="Trip settings"
         >
           <Settings aria-hidden="true" className="size-5" />

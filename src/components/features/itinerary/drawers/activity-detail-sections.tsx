@@ -24,27 +24,29 @@ export function ActivityDetailSections({
   sectionAddButton: SectionButton;
 }) {
   return (
-    <div className="activity-detail-notes">
+    <div className="activity-detail-notes lg:min-w-0">
       {(detailActivity.place ||
         canEdit ||
         (editedActivity && editSection === "place")) && (
-        <section className="space-y-1">
+        <section className="space-y-1 border-t border-border pt-6 pb-7 first:border-t-0">
           {editedActivity && editSection === "place" ? (
             activityForm
           ) : (
             <>
-              <div className="activity-section-heading">
-                <h3>Place</h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-[18px] leading-7 font-bold text-foreground">
+                  Place
+                </h3>
                 {detailActivity.place &&
                   sectionEditButton("place", "Edit place")}
               </div>
               {detailActivity.place ? (
                 <>
-                  <p className="break-words font-medium">
+                  <p className="break-words font-medium lg:max-w-[70ch]">
                     {detailActivity.place.name}
                   </p>
                   {detailActivity.place.address && (
-                    <p className="break-words text-muted-foreground">
+                    <p className="break-words text-muted-foreground lg:max-w-[70ch]">
                       {detailActivity.place.address}
                     </p>
                   )}
@@ -59,18 +61,20 @@ export function ActivityDetailSections({
       {(detailActivity.notes ||
         canEdit ||
         (editedActivity && editSection === "notes")) && (
-        <section className="space-y-1">
+        <section className="space-y-1 border-t border-border pt-6 pb-7 first:border-t-0">
           {editedActivity && editSection === "notes" ? (
             activityForm
           ) : (
             <>
-              <div className="activity-section-heading">
-                <h3>Notes</h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-[18px] leading-7 font-bold text-foreground">
+                  Notes
+                </h3>
                 {detailActivity.notes &&
                   sectionEditButton("notes", "Edit notes")}
               </div>
               {detailActivity.notes ? (
-                <p className="whitespace-pre-wrap break-words">
+                <p className="whitespace-pre-wrap break-words lg:max-w-[70ch]">
                   {detailActivity.notes}
                 </p>
               ) : (
@@ -83,18 +87,20 @@ export function ActivityDetailSections({
       {(detailActivity.checklist.length > 0 ||
         canEdit ||
         (editedActivity && editSection === "checklist")) && (
-        <section className="space-y-1">
+        <section className="space-y-1 border-t border-border pt-6 pb-7 first:border-t-0">
           {editedActivity && editSection === "checklist" ? (
             activityForm
           ) : (
             <>
-              <div className="activity-section-heading">
-                <h3>To do</h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-[18px] leading-7 font-bold text-foreground">
+                  To do
+                </h3>
                 {detailActivity.checklist.length > 0 &&
                   sectionEditButton("checklist", "Edit to do")}
               </div>
               {detailActivity.checklist.length > 0 ? (
-                <ul className="space-y-1">
+                <ul className="space-y-1 lg:max-w-[70ch]">
                   {detailActivity.checklist.map((item, index) => (
                     <li key={index} className="whitespace-pre-wrap break-words">
                       {item.text}

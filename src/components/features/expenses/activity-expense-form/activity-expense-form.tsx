@@ -435,7 +435,7 @@ export function ActivityExpenseForm({
             </>
           )}
         {isCost && (
-          <div className="expense-cost-content">
+          <div className="expense-cost-content [display:grid] [gap:1.25rem]">
             <CostFields
               description={description}
               setDescription={setDescription}

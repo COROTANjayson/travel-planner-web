@@ -21,7 +21,7 @@ export function ReviewStep({
         Recorded payments stay unchanged. Review the updated balances before
         saving.
       </p>
-      <div className="figma-money-summary">
+      <div className="figma-money-summary [&>p:not(.figma-summary-value)]:text-sm [&>p:not(.figma-summary-value)]:leading-[1.7] [display:grid] [gap:1rem] [background:var(--secondary)] [overflow-wrap:anywhere] [border:1px_solid_var(--border)] [padding:20px] [border-radius:18px] [&:has(>_.figma-summary-action)]:[display:flex] [&:has(>_.figma-summary-action)]:[flex-wrap:wrap] [&:has(>_.figma-summary-action)]:[align-items:center] [&:has(>_.figma-summary-action)_>_.figma-summary-value]:[flex-basis:100%] [&:has(>_.figma-summary-action)_>_p:not(.figma-summary-value)]:[flex:1_1_8rem]">
         <p>
           Expense total: {money(review.before.expense.amount_minor)} →{" "}
           {money(review.after.expense.amount_minor)}

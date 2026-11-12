@@ -15,6 +15,7 @@ import {
 import { equalShares, expenseMoney } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { ExpenseCostEditor } from "@/components/features/expenses/drawers/cost-editor/expense-cost-editor";
+import { totalsStyles } from "@/components/features/expenses/expense-totals";
 import { TripError } from "@/components/shared/trip-states";
 
 export function ActivityExpenseDrafts({
@@ -118,7 +119,7 @@ export function ActivityExpenseDrafts({
       className={
         compact
           ? undefined
-          : "activity-finance activity-plan-expenses space-y-5"
+          : "group/finance mt-2 min-w-0 flex-[1_0_100%] space-y-5 rounded-[16px] border border-border p-5"
       }
       data-finance-view={compact ? undefined : "overview"}
     >
@@ -135,8 +136,8 @@ export function ActivityExpenseDrafts({
           Expense
         </Button>
       ) : (
-        <div className="activity-section-heading">
-          <h3>Expenses</h3>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-[18px] leading-7 font-bold">Expenses</h3>
         </div>
       )}
       {(ledger.isPending || currencies.isPending) && (
@@ -154,10 +155,10 @@ export function ActivityExpenseDrafts({
         />
       )}
       {[...new Set(costs.map((c) => c.currency))].map((currency) => (
-        <div key={currency} className="activity-cost-total">
-          <div>
-            <p className="text-xs text-muted-foreground">Estimated total</p>
-            <p className="text-xl font-semibold">
+        <div key={currency} className={totalsStyles.overview.root}>
+          <div className={totalsStyles.overview.cell}>
+            <p className={totalsStyles.overview.label}>Estimated total</p>
+            <p className={totalsStyles.overview.value}>
               {money(
                 costs
                   .filter((c) => c.currency === currency)
@@ -167,9 +168,9 @@ export function ActivityExpenseDrafts({
               )}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Your share</p>
-            <p className="text-xl font-semibold">
+          <div className={totalsStyles.overview.cell}>
+            <p className={totalsStyles.overview.label}>Your share</p>
+            <p className={totalsStyles.overview.value}>
               {money(
                 costs
                   .filter((c) => c.currency === currency)
@@ -190,17 +191,21 @@ export function ActivityExpenseDrafts({
         </div>
       ))}
       {!!costs.length && (
-        <div className="activity-plan-costs">
+        <div className="activity-plan-costs [margin-top:12px]">
           {costs.map((cost) => {
             const equal = cost.shares.every(
               (s) => s.amount_minor === cost.shares[0]?.amount_minor,
             );
             return (
-              <div key={cost.id} className="activity-plan-cost">
-                <div>
+              <div
+                key={cost.id}
+                className="border-b border-border pt-6 pb-2 first:pt-0 last:border-b-0"
+              >
+                <div className="flex items-center justify-between gap-4">
                   <Button
                     type="button"
                     variant="link"
+                    className="-my-2.5 min-h-11 justify-start px-0 py-2.5 font-normal text-foreground [font-size:16px]"
                     onClick={(event) => {
                       trigger.current = event.currentTarget;
                       setEditing(cost);
@@ -208,13 +213,13 @@ export function ActivityExpenseDrafts({
                   >
                     {cost.description}
                   </Button>
-                  <span>
+                  <span className="text-[16px]">
                     {equal && cost.shares[0]
                       ? `${money(cost.shares[0].amount_minor, cost.currency)} each`
                       : money(cost.amount_minor, cost.currency)}
                   </span>
                 </div>
-                <p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   {cost.shares.length} people ·{" "}
                   {money(cost.amount_minor, cost.currency)} total
                 </p>
@@ -224,7 +229,7 @@ export function ActivityExpenseDrafts({
         </div>
       )}
       {!compact && (
-        <div className="activity-finance-actions">
+        <div className="-my-2 flex flex-wrap gap-2 **:data-[slot=button]:h-auto **:data-[slot=button]:min-h-11 **:data-[slot=button]:whitespace-normal">
           <Button
             type="button"
             variant="link"

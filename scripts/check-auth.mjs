@@ -288,7 +288,7 @@ async function checkSessionRecovery() {
     );
     assert.match(
       mobile,
-      /<button type="button" class="mobile-nav-item"/,
+      /<button type="button" class="mobile-nav-item[^"]*"/,
       "Account remains a sheet trigger rather than a navigation link",
     );
   }

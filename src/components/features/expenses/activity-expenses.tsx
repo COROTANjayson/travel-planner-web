@@ -24,6 +24,7 @@ import {
 } from "@/lib/expenses";
 import { moneyIn } from "@/lib/money";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ExpenseCostEditor } from "@/components/features/expenses/drawers/cost-editor/expense-cost-editor";
 import { ExpensePaymentWorkspace } from "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace";
 import { PersonalPayments } from "@/components/features/expenses/personal-payments/personal-payments";
@@ -238,7 +239,11 @@ export function ActivityExpenses(
     <section
       className={
         flow
-          ? "activity-finance space-y-4"
+          ? cn(
+              "activity-finance group/finance space-y-4",
+              props.view === "overview" &&
+                "rounded-[16px] border border-border p-5",
+            )
           : props.compact
             ? "activity-cost-section"
             : "space-y-4 pt-4"
@@ -254,9 +259,18 @@ export function ActivityExpenses(
         />
       )}
       {!props.managementOnly && (!flow || props.view === "overview") && (
-        <div className="activity-cost-heading flex flex-wrap items-center justify-between gap-3">
+        <div
+          className={cn(
+            "mb-2.5 flex flex-wrap items-center justify-between gap-3 **:data-[slot=button]:min-h-12 **:data-[slot=button]:px-4 **:data-[slot=button]:text-sm **:data-[slot=button]:font-bold",
+            !flow && "border-t border-border pt-3.5",
+          )}
+        >
           {(!flow || props.view === "overview") && (
-            <h3 ref={heading} tabIndex={-1} className="text-xl font-semibold">
+            <h3
+              ref={heading}
+              tabIndex={-1}
+              className="text-[22px] leading-[1.4] font-bold"
+            >
               Expenses
             </h3>
           )}
@@ -286,7 +300,11 @@ export function ActivityExpenses(
           tabView ? `expense-${props.view}-${activityID}` : undefined
         }
         tabIndex={tabView ? 0 : undefined}
-        className={flow ? "space-y-5" : "space-y-4"}
+        className={
+          flow
+            ? "space-y-5 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-ring"
+            : "space-y-4"
+        }
       >
         {(ledger.isPending || currencies.isPending) && (
           <p role="status">Loading expenses…</p>
@@ -316,11 +334,12 @@ export function ActivityExpenses(
                   current={current}
                   activityID={activityID}
                   money={money}
+                  view={flow ? props.view : undefined}
                 />
               )}
             {flow && props.view === "details" && !props.managementOnly && (
-              <div className="activity-expense-list-heading">
-                <h3>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pt-1 pb-3 group-data-[finance-view=loans]/finance:gap-2 group-data-[finance-view=loans]/finance:pt-0 group-data-[finance-view=details]/finance:mb-0 group-data-[finance-view=loans]/finance:mb-0">
+                <h3 className="text-[18px] font-bold group-data-[finance-view=loans]/finance:text-base">
                   {costs.length} {costs.length === 1 ? "expense" : "expenses"}
                 </h3>
                 {hasActivity && isEditor && (
@@ -332,8 +351,12 @@ export function ActivityExpenses(
               </div>
             )}
             {flow && props.view === "loans" && (
-              <div className="activity-expense-list-heading">
-                <h3 ref={heading} tabIndex={-1}>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pt-1 pb-3 group-data-[finance-view=loans]/finance:gap-2 group-data-[finance-view=loans]/finance:pt-0 group-data-[finance-view=details]/finance:mb-0 group-data-[finance-view=loans]/finance:mb-0">
+                <h3
+                  ref={heading}
+                  tabIndex={-1}
+                  className="text-[18px] font-bold group-data-[finance-view=loans]/finance:text-base"
+                >
                   {ownLoans.length} {ownLoans.length === 1 ? "loan" : "loans"}
                 </h3>
                 {writable && hasActivity && (
@@ -355,7 +378,7 @@ export function ActivityExpenses(
                 </p>
               )}
             {flow && props.view === "overview" && (
-              <div className="activity-finance-actions">
+              <div className="flex flex-wrap gap-2 group-data-[finance-view=overview]/finance:-my-2 **:data-[slot=button]:h-auto **:data-[slot=button]:min-h-11 **:data-[slot=button]:whitespace-normal">
                 <Button
                   variant="link"
                   className="px-0"
@@ -376,7 +399,7 @@ export function ActivityExpenses(
               />
             )}
             {(showCosts || showLoans) && (
-              <div className="activity-cost-list">
+              <div className="group-data-[finance-view=details]/finance:mb-0 group-data-[finance-view=loans]/finance:border-b group-data-[finance-view=loans]/finance:border-border">
                 {showCosts &&
                   costs.map((cost) => (
                     <CostArticle

@@ -752,7 +752,7 @@ assert.doesNotMatch(html, /Trip expenses/);
 assert.doesNotMatch(html, /Your share|To pay to business|Overall, you/);
 assert.match(html, /data-category="Rest"/);
 assert.equal(
-  (html.match(/class="expense-row relative"/g) ?? []).length,
+  (html.match(/class="expense-row(?:\s|")/g) ?? []).length,
   (html.match(/<time dateTime=/g) ?? []).length,
   "Every dated expense row has its own recognizable date",
 );
@@ -1327,9 +1327,9 @@ assert.equal(
   "Step controls announce their question and current value",
 );
 for (const id of ["expense-name", "expense-price"])
-  assert.equal(
+  assert.match(
     nodes(costTree()).find((n) => n.props.htmlFor === id).props.className,
-    "field-required",
+    /after:content-\['\*'\]/,
     "Required expense fields are marked",
   );
 states = [];
@@ -2144,7 +2144,8 @@ for (const [borrower, amount] of [
   refs = [];
   saved = undefined;
   tree = render(formModule.ActivityExpenseForm, loanFormProps);
-  assert.equal(find(tree, "cost-payer").props.disabled, true);
+  assert.equal(find(tree, "cost-payer"), undefined);
+  assert.match(renderToStaticMarkup(tree), /Lent by/);
   assert.deepEqual(
     Array.from(find(tree, "loan-borrower").props.options, (p) => p.value),
     ["2", "3"],

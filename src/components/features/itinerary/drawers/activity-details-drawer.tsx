@@ -14,6 +14,10 @@ import {
 } from "@/components/features/itinerary/drawers/activity-detail-sections";
 import { TripDialog } from "@/components/shared/trip-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  financeLoansHeader,
+  financeTabsHeader,
+} from "@/components/shared/trip-dialog-variants";
 import { timeLabel } from "@/lib/activity-time";
 import type { Activity, useItineraryApi } from "@/lib/itinerary";
 import { participantName, type Participant } from "@/lib/memberships";
@@ -92,10 +96,21 @@ export function ActivityDetailsDrawer({
       titleAccessory={
         detailActivity &&
         expenseView === "overview" && (
-          <CategoryBadge category={detailActivity.category} />
+          <CategoryBadge
+            category={detailActivity.category}
+            className="rounded-[0.5rem]"
+          />
         )
       }
       className="activity-details-dialog reference-activity-dialog"
+      variant="reference"
+      headerClassName={
+        expenseView === "loans"
+          ? financeLoansHeader
+          : expenseView === "overview"
+            ? undefined
+            : financeTabsHeader
+      }
       busy={api.pending}
       disablePointerDismissal={!!editedActivity}
       presentation="detail"
@@ -113,9 +128,9 @@ export function ActivityDetailsDrawer({
       }
       description={
         detailActivity && expenseView === "overview" ? (
-          <span className="activity-detail-schedule">
+          <span className="flex items-start gap-3">
             <span>
-              <span className="activity-detail-date">
+              <span className="block text-base leading-[26px] font-normal text-foreground">
                 {new Intl.DateTimeFormat(undefined, {
                   weekday: "long",
                   day: "numeric",
@@ -126,7 +141,7 @@ export function ActivityDetailsDrawer({
                   new Date(detailActivity.ends_at),
                 )}
               </span>
-              <span className="activity-detail-time">
+              <span className="mt-1.5 block text-sm leading-6">
                 {timeLabel(detailActivity.starts_at, trip.time_zone)} –{" "}
                 {timeLabel(detailActivity.ends_at, trip.time_zone)}
                 {" · "}
@@ -152,7 +167,7 @@ export function ActivityDetailsDrawer({
             </p>
             {canEdit && (
               <Button
-                className="activity-delete shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                className="-mr-3.5 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                 variant="ghost"
                 disabled={api.pending || isEditing}
                 aria-label={`Delete ${detailActivity.title}`}
@@ -173,7 +188,7 @@ export function ActivityDetailsDrawer({
       {detailActivity && (
         <div
           ref={detailContent}
-          className="activity-detail-sections text-sm leading-6"
+          className="activity-detail-sections text-sm leading-6 lg:*:min-w-0"
         >
           {editedActivity && !canEdit && (
             <p role="alert" className="text-sm text-destructive">

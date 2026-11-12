@@ -1,5 +1,6 @@
 "use client";
 
+import { fieldRequired } from "@/components/shared/field-required";
 import { useState } from "react";
 import { TZDate } from "react-day-picker";
 import { inspectLocalTime, type Occurrence } from "@/lib/activity-time";
@@ -41,7 +42,7 @@ export function DateTimeField({
   hideDate?: boolean;
   required?: boolean;
 }) {
-  const labelClass = required ? "field-required" : undefined;
+  const labelClass = required ? fieldRequired : undefined;
   const [open, setOpen] = useState(false);
   const date = draft.value.slice(0, 10);
   const [year, month, day] = date.split("-").map(Number);

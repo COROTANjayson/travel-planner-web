@@ -151,10 +151,10 @@ export default function Preview() {
   });
   return (
     <QueryClientProvider client={client}>
-      <div className="app-shell flex min-h-dvh flex-col bg-background text-foreground">
-        <header className="app-topbar">
+      <div className="app-shell flex min-h-dvh flex-col bg-background text-foreground [&]:[--app-top:calc(56px_+_env(safe-area-inset-top,_0px))] [&]:[--app-bottom:calc(6rem_+_env(safe-area-inset-bottom,_0px))] [&:has(.trip-detail)_>_main#trips-main]:[padding-top:1rem] max-md:[&:has(.trips-overview)_>_.content-shell]:[padding-inline:max(1.25rem,_env(safe-area-inset-left,_0px))_max(1.25rem,_env(safe-area-inset-right,_0px))] max-md:[&:has(.mobile-trip-header)_>_.app-topbar]:[visibility:hidden] max-md:[&:has(.mobile-bottom-nav)_>_footer]:[padding-bottom:calc(var(--app-bottom)_+_24px)] max-md:[&_>_main#trips-main]:[padding-bottom:calc(var(--app-bottom)_+_24px)] max-md:[&:has(.mobile-add-activity)_>_main#trips-main]:[padding-bottom:calc(var(--app-bottom)_+_72px)] max-md:[&_.form-actions]:[bottom:var(--app-bottom)] max-md:[&_.form-surface]:[border:0] max-md:[&_.form-surface]:[border-radius:0] max-md:[&_.form-surface]:[background:transparent] max-md:[&_.form-surface]:[padding:0] max-md:[&_.form-surface]:[--form-surface:var(--background)] md:[&:has(.trip-detail)_>_main#trips-main]:[padding-top:0.5rem] lg:[&[data-authenticated='true']]:[padding-left:236px] lg:[&[data-authenticated='true']_>_.app-topbar]:[display:none] lg:[&[data-authenticated='true']_>_.content-shell]:[padding:2rem_2.5rem] max-[360px]:[&:has(.trips-overview)_>_.content-shell]:[padding-inline:1rem] max-md:[&:has(.trip-expenses-page)_>_main#trips-main]:[padding-inline:max(12px,_env(safe-area-inset-left,_0px))_max(12px,_env(safe-area-inset-right,_0px))] max-md:[&:has(.trip-expenses-page)_>_main#trips-main]:[padding-top:12px]">
+        <header className="app-topbar bg-background max-md:pt-[env(safe-area-inset-top,0px)]">
           <nav
-            className="content-shell flex min-h-14 items-center"
+            className="content-shell w-full max-w-[90rem] mx-auto px-[max(1.5rem,env(safe-area-inset-left,0px))] [padding-right:max(1.5rem,env(safe-area-inset-right,0px))] flex min-h-14 items-center md:[&]:[padding-left:max(2rem,_env(safe-area-inset-left,_0px))] md:[&]:[padding-right:max(2rem,_env(safe-area-inset-right,_0px))] xl:[&]:[padding-left:max(4rem,_env(safe-area-inset-left,_0px))] xl:[&]:[padding-right:max(4rem,_env(safe-area-inset-right,_0px))]"
             aria-label="Main navigation"
           >
             Travel Planner
@@ -162,11 +162,11 @@ export default function Preview() {
         </header>
         <main
           id="trips-main"
-          className="content-shell min-w-0 flex-1 space-y-5 pt-6 pb-6 md:space-y-6 md:py-8"
+          className="content-shell w-full max-w-[90rem] mx-auto px-[max(1.5rem,env(safe-area-inset-left,0px))] [padding-right:max(1.5rem,env(safe-area-inset-right,0px))] min-w-0 flex-1 space-y-5 pt-6 pb-6 md:space-y-6 md:py-8 md:[&]:[padding-left:max(2rem,_env(safe-area-inset-left,_0px))] md:[&]:[padding-right:max(2rem,_env(safe-area-inset-right,_0px))] xl:[&]:[padding-left:max(4rem,_env(safe-area-inset-left,_0px))] xl:[&]:[padding-right:max(4rem,_env(safe-area-inset-right,_0px))]"
           tabIndex={-1}
         >
           <div className="trip-detail mx-auto flex w-full max-w-6xl flex-col gap-3">
-            <div className="mobile-trip-header fixed inset-x-0 top-0 z-40 flex items-center gap-2 border-b bg-background px-3 md:hidden">
+            <div className="mobile-trip-header fixed inset-x-0 top-0 z-40 flex min-h-[var(--app-top)] items-center gap-2 border-b bg-background pt-[env(safe-area-inset-top,0px)] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] md:hidden">
               <Button
                 className="size-12 shrink-0"
                 variant="ghost"
@@ -185,8 +185,8 @@ export default function Preview() {
                 <Ellipsis />
               </Button>
             </div>
-            <header className="planning-header">
-              <div className="trip-summary-compact">
+            <header className="planning-header [display:flex] [flex-direction:column] [gap:0.75rem] [&>nav]:[order:-1] [&>nav]:[width:100%] [&>nav]:[align-items:center] md:[&]:[margin-bottom:0.75rem]">
+              <div className="trip-summary-compact [display:flex] [flex-wrap:wrap] [align-items:baseline] [gap:0.25rem_0.75rem] [&_h1]:[font-size:1.25rem] [&_h1]:[line-height:1.25] [&_h1]:[font-weight:600] [&_h1]:[letter-spacing:-0.025em] [&_p]:[font-size:0.8125rem] [&_p]:[color:var(--muted-foreground)]">
                 <h1>{trip.name}</h1>
                 <p>Nov 2 ? 8, 2026</p>
               </div>

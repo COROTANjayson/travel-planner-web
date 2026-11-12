@@ -28,7 +28,7 @@ export function PlannedCoverer({
 }) {
   return (
     <details
-      className="expense-extra"
+      className="expense-extra [border-top:1px_solid_var(--border)] [padding-top:0.75rem] [&>summary]:[min-height:2.75rem] [&>summary]:[align-content:center] [&>summary]:[font-size:0.875rem] [&>summary]:[font-weight:500] [&>summary]:[cursor:pointer] [&_>_summary_>_span]:[margin-left:0.5rem]"
       open={record?.planned_coverer_user_id ? true : undefined}
     >
       <summary>

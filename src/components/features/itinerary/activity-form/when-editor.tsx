@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { fieldRequired } from "@/components/shared/field-required";
 import { Clock } from "lucide-react";
 import type { Duration } from "@/components/features/itinerary/activity-form/activity-form";
 import {
@@ -34,6 +36,7 @@ export function WhenEditor({
   setDuration,
   customHours,
   setCustomHours,
+  planning,
 }: {
   prefix: string;
   hideDate: boolean;
@@ -51,6 +54,7 @@ export function WhenEditor({
   setDuration: (duration: Duration) => void;
   customHours: string;
   setCustomHours: (hours: string) => void;
+  planning: boolean;
 }) {
   return (
     <div
@@ -60,11 +64,21 @@ export function WhenEditor({
     >
       <p
         id={`${prefix}-when`}
-        className={hideDate ? "sr-only" : "activity-when-label"}
+        className={
+          hideDate
+            ? "sr-only"
+            : "mb-2 block text-sm leading-[22px] font-normal text-muted-foreground"
+        }
       >
         {hideDate ? fullDateLabel(initialDate!) : "When"}
       </p>
-      <div className="activity-when-fields space-y-5">
+      <div
+        className={cn(
+          "space-y-5",
+          planning &&
+            "grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] items-start gap-x-4 gap-y-0",
+        )}
+      >
         <div className="min-w-0 space-y-2">
           <DateTimeField
             id={`${prefix}-start`}
@@ -89,7 +103,7 @@ export function WhenEditor({
           </p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor={`${prefix}-duration`} className="field-required">
+          <Label htmlFor={`${prefix}-duration`} className={fieldRequired}>
             Duration
           </Label>
           <Select
@@ -131,10 +145,7 @@ export function WhenEditor({
         </div>
         {duration === "custom" && (
           <div className="space-y-2">
-            <Label
-              htmlFor={`${prefix}-custom-hours`}
-              className="field-required"
-            >
+            <Label htmlFor={`${prefix}-custom-hours`} className={fieldRequired}>
               Duration (hours)
             </Label>
             <Input

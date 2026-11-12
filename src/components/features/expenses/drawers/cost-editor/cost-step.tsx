@@ -1,5 +1,6 @@
 "use client";
 
+import { fieldRequired } from "@/components/shared/field-required";
 import { ChevronRight } from "lucide-react";
 import { ExpensePriceField } from "@/components/features/expenses/expense-fields";
 import { ExpenseSelect } from "@/components/features/expenses/expense-forms";
@@ -76,7 +77,7 @@ export function CostStep({
   return (
     <>
       <div className="space-y-2">
-        <Label htmlFor={`${formID}-name`} className="field-required">
+        <Label htmlFor={`${formID}-name`} className={fieldRequired}>
           Expense name
         </Label>
         <Input
@@ -92,13 +93,14 @@ export function CostStep({
         <legend className="mb-2 text-sm text-muted-foreground">
           How is the price given?
         </legend>
-        <div className="figma-price-choice">
+        <div className="figma-price-choice flex rounded-full bg-secondary p-[3px]">
           {[
             { value: "per_person", label: "Per person" },
             { value: "group", label: "Group total" },
           ].map((option) => (
-            <label key={option.value}>
+            <label key={option.value} className="relative min-w-0 flex-1">
               <input
+                className="peer absolute opacity-0"
                 type="radio"
                 name={`${formID}-basis`}
                 checked={basis === option.value}
@@ -108,17 +110,19 @@ export function CostStep({
                   change();
                 }}
               />
-              <span>{option.label}</span>
+              <span className="grid min-h-12 cursor-pointer place-items-center rounded-full p-2 peer-checked:bg-primary peer-checked:font-semibold peer-checked:text-primary-foreground peer-focus-visible:outline-2 peer-focus-visible:outline-offset-[3px] peer-focus-visible:outline-ring">
+                {option.label}
+              </span>
             </label>
           ))}
         </div>
       </fieldset>
-      <div className="expense-price-split">
+      <div className="expense-price-split [display:grid] [grid-template-columns:repeat(auto-fit,_minmax(min(100%,_12rem),_1fr))] [gap:1.5rem_0.75rem]">
         <div className="min-w-0 space-y-2">
-          <Label htmlFor={`${formID}-price`} className="field-required">
+          <Label htmlFor={`${formID}-price`} className={fieldRequired}>
             {basis === "group" ? "Group price" : "Price per person"}
           </Label>
-          <div className="price-with-currency">
+          <div className="price-with-currency relative [&_.reference-field>span]:pr-24 [&_.reference-field>span]:[overflow-wrap:anywhere] [&_[data-slot='select-trigger']]:absolute [&_[data-slot='select-trigger']]:inset-[1px_1px_1px_auto] [&_[data-slot='select-trigger']]:min-h-0 [&_[data-slot='select-trigger']]:w-auto [&_[data-slot='select-trigger']]:rounded-[0_0.8125rem_0.8125rem_0] [&_[data-slot='select-trigger']]:border-0 [&_[data-slot='select-trigger']]:bg-transparent [&_[data-slot='select-trigger']]:px-4 [&_[data-slot='select-trigger']::before]:absolute [&_[data-slot='select-trigger']::before]:inset-[0.5rem_auto_0.5rem_0] [&_[data-slot='select-trigger']::before]:w-px [&_[data-slot='select-trigger']::before]:bg-border [&_[data-slot='select-trigger']::before]:content-[''] [&_[data-slot='select-trigger']:focus-visible]:outline-2 [&_[data-slot='select-trigger']:focus-visible]:-outline-offset-2 [&_[data-slot='select-trigger']:focus-visible]:outline-ring">
             <ExpensePriceField
               currency={meta}
               id={`${formID}-price`}
@@ -173,8 +177,11 @@ export function CostStep({
           person’s share.
         </p>
       )}
-      <div className="figma-money-summary" aria-live="polite">
-        <p className="figma-summary-value">
+      <div
+        className="figma-money-summary [&>p:not(.figma-summary-value)]:text-sm [&>p:not(.figma-summary-value)]:leading-[1.7] [display:grid] [gap:1rem] [background:var(--secondary)] [overflow-wrap:anywhere] [border:1px_solid_var(--border)] [padding:20px] [border-radius:18px] [&:has(>_.figma-summary-action)]:[display:flex] [&:has(>_.figma-summary-action)]:[flex-wrap:wrap] [&:has(>_.figma-summary-action)]:[align-items:center] [&:has(>_.figma-summary-action)_>_.figma-summary-value]:[flex-basis:100%] [&:has(>_.figma-summary-action)_>_p:not(.figma-summary-value)]:[flex:1_1_8rem]"
+        aria-live="polite"
+      >
+        <p className="figma-summary-value [font-weight:700] [font-size:22px] [line-height:30px]">
           {amount && !problem
             ? mode === "equal" &&
               shares.every((s) => s.amount_minor === shares[0]?.amount_minor)
@@ -192,7 +199,7 @@ export function CostStep({
           <Button
             type="button"
             variant="link"
-            className="figma-summary-action px-0"
+            className="figma-summary-action px-0 [&[data-slot='button']]:[min-height:44px] [&[data-slot='button']]:[margin-block:-0.625rem] [&[data-slot='button']]:[margin-left:auto] [&[data-slot='button']]:[white-space:normal]"
             onClick={openCustomSplit}
           >
             Change custom split
@@ -207,7 +214,7 @@ export function CostStep({
           id={`${formID}-coverer`}
           aria-labelledby={`${formID}-coverer-label ${formID}-coverer`}
           variant="outline"
-          className="figma-select-button"
+          className="figma-select-button [&[data-slot='button']]:[font-size:1rem] [&[data-slot='button']]:[width:100%] [&[data-slot='button']]:[min-height:3rem] [&[data-slot='button']]:[height:auto] [&[data-slot='button']]:[justify-content:space-between] [&[data-slot='button']]:[border-radius:0.875rem] [&[data-slot='button']]:[padding:0.75rem] [&[data-slot='button']]:[white-space:normal] [&[data-slot='button']]:[text-align:left]"
           type="button"
           onClick={() => {
             if (!amount || problem) {

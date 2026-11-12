@@ -9,15 +9,20 @@ export function TripLoading({ overview = false }: { overview?: boolean }) {
     <div
       role="status"
       className={
-        overview ? "trip-grid trip-grid-loading" : "grid gap-5 lg:grid-cols-2"
+        overview
+          ? "grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2"
+          : "grid gap-5 lg:grid-cols-2"
       }
     >
       <span className="sr-only">Loading trips…</span>
       {[0, 1, ...(overview ? [2] : [])].map((index) => (
         <div
           key={index}
-          className={overview ? "trip-card space-y-4" : "surface space-y-4 p-5"}
-          data-featured={(overview && index === 0) || undefined}
+          className={
+            overview
+              ? "min-h-52 space-y-4 rounded-3xl bg-muted p-6 first:min-h-60 first:lg:col-span-full lg:px-7"
+              : "surface border border-border rounded-2xl bg-card space-y-4 p-5"
+          }
         >
           <Skeleton className="h-6 w-40 max-w-full" />
           <Skeleton className="h-8 w-3/4" />
@@ -61,8 +66,10 @@ export function TripError({
 
 export function TripNotFound() {
   return (
-    <div className="surface space-y-4 p-6">
-      <h1 className="page-title">Trip not found</h1>
+    <div className="surface border border-border rounded-2xl bg-card space-y-4 p-6">
+      <h1 className="page-title text-3xl font-[650] leading-[1.2] tracking-[-0.03em] text-balance md:[&]:[font-size:2.25rem]">
+        Trip not found
+      </h1>
       <p className="text-muted-foreground">This trip is unavailable.</p>
       <Button
         className="min-h-11"

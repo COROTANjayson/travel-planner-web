@@ -80,7 +80,7 @@ export function BalanceGroups({
               return (
                 <div key={code} className="space-y-2 text-sm">
                   {showExpenses ? (
-                    <div className="personal-balance-heading">
+                    <div className="personal-balance-heading [display:flex] [align-items:baseline] [justify-content:space-between] [gap:16px] [font-weight:600]">
                       <h4>{payable ? "You owe" : "Owed to you"}</h4>
                       <p className="tabular-nums">{money(total)}</p>
                     </div>
@@ -123,7 +123,7 @@ export function BalanceGroups({
                         key={`${d.payment_id ? "payment" : "loan"}-${d.payment_id ?? d.loan_id}-${d.from_user_id}-${d.to_user_id}`}
                         className={
                           showExpenses
-                            ? "personal-balance-row"
+                            ? "personal-balance-row grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 py-4"
                             : "flex flex-wrap items-center justify-between gap-3 py-3"
                         }
                       >
@@ -179,7 +179,7 @@ export function BalanceGroups({
                         <div
                           className={
                             showExpenses
-                              ? "personal-balance-actions"
+                              ? "personal-balance-actions text-right"
                               : "contents"
                           }
                         >
@@ -196,7 +196,7 @@ export function BalanceGroups({
                                 size={showExpenses ? "sm" : "default"}
                                 className={
                                   showExpenses
-                                    ? "personal-balance-action"
+                                    ? "personal-balance-action h-auto min-h-11 p-0 text-xs"
                                     : undefined
                                 }
                                 aria-label={

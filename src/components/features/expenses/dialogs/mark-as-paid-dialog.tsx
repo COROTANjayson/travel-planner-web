@@ -2,6 +2,7 @@
 
 import type { ComponentProps, RefObject } from "react";
 import { ActivityExpenseForm } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
+import { repaymentSlots } from "@/components/shared/trip-dialog-variants";
 import { TripDialog } from "@/components/shared/trip-dialog";
 import { activityKey } from "@/lib/activity-expenses";
 import { ApiError } from "@/lib/api";
@@ -49,9 +50,13 @@ export function MarkAsPaidDialog({
     <TripDialog
       className={
         backLabel
-          ? "activity-details-dialog expense-flow-dialog repayment-dialog"
+          ? "activity-details-dialog expense-flow-dialog repayment-dialog [&_[data-slot='input']]:min-h-12 [&_[data-slot='input']]:rounded-[0.875rem] [&_[data-slot='select-trigger']]:min-h-12 [&_[data-slot='select-trigger']]:rounded-[0.875rem] [&_.ledger-form_button[type='submit']]:mx-auto [&_.ledger-form_button[type='submit']]:max-w-lg max-md:[&_.expense-form-actions]:-mx-4 max-md:[&_.expense-form-actions]:px-4 max-md:[&_.expense-form-actions]:pb-[max(16px,env(safe-area-inset-bottom,0px))]"
           : "expense-editor-dialog"
       }
+      variant={backLabel ? "expense" : undefined}
+      navClassName={backLabel ? repaymentSlots.nav : undefined}
+      headerClassName={backLabel ? repaymentSlots.header : undefined}
+      bodyClassName={backLabel ? repaymentSlots.body : undefined}
       presentation={backLabel ? "detail" : "dialog"}
       backLabel={backLabel}
       onBack={backLabel ? close : undefined}

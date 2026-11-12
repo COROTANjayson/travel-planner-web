@@ -364,7 +364,8 @@ export function ExpenseCostEditor({
       finalFocus={finalFocus}
       focusTitleOnChange
       presentation="detail"
-      className="activity-details-dialog expense-flow-dialog"
+      className="activity-details-dialog expense-flow-dialog [&_[data-slot='input']]:min-h-12 [&_[data-slot='input']]:rounded-[0.875rem] [&_[data-slot='select-trigger']]:[min-height:3rem] [&_[data-slot='select-trigger']]:[border-radius:0.875rem] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[min-height:44px] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[padding:0] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[text-align:left] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[white-space:normal] [&_.activity-detail-navigation_.trip-people[data-slot='button']]:[min-width:44px] [&_.activity-detail-navigation_.trip-people[data-slot='button']]:[justify-content:flex-end] [&_.activity-detail-navigation_.trip-people[data-slot='button']]:[border-radius:9999px] [&_.activity-detail-navigation_.trip-people[data-slot='button']:focus-visible]:[outline:2px_solid_var(--ring)] [&_.activity-detail-navigation_.trip-people[data-slot='button']:focus-visible]:[outline-offset:2px] [&_[data-slot='select-trigger']_>_svg]:[display:block] [&_.repayment-panel_[data-slot='input']]:[border-radius:0] [&_.repayment-panel_[data-slot='input']]:[border-color:var(--ocean-text)] [&_.repayment-panel_[data-slot='input']]:[background:transparent] [&_.repayment-panel_[data-slot='input']]:[color:#fff] [&_.repayment-panel_[data-slot='input']]:[caret-color:#fff] [&_.repayment-panel_[data-slot='input']:focus-visible]:[outline:2px_solid_var(--aqua)] [&_.repayment-panel_[data-slot='input']:focus-visible]:[outline-offset:4px] [&_.repayment-panel_[data-slot='input']:focus-visible]:[box-shadow:none] [&_.repayment-panel_[data-slot='input'][aria-invalid='true']]:[border-color:#ffd5ca] [&_.repayment-panel_[data-slot='input'][aria-invalid='true']]:[box-shadow:none]"
+      variant="expense"
       backLabel={step === "cost" ? "Back to activity" : "Back to expense"}
       backdropClassName="bg-black/60"
       title={title}
@@ -375,7 +376,7 @@ export function ExpenseCostEditor({
           <Button
             type="button"
             variant="link"
-            className="figma-summary-action px-0"
+            className="figma-summary-action px-0 [&[data-slot='button']]:[min-height:44px] [&[data-slot='button']]:[margin-block:-0.625rem] [&[data-slot='button']]:[margin-left:auto] [&[data-slot='button']]:[white-space:normal]"
             disabled={busy}
             onClick={resetShares}
           >
@@ -389,7 +390,7 @@ export function ExpenseCostEditor({
           <Button
             type="button"
             variant="ghost"
-            className="trip-people"
+            className="trip-people [&[data-slot='button']]:[border-radius:9999px] [&[data-slot='button']]:[padding-inline:0.375rem]"
             disabled={busy}
             aria-label={`Who is included? ${
               selected.length === 1
@@ -401,7 +402,10 @@ export function ExpenseCostEditor({
             onClick={() => setStep("members")}
           >
             {selectedPeople.length ? (
-              <span aria-hidden="true" className="trip-people-avatars">
+              <span
+                aria-hidden="true"
+                className="trip-people-avatars [display:flex] [&>span]:[display:grid] [&>span]:[min-width:2rem] [&>span]:[min-height:2rem] [&>span]:[place-items:center] [&>span]:[border:2px_solid_var(--background)] [&>span]:[border-radius:9999px] [&>span]:[background:var(--trip-sea)] [&>span]:[color:var(--foreground)] [&>span]:[padding-inline:0.125rem] [&>span]:[font-size:0.6875rem] [&>span]:[font-weight:600] [&_>_span_+_span]:[margin-left:-0.5rem]"
+              >
                 {selectedPeople.slice(0, 3).map((person) => (
                   <span key={person.user_id}>
                     {participantInitials(person)}
@@ -456,7 +460,7 @@ export function ExpenseCostEditor({
         tabIndex={-1}
         ref={formRef}
         id={formID}
-        className="figma-expense-form"
+        className="figma-expense-form [padding-top:0.5rem] [&_label]:[color:var(--muted-foreground)] [&_label]:[font-weight:400]"
         onChange={change}
         onSubmit={(e) => {
           e.preventDefault();

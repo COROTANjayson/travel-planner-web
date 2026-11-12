@@ -53,14 +53,14 @@ export function Expenses(props: Context & { active: boolean }) {
   const heading = (
     <h2
       id="trip-expenses-heading"
-      className="trip-balance-title sr-only md:not-sr-only"
+      className="trip-balance-title [font-size:1.25rem] [line-height:1.3] [font-weight:600] [letter-spacing:-0.02em] sr-only md:not-sr-only"
     >
       Your expenses
     </h2>
   );
   return (
     <section
-      className="trip-expenses-page space-y-4 md:space-y-6"
+      className="trip-expenses-page space-y-4 md:space-y-6 max-md:[&_.trip-balance]:[gap:12px] max-md:[&_.trip-balance]:[padding:14px] max-md:[&_.trip-balance]:[border-radius:14px] max-md:[&_.trip-balance-totals]:[gap:10px_16px] max-md:[&_.trip-balance-totals_>_[data-tone]]:[min-width:0] max-md:[&_.trip-balance-totals_>_[data-tone]]:[overflow-wrap:anywhere] max-md:[&_.trip-balance-totals_dd]:[font-size:1.5rem] max-md:[&_.trip-balance-totals_dd]:[line-height:1.875rem] max-md:[&_.trip-balance-totals_.trip-balance-overall]:[display:flex] max-md:[&_.trip-balance-totals_.trip-balance-overall]:[align-items:baseline] max-md:[&_.trip-balance-totals_.trip-balance-overall]:[justify-content:space-between] max-md:[&_.trip-balance-totals_.trip-balance-overall]:[flex-wrap:wrap] max-md:[&_.trip-balance-totals_.trip-balance-overall]:[gap:4px_12px] max-md:[&_.trip-balance-totals_.trip-balance-overall]:[padding-top:10px] max-md:[&_.trip-balance-overall_dd]:[margin:0] max-md:[&_.trip-balance-overall_dd]:[font-size:1.125rem] max-md:[&_.trip-balance-overall_dd]:[line-height:1.5rem] max-md:[&_.expense-row_>_button]:[scroll-margin-top:calc(var(--app-top)_+_12px)] max-md:[&_.expense-row_>_button]:[scroll-margin-bottom:calc(var(--app-bottom)_+_12px)]"
       aria-labelledby="trip-expenses-heading"
     >
       {loaded ? (

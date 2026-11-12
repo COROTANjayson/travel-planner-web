@@ -176,7 +176,8 @@ export function ExpensePaymentForm(
       finalFocus={props.finalFocus}
       focusTitleOnChange
       presentation="detail"
-      className="activity-details-dialog expense-flow-dialog"
+      className="activity-details-dialog expense-flow-dialog [&_[data-slot='input']]:min-h-12 [&_[data-slot='input']]:rounded-[0.875rem] [&_[data-slot='select-trigger']]:[min-height:3rem] [&_[data-slot='select-trigger']]:[border-radius:0.875rem] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[min-height:44px] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[padding:0] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[text-align:left] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[white-space:normal] [&_.activity-detail-navigation_.trip-people[data-slot='button']]:[min-width:44px] [&_.activity-detail-navigation_.trip-people[data-slot='button']]:[justify-content:flex-end] [&_.activity-detail-navigation_.trip-people[data-slot='button']]:[border-radius:9999px] [&_.activity-detail-navigation_.trip-people[data-slot='button']:focus-visible]:[outline:2px_solid_var(--ring)] [&_.activity-detail-navigation_.trip-people[data-slot='button']:focus-visible]:[outline-offset:2px] [&_[data-slot='select-trigger']_>_svg]:[display:block] [&_.repayment-panel_[data-slot='input']]:[border-radius:0] [&_.repayment-panel_[data-slot='input']]:[border-color:var(--ocean-text)] [&_.repayment-panel_[data-slot='input']]:[background:transparent] [&_.repayment-panel_[data-slot='input']]:[color:#fff] [&_.repayment-panel_[data-slot='input']]:[caret-color:#fff] [&_.repayment-panel_[data-slot='input']:focus-visible]:[outline:2px_solid_var(--aqua)] [&_.repayment-panel_[data-slot='input']:focus-visible]:[outline-offset:4px] [&_.repayment-panel_[data-slot='input']:focus-visible]:[box-shadow:none] [&_.repayment-panel_[data-slot='input'][aria-invalid='true']]:[border-color:#ffd5ca] [&_.repayment-panel_[data-slot='input'][aria-invalid='true']]:[box-shadow:none]"
+      variant="expense"
       backLabel="Back to payments"
       onBack={() => props.onSaved(user)}
       backdropClassName="bg-black/60"
@@ -212,7 +213,7 @@ export function ExpensePaymentForm(
     >
       <form
         id={formID}
-        className={`figma-expense-form expense-payment-form ${reservation ? "reservation-form" : "member-update-form"}`}
+        className={`figma-expense-form expense-payment-form pt-1.5 [&_fieldset>*:not(:last-child)]:mb-8 ${reservation ? "reservation-form" : "member-update-form"}`}
         onSubmit={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -305,13 +306,13 @@ export function ExpensePaymentForm(
             </p>
           )}
           {preview.data && payee === "business" && (
-            <div className="figma-money-summary payment-coverage-preview">
+            <div className="figma-money-summary [&>p:not(.figma-summary-value)]:text-sm [&>p:not(.figma-summary-value)]:leading-[1.7] [display:grid] [gap:1rem] [background:var(--secondary)] [overflow-wrap:anywhere] [border:1px_solid_var(--border)] [padding:20px] [border-radius:18px] payment-coverage-preview [.expense-payment-form_&]:[min-height:192px] [.expense-payment-form_&]:[gap:20px] [.expense-payment-form_&_h3]:[font-size:22px] [.expense-payment-form_&_h3]:[line-height:30px] [.expense-payment-form_&_h3]:[font-weight:700] [.expense-payment-form_&_p]:[font-size:18px] [.expense-payment-form_&_p]:[line-height:26px] [.expense-payment-form_&_.figma-member-line]:[font-size:18px] [.expense-payment-form_&_.figma-member-line]:[line-height:26px] [.expense-payment-form_&_p.text-primary]:[font-weight:700] [.reservation-form_&]:[min-height:256px] [.reservation-form_&_p]:[font-size:16px] [.expense-payment-form_&]:[margin-top:38px] [&:has(>_.figma-summary-action)]:[display:flex] [&:has(>_.figma-summary-action)]:[flex-wrap:wrap] [&:has(>_.figma-summary-action)]:[align-items:center] [&:has(>_.figma-summary-action)_>_.figma-summary-value]:[flex-basis:100%] [&:has(>_.figma-summary-action)_>_p:not(.figma-summary-value)]:[flex:1_1_8rem]">
               <h3 className="text-xl font-semibold">
                 {reservation ? "What this covers" : "After this payment"}
               </h3>
               {reservation ? (
                 <>
-                  <div className="figma-member-line">
+                  <div className="figma-member-line [&>:last-child]:shrink-0 [&>:last-child]:tabular-nums [display:flex] [align-items:start] [justify-content:space-between] [gap:1rem] [overflow-wrap:anywhere]">
                     <span>{name(payer)}’s own share</span>
                     <span>{money(preview.data.own_covered_minor)}</span>
                   </div>
@@ -324,7 +325,10 @@ export function ExpensePaymentForm(
                       (s) => s.amount_minor === amount,
                     );
                     return (
-                      <div className="reservation-shared-coverage" key={amount}>
+                      <div
+                        className="reservation-shared-coverage [&_p:first-child]:[font-size:14px] [&_p:last-child]:[font-size:16px] [&_p:last-child]:[color:var(--primary)] [&_p:last-child]:[font-weight:700] [&_p:last-child]:[margin-top:4px]"
+                        key={amount}
+                      >
                         <p>
                           {new Intl.ListFormat(undefined, {
                             style: "long",
@@ -368,18 +372,18 @@ export function ExpensePaymentForm(
           )}
           {reservation ? (
             <>
-              <p className="payment-form-help">
+              <p className="payment-form-help [.expense-payment-form_&]:[margin-top:64px] [.expense-payment-form_&]:[font-size:14px] [.expense-payment-form_&]:[line-height:28px] [.expense-payment-form_&]:[color:var(--muted-foreground)] [.expense-payment-form_&]:[max-width:31ch] [.reservation-form_&]:[margin-top:44px] [.reservation-form_&]:[max-width:none]">
                 The reservation is not another expense.
               </p>
               {preview.data && (
-                <p className="payment-form-help payment-form-followup">
+                <p className="payment-form-help payment-form-followup [.expense-payment-form_&]:[margin-top:64px] [.expense-payment-form_&]:[font-size:14px] [.expense-payment-form_&]:[line-height:28px] [.expense-payment-form_&]:[color:var(--muted-foreground)] [.expense-payment-form_&]:[max-width:31ch] [.reservation-form_&]:[margin-top:44px] [.reservation-form_&]:[max-width:none] [.expense-payment-form_&]:[margin-top:4px]">
                   {name(payer)}’s {money(preview.data.own_covered_minor)} share
                   is now paid.
                 </p>
               )}
             </>
           ) : (
-            <p className="payment-form-help">
+            <p className="payment-form-help [.expense-payment-form_&]:[margin-top:64px] [.expense-payment-form_&]:[font-size:14px] [.expense-payment-form_&]:[line-height:28px] [.expense-payment-form_&]:[color:var(--muted-foreground)] [.expense-payment-form_&]:[max-width:31ch] [.reservation-form_&]:[margin-top:44px] [.reservation-form_&]:[max-width:none]">
               Recording only part? Enter the amount that was actually paid.
             </p>
           )}

@@ -46,14 +46,20 @@ export function SharingSection({
   changed: () => void;
 }) {
   return (
-    <section className="expense-sharing" aria-label="Travelers and split">
+    <section
+      className="expense-sharing [display:grid] [gap:0.875rem] [padding-top:0.25rem]"
+      aria-label="Travelers and split"
+    >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-semibold">Who’s sharing?</h3>
         <span className="text-sm text-muted-foreground">
           {selected.length} {selected.length === 1 ? "traveler" : "travelers"}
         </span>
       </div>
-      <fieldset className="expense-choice" aria-label="Split costs">
+      <fieldset
+        className="expense-choice [display:flex] [gap:0.25rem] [padding:0.25rem] [border-radius:0.875rem] [background:var(--secondary)] [&>label]:[position:relative] [&>label]:[display:flex] [&>label]:[flex:1] [&>label]:[align-items:center] [&>label]:[justify-content:center] [&>label]:[min-height:2.75rem] [&>label]:[padding:0.5rem] [&>label]:[border-radius:0.625rem] [&>label]:[color:var(--muted-foreground)] [&>label]:[font-size:0.875rem] [&>label]:[cursor:pointer] [&_input]:[position:absolute] [&_input]:[width:1px] [&_input]:[height:1px] [&_input]:[opacity:0] [&_>_label:has(input:checked)]:[background:var(--card)] [&_>_label:has(input:checked)]:[color:var(--foreground)] [&_>_label:has(input:checked)]:[font-weight:600] [&_>_label:has(input:focus-visible)]:[outline:2px_solid_var(--primary)] [&_>_label:has(input:focus-visible)]:[outline-offset:2px] [&_>_label:has(input:disabled)]:[opacity:0.5] [&_>_label:has(input:disabled)]:[cursor:default]"
+        aria-label="Split costs"
+      >
         <legend className="sr-only">Split costs</legend>
         {[
           { value: "equal", label: "Split evenly" },
@@ -92,14 +98,14 @@ export function SharingSection({
           </label>
         ))}
       </fieldset>
-      <div className="expense-travelers">
+      <div className="expense-travelers [display:grid] [gap:0.5rem] min-[600px]:[&]:[grid-template-columns:repeat(2,_minmax(0,_1fr))]">
         {sharePeople.map((person) => (
           <div
             key={person.user_id}
-            className="expense-traveler"
+            className="expense-traveler [display:flex] [min-width:0] [align-items:center] [justify-content:space-between] [gap:0.75rem] [padding:0.5rem_0.75rem] [border:1px_solid_var(--border)] [border-radius:0.75rem] [&_.expense-custom-share]:[width:6.5rem] [&_.expense-custom-share]:[min-width:0] [&_.expense-custom-share]:[flex-shrink:0] [&[data-selected='true']]:[background:var(--secondary)]"
             data-selected={selected.includes(person.user_id)}
           >
-            <label className="expense-traveler-name">
+            <label className="expense-traveler-name [display:flex] [min-width:0] [min-height:2.75rem] [flex:1] [align-items:center] [gap:0.625rem] [font-size:0.875rem] [cursor:pointer] [overflow-wrap:anywhere]">
               <input
                 type="checkbox"
                 className="size-4 shrink-0 accent-primary"
@@ -129,7 +135,7 @@ export function SharingSection({
                   }
                 />
               ) : (
-                <span className="expense-traveler-share">
+                <span className="expense-traveler-share [flex-shrink:0] [font-size:0.8125rem] [font-variant-numeric:tabular-nums]">
                   {amount && !previewError
                     ? money(
                         preview.find(
@@ -142,7 +148,10 @@ export function SharingSection({
           </div>
         ))}
       </div>
-      <p className="expense-split-preview" aria-live="polite">
+      <p
+        className="expense-split-preview [font-size:0.875rem] [color:var(--muted-foreground)]"
+        aria-live="polite"
+      >
         {amount
           ? previewError ||
             `${money(total)} total${mode === "equal" && selected.length && preview[0] && BigInt(total) % BigInt(selected.length) === 0n ? ` · ${money(preview[0].amount_minor)} each` : ""}`

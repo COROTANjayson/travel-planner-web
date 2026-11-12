@@ -145,7 +145,7 @@ export function Prep({
           pending={tasks.isFetching}
         />
       ) : list.length === 0 ? (
-        <div className="day-empty">
+        <div className="day-empty [padding:1rem] [border:1px_solid_var(--border)] [border-radius:1rem] [background:var(--card)]">
           <p className="font-semibold">Nothing to prepare yet</p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             {canEdit
@@ -170,7 +170,7 @@ export function Prep({
         </div>
       )}
       {canEdit && tasks.isSuccess && (
-        <div className="mobile-add-activity fixed inset-x-0 z-30 border-t bg-background px-6 py-3 md:hidden">
+        <div className="mobile-add-activity fixed right-[max(1.5rem,env(safe-area-inset-right,0px))] bottom-[var(--app-bottom)] z-30 md:hidden">
           <Button className="min-h-12" onClick={add}>
             <Plus aria-hidden="true" />
             Add task

@@ -135,7 +135,7 @@ export function TripDetail({
 
   return (
     <div className="trip-detail mx-auto flex w-full max-w-6xl flex-col gap-3">
-      <div className="mobile-trip-header fixed inset-x-0 top-0 z-40 flex items-center gap-2 border-b bg-background px-3 md:hidden">
+      <div className="mobile-trip-header fixed inset-x-0 top-0 z-40 flex min-h-[var(--app-top)] items-center gap-2 border-b bg-background pt-[env(safe-area-inset-top,0px)] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] md:hidden">
         <Button
           variant="ghost"
           className="size-12 shrink-0"
@@ -176,10 +176,10 @@ export function TripDetail({
           pending={me.isFetching}
         />
       )}
-      <header className="planning-header">
+      <header className="planning-header [display:flex] [flex-direction:column] [gap:0.75rem] [&>nav]:[order:-1] [&>nav]:[width:100%] [&>nav]:[align-items:center] md:[&]:[margin-bottom:0.75rem]">
         <div className="min-w-0 flex-1">
           {view ? (
-            <div className="trip-summary-compact">
+            <div className="trip-summary-compact [display:flex] [flex-wrap:wrap] [align-items:baseline] [gap:0.25rem_0.75rem] [&_h1]:[font-size:1.25rem] [&_h1]:[line-height:1.25] [&_h1]:[font-weight:600] [&_h1]:[letter-spacing:-0.025em] [&_p]:[font-size:0.8125rem] [&_p]:[color:var(--muted-foreground)]">
               <h1>{trip.data.name}</h1>
               <p>{formatTripDates(trip.data.start_date, trip.data.end_date)}</p>
             </div>
@@ -193,7 +193,7 @@ export function TripDetail({
         >
           <>
             <Button
-              className="trip-back min-h-11"
+              className="trip-back [margin-right:auto] [padding-inline:0.25rem_0.5rem] min-h-11 [&]:[color:var(--muted-foreground)] [&:hover]:[background:transparent] [&:hover]:[color:var(--foreground)]"
               variant="ghost"
               aria-label={backLabel}
               render={<Link href={backHref} />}

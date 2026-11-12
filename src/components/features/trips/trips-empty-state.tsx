@@ -18,7 +18,7 @@ export function TripsEmptyState({
   resetFilters: () => void;
 }) {
   return (
-    <Card className="trips-empty">
+    <Card className="rounded-2xl border border-border px-6 py-12 shadow-none md:py-16">
       <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-3 text-center">
         <Compass
           aria-hidden="true"
