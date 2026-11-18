@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Plus, Search, Briefcase } from "lucide-react";
+import { CalendarDays, Plus, Briefcase } from "lucide-react";
 import {
   orderTrips,
   tripStatus,
@@ -20,7 +20,7 @@ import {
 } from "@/components/features/trips/trip-filters";
 import { TripPagination } from "@/components/features/trips/trip-pagination";
 import { TripsEmptyState } from "@/components/features/trips/trips-empty-state";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/components/ui/search-field";
 
 export default function TripsPage() {
   const [offset, setOffset] = useState(0);
@@ -90,24 +90,17 @@ export default function TripsPage() {
           <Plus aria-hidden="true" className="size-5" />
           <span className="hidden md:inline">Create a trip</span>
         </Button>
-        <label className="relative col-span-full flex items-center md:max-w-96 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:w-[clamp(15rem,24vw,24rem)]">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-4 size-4 text-muted-foreground"
-          />
-          <Input
-            className="rounded-full bg-background pl-11 [&::-webkit-search-cancel-button]:cursor-pointer"
-            ref={searchRef}
-            type="search"
-            aria-label="Find a trip or destination"
-            placeholder="Find a trip or destination"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setOffset(0);
-            }}
-          />
-        </label>
+        <SearchField
+          className="col-span-full md:max-w-96 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:w-[clamp(15rem,24vw,24rem)]"
+          ref={searchRef}
+          aria-label="Find a trip or destination"
+          placeholder="Find a trip or destination"
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setOffset(0);
+          }}
+        />
       </div>
       <TripFilters
         trips={trips}

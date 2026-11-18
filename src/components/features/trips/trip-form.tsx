@@ -13,6 +13,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FormField } from "@/components/shared/form-field";
 import { Label } from "@/components/ui/label";
 import { type LocalDraft } from "@/components/shared/date-time-field";
 import { TripError } from "@/components/shared/trip-states";
@@ -242,9 +243,9 @@ export function TripForm({
           ))}
         </div>
         <div className="form-section border-t border-border pt-6 space-y-2">
-          <Label htmlFor="trip-name">Give your trip a name</Label>
-          <Input
+          <FormField
             id="trip-name"
+            label="Give your trip a name"
             className="min-h-11"
             required
             placeholder="e.g. A long weekend in Cebu"

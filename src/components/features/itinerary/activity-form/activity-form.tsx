@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { fieldRequired } from "@/components/shared/field-required";
+import { FormField } from "@/components/shared/form-field";
 import { useId, useRef, useState, type Ref, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
@@ -22,8 +22,6 @@ import {
 } from "@/lib/activity-time";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { TripError } from "@/components/shared/trip-states";
 
 import type { CostChange, ExpensePerson } from "@/lib/expenses";
@@ -377,21 +375,17 @@ export function ActivityForm({
         {(!section || section === "details") && (
           <>
             {section && categoryField}
-            <div className="space-y-2">
-              <Label htmlFor={`${prefix}-title`} className={fieldRequired}>
-                Activity name
-              </Label>
-              <Input
-                ref={titleRef}
-                autoFocus={section === "details"}
-                placeholder="e.g. Dinner at the waterfront"
-                id={`${prefix}-title`}
-                className="min-h-11"
-                required
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-              />
-            </div>
+            <FormField
+              ref={titleRef}
+              autoFocus={section === "details"}
+              placeholder="e.g. Dinner at the waterfront"
+              id={`${prefix}-title`}
+              label="Activity name"
+              className="min-h-11"
+              required
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+            />
             {!section && categoryField}
             <WhenEditor
               prefix={prefix}
