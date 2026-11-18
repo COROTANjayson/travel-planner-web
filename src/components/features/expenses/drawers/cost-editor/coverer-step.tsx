@@ -1,9 +1,10 @@
 "use client";
 
+import { ExpenseAmountPanel } from "@/components/features/expenses/expense-amount-panel";
+
 import { ExpenseSelect } from "@/components/features/expenses/expense-forms";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { expenseName, type ExpensePerson } from "@/lib/expenses";
+import { ExpenseNumberInput } from "@/components/features/expenses/expense-number-input";
+import { expenseName, type Currency, type ExpensePerson } from "@/lib/expenses";
 
 export function CovererStep({
   formID,
@@ -19,7 +20,7 @@ export function CovererStep({
   setCoverer: (coverer: number) => void;
   coverAmount: string;
   setCoverAmount: (amount: string) => void;
-  currency: string;
+  currency: Currency;
   people: ExpensePerson[];
 }) {
   return (
@@ -38,17 +39,19 @@ export function CovererStep({
         onChange={(value) => setCoverer(Number(value))}
       />
       {!!coverer && (
-        <div className="space-y-2">
-          <Label htmlFor={`${formID}-advance`}>
-            Reservation amount · {currency}
-          </Label>
-          <Input
+        <ExpenseAmountPanel
+          inputID={`${formID}-advance`}
+          label="Reservation amount"
+          currency={currency.code}
+        >
+          <ExpenseNumberInput
             id={`${formID}-advance`}
             inputMode="decimal"
+            placeholder={(0).toFixed(currency.decimals)}
             value={coverAmount}
             onChange={(e) => setCoverAmount(e.target.value)}
           />
-        </div>
+        </ExpenseAmountPanel>
       )}
       <p className="text-sm text-muted-foreground">
         This reservation is part of the expense total. It stays a plan until the

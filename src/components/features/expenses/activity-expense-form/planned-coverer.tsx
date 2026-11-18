@@ -1,9 +1,15 @@
 "use client";
 
+import { ExpenseAmountPanel } from "@/components/features/expenses/expense-amount-panel";
+
 import { ExpenseSelect } from "@/components/features/expenses/expense-forms";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { expenseName, type Expense, type ExpensePerson } from "@/lib/expenses";
+import { ExpenseNumberInput } from "@/components/features/expenses/expense-number-input";
+import {
+  expenseName,
+  type Currency,
+  type Expense,
+  type ExpensePerson,
+} from "@/lib/expenses";
 
 export function PlannedCoverer({
   record,
@@ -23,7 +29,7 @@ export function PlannedCoverer({
   setPlannedCoverer: (coverer: number) => void;
   plannedAmount: string;
   setPlannedAmount: (amount: string) => void;
-  currency: string;
+  currency: Currency;
   changed: () => void;
 }) {
   return (
@@ -59,14 +65,20 @@ export function PlannedCoverer({
           }}
         />
         {!!plannedCoverer && (
-          <div className="space-y-2">
-            <Label htmlFor="planned-amount">Planned amount · {currency}</Label>
-            <Input
-              id="planned-amount"
-              inputMode="decimal"
-              value={plannedAmount}
-              onChange={(e) => setPlannedAmount(e.target.value)}
-            />
+          <div className="space-y-3">
+            <ExpenseAmountPanel
+              inputID="planned-amount"
+              label="Planned amount"
+              currency={currency.code}
+            >
+              <ExpenseNumberInput
+                id="planned-amount"
+                inputMode="decimal"
+                placeholder={(0).toFixed(currency.decimals)}
+                value={plannedAmount}
+                onChange={(e) => setPlannedAmount(e.target.value)}
+              />
+            </ExpenseAmountPanel>
             <p className="text-sm text-muted-foreground">
               A reservation or deposit someone will cover. This stays a plan
               until a planner/editor confirms the payment.

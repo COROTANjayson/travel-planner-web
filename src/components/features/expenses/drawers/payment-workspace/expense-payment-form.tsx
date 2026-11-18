@@ -1,5 +1,9 @@
 "use client";
 
+import { ExpenseSummary } from "@/components/features/expenses/expense-layout";
+
+import { ExpenseAmountPanel } from "@/components/features/expenses/expense-amount-panel";
+
 import { useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
@@ -270,10 +274,11 @@ export function ExpensePaymentForm(
               }}
             />
           )}
-          <div className="space-y-2">
-            <Label htmlFor={`${formID}-amount`}>
-              Amount paid · {cost.currency}
-            </Label>
+          <ExpenseAmountPanel
+            inputID={`${formID}-amount`}
+            label={payee === "business" ? "Amount paid" : "Amount received"}
+            currency={cost.currency}
+          >
             <ExpensePriceField
               currency={props.currency}
               id={`${formID}-amount`}
@@ -285,7 +290,7 @@ export function ExpensePaymentForm(
                 change();
               }}
             />
-          </div>
+          </ExpenseAmountPanel>
           <div className="space-y-2">
             <Label htmlFor={`${formID}-date`}>Date paid</Label>
             <ExpenseDateField
@@ -306,7 +311,7 @@ export function ExpensePaymentForm(
             </p>
           )}
           {preview.data && payee === "business" && (
-            <div className="figma-money-summary [&>p:not(.figma-summary-value)]:text-sm [&>p:not(.figma-summary-value)]:leading-[1.7] [display:grid] [gap:1rem] [background:var(--secondary)] [overflow-wrap:anywhere] [border:1px_solid_var(--border)] [padding:20px] [border-radius:18px] payment-coverage-preview [.expense-payment-form_&]:[min-height:192px] [.expense-payment-form_&]:[gap:20px] [.expense-payment-form_&_h3]:[font-size:22px] [.expense-payment-form_&_h3]:[line-height:30px] [.expense-payment-form_&_h3]:[font-weight:700] [.expense-payment-form_&_p]:[font-size:18px] [.expense-payment-form_&_p]:[line-height:26px] [.expense-payment-form_&_.figma-member-line]:[font-size:18px] [.expense-payment-form_&_.figma-member-line]:[line-height:26px] [.expense-payment-form_&_p.text-primary]:[font-weight:700] [.reservation-form_&]:[min-height:256px] [.reservation-form_&_p]:[font-size:16px] [.expense-payment-form_&]:[margin-top:38px] [&:has(>_.figma-summary-action)]:[display:flex] [&:has(>_.figma-summary-action)]:[flex-wrap:wrap] [&:has(>_.figma-summary-action)]:[align-items:center] [&:has(>_.figma-summary-action)_>_.figma-summary-value]:[flex-basis:100%] [&:has(>_.figma-summary-action)_>_p:not(.figma-summary-value)]:[flex:1_1_8rem]">
+            <ExpenseSummary>
               <h3 className="text-xl font-semibold">
                 {reservation ? "What this covers" : "After this payment"}
               </h3>
@@ -326,7 +331,7 @@ export function ExpensePaymentForm(
                     );
                     return (
                       <div
-                        className="reservation-shared-coverage [&_p:first-child]:[font-size:14px] [&_p:last-child]:[font-size:16px] [&_p:last-child]:[color:var(--primary)] [&_p:last-child]:[font-weight:700] [&_p:last-child]:[margin-top:4px]"
+                        className="space-y-1 [&_p:last-child]:font-bold [&_p:last-child]:text-primary"
                         key={amount}
                       >
                         <p>
@@ -368,22 +373,22 @@ export function ExpensePaymentForm(
                     ))}
                 </>
               )}
-            </div>
+            </ExpenseSummary>
           )}
           {reservation ? (
             <>
-              <p className="payment-form-help [.expense-payment-form_&]:[margin-top:64px] [.expense-payment-form_&]:[font-size:14px] [.expense-payment-form_&]:[line-height:28px] [.expense-payment-form_&]:[color:var(--muted-foreground)] [.expense-payment-form_&]:[max-width:31ch] [.reservation-form_&]:[margin-top:44px] [.reservation-form_&]:[max-width:none]">
+              <p className="text-sm leading-6 text-muted-foreground">
                 The reservation is not another expense.
               </p>
               {preview.data && (
-                <p className="payment-form-help payment-form-followup [.expense-payment-form_&]:[margin-top:64px] [.expense-payment-form_&]:[font-size:14px] [.expense-payment-form_&]:[line-height:28px] [.expense-payment-form_&]:[color:var(--muted-foreground)] [.expense-payment-form_&]:[max-width:31ch] [.reservation-form_&]:[margin-top:44px] [.reservation-form_&]:[max-width:none] [.expense-payment-form_&]:[margin-top:4px]">
+                <p className="text-sm leading-6 text-muted-foreground">
                   {name(payer)}’s {money(preview.data.own_covered_minor)} share
                   is now paid.
                 </p>
               )}
             </>
           ) : (
-            <p className="payment-form-help [.expense-payment-form_&]:[margin-top:64px] [.expense-payment-form_&]:[font-size:14px] [.expense-payment-form_&]:[line-height:28px] [.expense-payment-form_&]:[color:var(--muted-foreground)] [.expense-payment-form_&]:[max-width:31ch] [.reservation-form_&]:[margin-top:44px] [.reservation-form_&]:[max-width:none]">
+            <p className="text-sm leading-6 text-muted-foreground">
               Recording only part? Enter the amount that was actually paid.
             </p>
           )}

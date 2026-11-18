@@ -1,8 +1,9 @@
 "use client";
 
+import { ExpenseAmountPanel } from "@/components/features/expenses/expense-amount-panel";
+
 import { UserRound } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ExpenseNumberInput } from "@/components/features/expenses/expense-number-input";
 import { expenseMoney } from "@/lib/money";
 import type { Currency, Debt } from "@/lib/expenses";
 
@@ -45,55 +46,47 @@ export function RepaymentConfirmation({
           </div>
         </div>
       </div>
-      <div className="repayment-panel [background:var(--ocean)] [color:var(--ocean-text)] rounded-xl p-5 sm:p-6 [&_strong]:[color:#fff] [&_.repayment-error]:[color:#ffd5ca] [&_.repayment-error:not(:empty)]:[margin-top:12px] max-md:[&]:[padding:16px]">
-        <div className="flex items-center justify-between gap-3">
-          <Label
-            htmlFor="cost-amount"
-            className="text-sm leading-5 font-medium"
-          >
-            Amount received
-          </Label>
-          <span
-            className="repayment-currency text-xs font-semibold [&]:[border:1px_solid_var(--ocean-text)] [&]:[border-radius:6px] [&]:[padding:2px_8px]"
-            id="repayment-currency"
-          >
-            {currency.code}
-          </span>
-        </div>
-        <div className="mx-auto mt-4 w-full max-w-64">
-          <Input
-            id="cost-amount"
-            required
-            inputMode="decimal"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            className="repayment-amount-input border-0 border-b bg-transparent px-0 py-2 text-center text-6xl leading-tight font-semibold tracking-tight tabular-nums"
-            aria-invalid={!!error}
-            aria-describedby="repayment-currency repayment-balance repayment-error"
-          />
-        </div>
-        <p
-          id="repayment-error"
-          className="repayment-error text-sm leading-5"
-          role="status"
-        >
-          {error}
-        </p>
-        <p
-          id="repayment-balance"
-          className="mt-6 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm leading-6"
-          role="status"
-        >
-          <span>Left to receive:</span>
-          <strong className="text-lg font-semibold tabular-nums">
-            {money(
-              remaining !== null && remaining >= 0n
-                ? String(remaining)
-                : debt.amount_minor,
-            )}
-          </strong>
-        </p>
-      </div>
+      <ExpenseAmountPanel
+        inputID="cost-amount"
+        label="Amount received"
+        currency={<span id="repayment-currency">{currency.code}</span>}
+        footer={
+          <>
+            <p
+              id="repayment-error"
+              className="repayment-error text-sm leading-5"
+              role="status"
+            >
+              {error}
+            </p>
+            <p
+              id="repayment-balance"
+              className="mt-6 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm leading-6"
+              role="status"
+            >
+              <span>Left to receive:</span>
+              <strong className="text-lg font-semibold tabular-nums">
+                {money(
+                  remaining !== null && remaining >= 0n
+                    ? String(remaining)
+                    : debt.amount_minor,
+                )}
+              </strong>
+            </p>
+          </>
+        }
+      >
+        <ExpenseNumberInput
+          id="cost-amount"
+          required
+          inputMode="decimal"
+          placeholder={(0).toFixed(currency.decimals)}
+          value={amount}
+          onChange={(event) => setAmount(event.target.value)}
+          aria-invalid={!!error}
+          aria-describedby="repayment-currency repayment-balance repayment-error"
+        />
+      </ExpenseAmountPanel>
     </div>
   );
 }

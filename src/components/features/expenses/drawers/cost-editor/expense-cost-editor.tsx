@@ -529,7 +529,7 @@ export function ExpenseCostEditor({
               setCoverer={setCoverer}
               coverAmount={coverAmount}
               setCoverAmount={setCoverAmount}
-              currency={currency}
+              currency={meta}
               people={people}
             />
           )}

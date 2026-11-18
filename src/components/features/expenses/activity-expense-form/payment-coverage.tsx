@@ -1,7 +1,9 @@
 "use client";
 
+import { ExpenseMoneyRow } from "@/components/features/expenses/expense-layout";
+
 import type { Dispatch, SetStateAction } from "react";
-import { Input } from "@/components/ui/input";
+import { ExpenseNumberInput } from "@/components/features/expenses/expense-number-input";
 import { expenseName, type Currency, type ExpensePerson } from "@/lib/expenses";
 import { moneyInput } from "@/lib/money";
 
@@ -51,22 +53,19 @@ export function PaymentCoverage({
         />
         Adjust coverage manually
       </label>
-      <div className="space-y-2 rounded-xl bg-secondary p-4">
-        <p className="font-medium">Payment covers</p>
+      <div className="grid gap-3">
+        <p className="font-medium">Payment covers &middot; {meta.code}</p>
         {(manual ? paymentRemaining : preview).map((s) => (
-          <div
-            key={s.user_id}
-            className="flex flex-wrap items-center justify-between gap-2"
-          >
+          <ExpenseMoneyRow key={s.user_id}>
             <span>
               {expenseName(people.find((p) => p.user_id === s.user_id))}
               {s.user_id === payer ? " (own share)" : ""}
             </span>
             {manual ? (
-              <Input
+              <ExpenseNumberInput
                 aria-label={`Coverage for ${expenseName(people.find((p) => p.user_id === s.user_id))}`}
-                className="w-32"
                 inputMode="decimal"
+                placeholder={(0).toFixed(meta.decimals)}
                 value={allocation[s.user_id] ?? "0"}
                 onChange={(e) =>
                   setAllocation((v) => ({
@@ -78,7 +77,7 @@ export function PaymentCoverage({
             ) : (
               <span>{money(s.amount_minor)}</span>
             )}
-          </div>
+          </ExpenseMoneyRow>
         ))}
         <p className="text-sm" aria-live="polite">
           {previewError ||

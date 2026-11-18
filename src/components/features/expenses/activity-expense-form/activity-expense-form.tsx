@@ -174,9 +174,7 @@ export function ActivityExpenseForm({
       record?.planned_coverer_user_id ??
       userID,
   );
-  const [borrower, setBorrower] = useState(
-    currentPeople.find((p) => p.user_id !== userID)?.user_id ?? 0,
-  );
+  const [borrower, setBorrower] = useState(0);
   const [selected, setSelected] = useState(
     record?.shares.map((s) => s.user_id) ??
       (editor.type === "cover" ? [] : currentPeople.map((p) => p.user_id)),
@@ -482,7 +480,7 @@ export function ActivityExpenseForm({
               setPlannedCoverer={setPlannedCoverer}
               plannedAmount={plannedAmount}
               setPlannedAmount={setPlannedAmount}
-              currency={currency}
+              currency={meta}
               changed={changed}
             />
             <CostDateDetails
@@ -602,18 +600,14 @@ export function ActivityExpenseForm({
           </div>
         )}
         <div
-          className={`expense-form-actions sticky bottom-0 -mx-6 flex flex-wrap justify-end gap-2 bg-card px-6 py-4${simpleRepayment ? "" : " border-t"}`}
+          className={`expense-form-actions sticky bottom-0 -mx-6 flex flex-col-reverse flex-wrap justify-end gap-2 bg-card px-6 py-4${simpleRepayment ? "" : " border-t"}`}
         >
-          {!simpleRepayment && (
-            <Button type="button" variant="outline" onClick={onCancel}>
+          {!simpleRepayment && editor.type !== "loan" && (
+            <Button type="button" variant="ghost" onClick={onCancel}>
               Cancel
             </Button>
           )}
-          <Button
-            type="submit"
-            disabled={!!repaymentError}
-            className={simpleRepayment ? "w-full" : undefined}
-          >
+          <Button type="submit" disabled={!!repaymentError} className="w-full">
             {pending
               ? "Saving…"
               : review

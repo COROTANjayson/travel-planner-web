@@ -84,6 +84,8 @@ check(
 );
 // Opaque ocean navigation has its own foreground and selected surface.
 check(token("ocean-text"), token("ocean"));
+// Amount-panel errors and required markers stay readable on ocean.
+check("#ffd5ca", token("ocean"));
 check(token("ocean"), token("aqua"));
 check(token("aqua"), token("ocean"), 3);
 for (const surface of ["trip-sea", "trip-sand", "trip-mist"]) {

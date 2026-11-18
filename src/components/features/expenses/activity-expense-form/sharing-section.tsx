@@ -1,7 +1,9 @@
 "use client";
 
+import { ExpenseMoneyRow } from "@/components/features/expenses/expense-layout";
+
 import type { Dispatch, SetStateAction } from "react";
-import { Input } from "@/components/ui/input";
+import { ExpenseNumberInput } from "@/components/features/expenses/expense-number-input";
 import { ApiError } from "@/lib/api";
 import { expenseName, type Currency, type ExpensePerson } from "@/lib/expenses";
 import { moneyInput } from "@/lib/money";
@@ -98,11 +100,13 @@ export function SharingSection({
           </label>
         ))}
       </fieldset>
-      <div className="expense-travelers [display:grid] [gap:0.5rem] min-[600px]:[&]:[grid-template-columns:repeat(2,_minmax(0,_1fr))]">
+      <p className="text-sm text-muted-foreground">
+        Shares &middot; {meta.code}
+      </p>
+      <div className="grid gap-3">
         {sharePeople.map((person) => (
-          <div
+          <ExpenseMoneyRow
             key={person.user_id}
-            className="expense-traveler [display:flex] [min-width:0] [align-items:center] [justify-content:space-between] [gap:0.75rem] [padding:0.5rem_0.75rem] [border:1px_solid_var(--border)] [border-radius:0.75rem] [&_.expense-custom-share]:[width:6.5rem] [&_.expense-custom-share]:[min-width:0] [&_.expense-custom-share]:[flex-shrink:0] [&[data-selected='true']]:[background:var(--secondary)]"
             data-selected={selected.includes(person.user_id)}
           >
             <label className="expense-traveler-name [display:flex] [min-width:0] [min-height:2.75rem] [flex:1] [align-items:center] [gap:0.625rem] [font-size:0.875rem] [cursor:pointer] [overflow-wrap:anywhere]">
@@ -122,10 +126,10 @@ export function SharingSection({
             </label>
             {selected.includes(person.user_id) &&
               (mode === "exact" ? (
-                <Input
-                  className="expense-custom-share"
+                <ExpenseNumberInput
                   aria-label={`Share for ${expenseName(person)}`}
                   inputMode="decimal"
+                  placeholder={(0).toFixed(meta.decimals)}
                   value={exact[person.user_id] ?? ""}
                   onChange={(e) =>
                     setExact((values) => ({
@@ -145,7 +149,7 @@ export function SharingSection({
                     : "—"}
                 </span>
               ))}
-          </div>
+          </ExpenseMoneyRow>
         ))}
       </div>
       <p

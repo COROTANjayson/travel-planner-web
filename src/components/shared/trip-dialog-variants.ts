@@ -37,7 +37,7 @@ export const tripDialogVariants: Record<
     body: detailBody,
     reader: "[scrollbar-gutter:stable]",
     footer:
-      "overflow-hidden border-0 bg-background px-6 pt-3 pb-[22px] [scrollbar-gutter:stable] **:data-[slot=button]:min-h-12 **:data-[slot=button]:justify-start **:data-[slot=button]:px-4 **:data-[slot=button]:py-3 **:data-[slot=button]:text-sm **:data-[slot=button]:font-bold",
+      "overflow-hidden border-0 bg-background px-6 pt-3 pb-[22px] [scrollbar-gutter:stable] **:data-[slot=button]:min-h-12 **:data-[slot=button]:justify-start [&>[data-slot=button]]:justify-center! **:data-[slot=button]:px-4 **:data-[slot=button]:py-3 **:data-[slot=button]:text-sm **:data-[slot=button]:font-bold",
   },
 };
 

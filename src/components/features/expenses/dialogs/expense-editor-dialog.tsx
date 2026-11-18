@@ -65,10 +65,24 @@ export function ExpenseEditorDialog({
   close: () => void;
   finalFocus: ComponentProps<typeof TripDialog>["finalFocus"];
 }) {
+  const loanRepayment =
+    editing?.type === "repayment" &&
+    !!editing.debt?.loan_id &&
+    !editing.receipt;
   return (
     <TripDialog
-      className="expense-editor-dialog"
+      className={
+        editing?.type === "loan" || loanRepayment
+          ? "expense-editor-dialog bg-background [&_.ledger-form]:mx-auto [&_.ledger-form]:max-w-lg [&_.expense-form-actions]:border-0"
+          : "expense-editor-dialog"
+      }
       backdropClassName="bg-black/60"
+      headerClassName={loanRepayment ? "items-center py-3!" : undefined}
+      bodyClassName={
+        loanRepayment
+          ? "[&_.expense-form-actions]:pb-8 [&_.expense-form-actions]:bg-transparent"
+          : undefined
+      }
       open={!!editing && (editing.type !== "cost" || !hasActivity)}
       title={
         editing?.type === "cost"
@@ -82,10 +96,10 @@ export function ExpenseEditorDialog({
               : editing?.receipt
                 ? "Correct receipt"
                 : editing?.debt?.loan_id
-                  ? "Record repayment"
+                  ? "Confirm money received"
                   : "Mark as paid"
       }
-      description={activityTitle}
+      description={loanRepayment ? undefined : activityTitle}
       busy={api.pending}
       disablePointerDismissal
       finalFocus={finalFocus}
@@ -102,6 +116,7 @@ export function ExpenseEditorDialog({
             <ActivityExpenseForm
               key={`${revision}-${editing.type}-${editing.cost?.id ?? "new"}-${editing.memberID ?? ""}-${editing.payment?.id ?? ""}-${editing.receipt?.id ?? ""}-${editing.debt?.payment_id ?? editing.debt?.loan_id ?? ""}-${editing.debt?.from_user_id ?? ""}`}
               editor={editing}
+              simpleRepayment={loanRepayment}
               activityID={activityID}
               activities={options}
               people={people}

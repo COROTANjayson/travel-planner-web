@@ -14,6 +14,15 @@ and rebuilds navigation and Trips. Step 2 extends this direction to trip details
 the day rail and activity detail views. Landing, authentication and forms retain
 their existing layouts and behavior.
 
+The [Figma file](https://www.figma.com/design/fSnvj7wJlyAcAUGdWsGxFX/Travel-Planner-%E2%80%94-Coastal-Folio)
+has three generated pages: Foundations (colors, type, spacing, radius), Components
+and Screens. They are rebuilt from this repository's tokens and components by a
+local Figma plugin, so edit the code or this guide, not those pages. The Screens
+page shows the [form simplification](#form-simplification-approved-design-not-yet-built)
+design for New trip, Add activity and Add expense, and the
+[Prep redesign](#prep-redesign-approved-design-not-yet-built), which the app does
+not implement yet; its other screens show the app as built.
+
 - Self-host Manrope through `next/font/local`; use its variable font for headings,
   controls and reading. Preserve wrapping, rem sizing and browser text scaling.
 - Near-white page #FAFCFA, dark ocean text #183D3E, muted text #52685B, white
@@ -86,8 +95,9 @@ their existing layouts and behavior.
   activity details. Cards have no three-dot menu; align Edit and Delete to the
   right in details. Preserve keyboard activation,
   visible focus, and at least 44px control touch targets.
-- Trip creation asks for destination, dates, then a name. Exact times remain
-  optional in a secondary section. If a destination
+- Trip creation asks for destination, dates, then a name (next design: see
+  [Form simplification](#form-simplification-approved-design-not-yet-built)).
+  Exact times remain optional in a secondary section. If a destination
   change requires clearing entered exact times, explain and confirm the change;
   preserve the dates as the existing form does.
 - Trip details use a bounded 72rem workspace. Add activity is the only filled
@@ -170,7 +180,9 @@ their existing layouts and behavior.
 - Show an icon and text category badge on each activity card. Owners/editors use
   Add activity and select Rest, Eating, Travel, Activity, or Custom in the form.
   Custom labels are per activity; no category management screen.
-- Add activity is headed by its fixed day (Add activity stays the dialog's
+- (Next design for duration, saving and closing: see
+  [Form simplification](#form-simplification-approved-design-not-yet-built).)
+  Add activity is headed by its fixed day (Add activity stays the dialog's
   accessible name) and starts with Activity name, outlined category chips that fill the
   row, with only the selected chip taking its card badge color (default Activity), and
   the fields for When. An Add more row of soft pills offers
@@ -243,6 +255,141 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
 [target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html),
 [reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html).
 
+## Form simplification (approved design, not yet built)
+
+Approved 2026-11-13 as a design only. **The app does not implement this section
+yet**; the rules elsewhere in this guide still describe current behavior. When a
+rule here is built, move it into its section above and delete it from here. The
+Figma Screens page shows these designs.
+
+The aim is fewer decisions before saving: sensible defaults, fewer visible
+fields, and the same patterns in every form. No capability is removed, no new
+endpoints, and no new libraries (Base UI `Combobox` is already installed).
+
+- All forms: inputs are 48px high with no per-form height overrides. Labels use
+  the default dark label style, not muted text. Required fields show the red
+  asterisk. Each error sits under its own field, and the first invalid field
+  takes focus. Actions are right-aligned, Cancel then the primary action.
+- Buttons: every button variant is pill-shaped, so a Cancel beside a primary
+  action has the same corners. Today only the primary variant is a pill; the
+  outline, secondary, ghost and destructive variants use 16px corners.
+- Create trip, destination: results appear in a list under the field as the
+  person types (2 or more characters, debounced), using the existing search and
+  resolve calls. There is no Search button. Once chosen, the field collapses to
+  one row with the destination, its time zone and a Change action. If the
+  backend cannot take search-as-you-type, keep the Search button.
+- Create trip, dates: keep the native date inputs. Choosing a start date fills an
+  empty end date with the same day. Show the inclusive length ("5 days") under
+  the row once both are set.
+- Create trip, name: pre-fill "Trip to {destination}" when a destination is
+  chosen and the name is empty or still the previous suggestion. Never overwrite
+  a name the person typed.
+- Create trip, exact times: the checkbox reads "Add arrival and departure times
+  (optional)". Its position and behavior are unchanged.
+- Empty day: for owners and editors, the "Nothing planned yet" card holds an
+  outlined Add activity button. Add activity above the timeline stays the only
+  filled action. Viewers see no button.
+- Add activity, duration: replace the dropdown with single-select chips: 30 min,
+  1 hr, 2 hr, 3 hr and Custom. Custom shows an End time field in place of
+  decimal hours. The line under Start time still gives the end time and trip
+  zone. Category and duration chips share one chip style.
+- Add activity, saving: a quiet Save and add another sits between Cancel and
+  Save activity. It saves, keeps the drawer open on the same day, and starts
+  the next activity where the saved one ended. On mobile, Save activity takes
+  the full width above the other two.
+- Add activity, closing: Back, Escape and outside dismissal ask "Discard this
+  activity?" only when something was typed. Keep editing returns to the form
+  with its values.
+- Add expense, cost step: show Expense name, the amount panel, then two rows that
+  open the existing steps: Split ("Evenly among 4 people", opening members and
+  custom split) and Who's paying ("Decide later", opening the planned coverer).
+  The amount panel's footer gives the live share ("₱800.00 each · 4 people") or
+  the current problem. Remove the helper paragraph and the separate summary box.
+  The initials stack beside Back stays as a shortcut to members.
+- Add expense, price basis: Group total is the default. Per person / Group total
+  is a small toggle inside the amount panel, not a question above it.
+- Add expense, name: the first expense of an activity pre-fills the activity
+  name, selected so typing replaces it.
+- Unchanged: Trips, Invitations, the trip Expenses page, and the payment,
+  reservation, repayment and loan screens. A wider wording pass for money terms
+  is not part of this design.
+
+## Prep redesign (approved design, not yet built)
+
+Approved 2026-11-14 as a design only. **The app does not implement this section
+yet**; the Prep rule under Navigation and trip planning still describes current
+behavior. When a rule here is built, move it there and delete it from here. The
+Figma Screens page shows these designs.
+
+The aim is a list that says who acts next and a shorter Add task form. It uses
+only today's task fields (title, one-person or everyone, assignee, activity,
+date): no new endpoints or response fields. The exception is Prep inside
+activities, which replaces the activity To do list and needs backend work.
+
+- Heading: "2 of 6 done" with a thin progress bar sits under Prep and replaces
+  the subtitle. Add task stays in the heading on desktop and as the mobile pill.
+- Sections replace To do and Done: For you (tasks assigned to you, and everyone
+  tasks you have not ticked), Up for grabs (unclaimed), With others, then Done.
+  Leave out empty sections. Done starts collapsed and shows its count.
+- Row lead: a checkbox only when you can tick the task, a dashed circle when
+  nobody has claimed it, the assignee's initials when it is someone else's, and
+  a check when done.
+- Row text: the title over one muted line. Join what applies with " · ": who it
+  waits on or who did it, the day, the activity. No "Activity:" or "Date:" labels.
+- Row action: Claim on unclaimed tasks, a quiet Drop on yours, none on others'.
+  Everyone tasks show a "3 of 5" count pill instead. Owners and editors get the
+  options menu with Edit, Assign, Reopen and Delete; Reopen is no longer a button.
+- Done rows use a muted struck-through title and "Done by" a name.
+- Empty state: owners and editors get an outlined Add task button in the
+  "Nothing to prepare yet" card. Viewers see no button.
+- Add task asks two things: What needs doing, and Who's on it. Who's on it is
+  one chip row (Up for grabs, Me, Pick someone, Everyone) with one helper line
+  that follows the choice. Up for grabs is the default. Pick someone shows the
+  person dropdown. It replaces the two radio cards and the
+  assignee dropdown and sends the same kind and assignee values.
+- Trip day and Activity sit behind Add more pills, as in Add activity. Each
+  opens its existing dropdown and its pill goes.
+- Add task footer: Cancel, a quiet Save and add another, then Add task. Save and
+  add another saves, keeps the dialog open and clears the title. On mobile, Add
+  task takes the full width above the other two.
+- Edit task uses the same form. Who's on it is read-only text, because the kind
+  is set only when adding; Assign still changes the person.
+- Delete task names the task in its confirmation, like Delete activity.
+- Prep inside activities: a prep task linked to an activity shows in that
+  activity's details as well as on the Prep page. It is one task; ticking,
+  claiming or editing it in either place is the same change.
+- Activity details: the header holds when and where as three icon lines under
+  the title (day and time range, trip zone, place), with one pencil for all of
+  them; Place is no longer its own section. Then Prep, Expenses and Notes, each
+  under a small muted label rather than a large heading. On mobile a close (X)
+  on the title row replaces the Back to itinerary row.
+- A Prep section replaces the activity's To do list. It shows open tasks with
+  the Prep page rows, a thin "1 of 3 done" progress line under the label, and an
+  Add task link; done tasks collapse into one "1 done" row. Rows that are yours
+  drop the "You" line, and Drop uses the same small outlined button as Claim.
+  With no tasks the section reads "Nothing to prepare yet."; viewers see
+  read-only rows. Add task opens the Add a task form with the activity shown as
+  a fixed line and its day filled in; there is no activity or day picker.
+- Expenses is one tappable row: total and your share on the right, the expense
+  count under the label, and a chevron. It replaces the summary panel and the
+  separate View expenses button. Notes keeps its own pencil.
+- Activity cards: an activity with prep tasks shows one line under the place,
+  "2 of 3 prep done", or "1 prep task for you" in teal when one waits on you.
+  Cards without tasks show nothing.
+- Add activity: the To do pill becomes Prep task. It opens title-only task
+  lines with Add another, saved as up for grabs; people are assigned later from
+  the activity.
+- Prep page: a filter row (All, For you, By activity). By activity groups tasks
+  under each activity, then Whole trip for tasks without one. In the other
+  views, the activity name in a row's detail line links to that activity.
+- Building this needs backend work: existing activity to-do items become
+  unclaimed prep tasks on their activity, and the activity's to-do list stops
+  being edited separately. Until then, activity To do stays as described under
+  Navigation and trip planning.
+- Unchanged: who may tick, claim, drop, reopen and manage tasks, the viewer
+  note, the Assign dialog, and the notice shown when a task changed underneath
+  someone.
+
 ## Expenses
 
 - Follow revised Figma sections [07](https://www.figma.com/design/fSnvj7wJlyAcAUGdWsGxFX/Travel-Planner?node-id=68-281)
@@ -252,7 +399,9 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
 - Expenses is an activity list; management lives inside activity details. Show
   estimated total, my share, expense items, and per-member Share/Paid/Remaining.
   Separate business payments from named reimbursements and keep currencies apart.
-- Expense setup follows the reference field order: expense name, per-person/group
+- (Next design for this step: see
+  [Form simplification](#form-simplification-approved-design-not-yet-built).)
+  Expense setup follows the reference field order: expense name, per-person/group
   basis, price beside split where they fit, share preview, optional planned coverer.
   Included members are an initials stack (up to three, then +N) at the right of the
   Back row; it opens the members step. Custom splitting opens a separate step with
@@ -376,3 +525,22 @@ pencil buttons in the detail drawer. Expense rows show per-person price
 and member/total metadata; equal reservation coverage uses one member list and
 “Each owes …” line. Payment dates and amounts use formatted reading values,
 with native input editing on focus.
+
+### Money-entry forms
+
+- Use the shared expense amount panel for prices, payments, reservations, loans,
+  repayments, and corrections: ocean background, persistent label, currency in
+  the upper corner, and a large centered amount above an underline. Keep currency
+  selection where it is currently editable; fixed currencies use a quiet badge.
+- Preserve every existing field and step. Supporting names, people, dates, split
+  choices, and correction reasons stay in a vertical flow. Show coverage and
+  balance information as quiet supporting text, with one full-width primary action.
+- Custom shares and manual payment coverage use compact right-aligned underlined
+  amounts beside each person, with currency shown once for the group. Keep labels,
+  per-person errors, balancing actions, and keyboard selection behavior.
+- Formatted reading amounts and editable inputs share typography and alignment.
+  Large values must remain readable without expanding the page; preserve decimal
+  keyboards, validation, visible focus on ocean surfaces, and failed drafts.
+- Amount inputs use a stronger underline for keyboard focus instead of a focus
+  box. Empty zero placeholders fade out on focus and return on blur; actual
+  entered amounts remain visible. Reduced motion removes the placeholder fade.

@@ -1,8 +1,11 @@
 "use client";
 
+import { ExpenseAmountPanel } from "@/components/features/expenses/expense-amount-panel";
+
 import type { ExpenseEditor } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
 import { ExpenseSelect } from "@/components/features/expenses/expense-forms";
 import { Input } from "@/components/ui/input";
+import { ExpenseNumberInput } from "@/components/features/expenses/expense-number-input";
 import { Label } from "@/components/ui/label";
 import {
   expenseName,
@@ -17,9 +20,6 @@ export function TransactionFields({
   isCost,
   record,
   ledger,
-  activity,
-  setActivity,
-  activityOptions,
   description,
   setDescription,
   currency,
@@ -84,21 +84,25 @@ export function TransactionFields({
     />
   );
   const amountField = (
-    <div className="space-y-2">
-      <Label htmlFor="cost-amount">
-        Amount{basis === "per_person" && isCost ? " per person" : ""} ·{" "}
-        {currency}
-      </Label>
-      <Input
+    <ExpenseAmountPanel
+      inputID="cost-amount"
+      label={
+        editor.type === "loan"
+          ? "Amount lent"
+          : editor.type === "repayment"
+            ? "Amount received"
+            : basis === "per_person" && isCost
+              ? "Amount per person"
+              : "Amount paid"
+      }
+      currency={currencyField}
+    >
+      <ExpenseNumberInput
         id="cost-amount"
         required
-        autoFocus={editor.type === "loan"}
-        placeholder={editor.type === "loan" ? "0.00" : undefined}
-        className={
-          editor.type === "loan"
-            ? "min-h-16 rounded-none border-0 border-b bg-transparent px-0 text-4xl font-semibold tabular-nums tracking-tight md:min-h-16"
-            : undefined
-        }
+        placeholder={(0).toFixed(
+          currencies.find((c) => c.code === currency)?.decimals ?? 2,
+        )}
         inputMode="decimal"
         readOnly={
           !!editor.receipt &&
@@ -108,7 +112,7 @@ export function TransactionFields({
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
       />
-    </div>
+    </ExpenseAmountPanel>
   );
   const dateField = (
     <div className="space-y-2">
@@ -154,33 +158,22 @@ export function TransactionFields({
   if (editor.type === "loan") {
     return (
       <div className="space-y-6 [&_[data-slot=input]]:min-h-12 [&_[data-slot=select-trigger]]:min-h-12 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:break-all [&_[data-slot=select-value]]:line-clamp-none">
-        <div className="grid grid-cols-[minmax(0,1fr)_6rem] items-end gap-5 rounded-2xl bg-secondary p-5">
-          {amountField}
-          {currencyField}
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
-          {canChooseLender && !editor.memberID && !editor.payment ? (
-            payerField
-          ) : (
-            <div className="min-w-0 space-y-2">
-              <p className="text-sm text-muted-foreground">Lent by</p>
-              <p className="break-all font-medium">
-                {expenseName(
-                  currentPeople.find((person) => person.user_id === payer),
-                )}
-              </p>
-            </div>
-          )}
+        {amountField}
+        <div className="space-y-5">
+          {canChooseLender && !editor.memberID && !editor.payment && payerField}
           <ExpenseSelect
             id="loan-borrower"
-            label="Borrowed by"
+            label="Who borrowed the money?"
             value={String(borrower)}
-            options={currentPeople
-              .filter((p) => p.user_id !== payer)
-              .map((p) => ({
-                value: String(p.user_id),
-                label: expenseName(p),
-              }))}
+            options={[
+              { value: "0", label: "Choose a borrower" },
+              ...currentPeople
+                .filter((p) => p.user_id !== payer)
+                .map((p) => ({
+                  value: String(p.user_id),
+                  label: expenseName(p),
+                })),
+            ]}
             onChange={(v) => {
               setBorrower(Number(v));
               changed();
@@ -198,32 +191,12 @@ export function TransactionFields({
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
-        <div className="grid gap-4 border-t pt-5 sm:grid-cols-[minmax(0,1fr)_12rem] sm:gap-6">
-          <ExpenseSelect
-            id="cost-activity"
-            label="Activity"
-            value={activity}
-            options={[
-              { value: "", label: "Choose an activity" },
-              ...activityOptions,
-            ]}
-            onChange={(v) => {
-              setActivity(v);
-              changed();
-            }}
-          />
-          {dateField}
-        </div>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          A cash loan creates a debt. It does not add activity spending.
-        </p>
       </div>
     );
   }
 
   return (
     <>
-      {currencyField}
       {amountField}
       {dateField}
       {editor.type === "payment" && payerField}

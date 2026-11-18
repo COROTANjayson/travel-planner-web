@@ -2145,10 +2145,13 @@ for (const [borrower, amount] of [
   saved = undefined;
   tree = render(formModule.ActivityExpenseForm, loanFormProps);
   assert.equal(find(tree, "cost-payer"), undefined);
-  assert.match(renderToStaticMarkup(tree), /Lent by/);
+  assert.doesNotMatch(renderToStaticMarkup(tree), /Lent by/);
+  assert.equal(find(tree, "loan-borrower").props.value, "0");
+  assert.equal(find(tree, "cost-activity"), undefined);
+  assert.equal(find(tree, "cost-date"), undefined);
   assert.deepEqual(
     Array.from(find(tree, "loan-borrower").props.options, (p) => p.value),
-    ["2", "3"],
+    ["0", "2", "3"],
   );
   find(tree, "loan-borrower").props.onChange(String(borrower));
   find(tree, "cost-description").props.onChange({ target: { value: "Cash" } });
@@ -2158,7 +2161,7 @@ for (const [borrower, amount] of [
   assert.equal(saved.amount_minor, `${amount}00`);
   assert.equal(saved.from_user_id, 1);
   assert.equal(saved.to_user_id, borrower);
-  for (const invalidBorrower of [1, 5]) {
+  for (const invalidBorrower of [0, 1, 5]) {
     saved = undefined;
     find(tree, "loan-borrower").props.onChange(String(invalidBorrower));
     tree = render(formModule.ActivityExpenseForm, loanFormProps);
@@ -2947,3 +2950,63 @@ assert.equal(compactReceiptForm.props.editor.debt.amount_minor, "80000");
 console.log(
   "Compact personal balances preserve named repayment actions and amounts.",
 );
+
+// Shared presentation retains labels, currency, errors and the original input.
+const { ExpenseAmountPanel } = load(
+  "src/components/features/expenses/expense-amount-panel.tsx",
+  { "@/components/ui/label": { Label: wrap("label") } },
+);
+const panel = ExpenseAmountPanel({
+  inputID: "panel-amount",
+  label: "Amount paid",
+  currency: "JPY",
+  required: true,
+  children: React.createElement("input", {
+    id: "panel-amount",
+    value: "invalid",
+    readOnly: true,
+    "aria-invalid": true,
+    "aria-describedby": "panel-error",
+  }),
+  footer: React.createElement(
+    "p",
+    { id: "panel-error" },
+    "Correct this amount",
+  ),
+});
+const panelMarkup = renderToStaticMarkup(panel);
+assert.match(panelMarkup, /for="panel-amount"/);
+assert.match(panelMarkup, /<span>JPY<\/span>/);
+assert.match(panelMarkup, /aria-invalid="true"/);
+assert.match(panelMarkup, /value="invalid"/);
+assert.match(panelMarkup, /Correct this amount/);
+assert.match(
+  renderToStaticMarkup(
+    readingFields.ExpensePriceField({
+      currency: { code: "JPY", decimals: 0 },
+      value: "1000000",
+      onChange() {},
+    }),
+  ),
+  /1,000,000/,
+);
+console.log(
+  "Shared money panels preserve accessible labels, invalid drafts, errors and currency precision.",
+);
+
+for (const [decimals, placeholder] of [
+  [2, "0.00"],
+  [0, "0"],
+]) {
+  const field = readingFields.ExpensePriceField({
+    currency: { code: decimals ? "PHP" : "JPY", decimals },
+    value: "",
+  });
+  const input = field.props.children[0];
+  assert.equal(input.props.placeholder, placeholder);
+  assert.equal(
+    input.props.value,
+    "",
+    "The zero hint must not become an entered amount",
+  );
+}

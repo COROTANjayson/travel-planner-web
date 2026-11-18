@@ -56,7 +56,85 @@ export default async function checkCssBrowser(
       `Wrong drawer width at ${width}px`,
     );
   }
+  const amount = dialog.getByLabel("Amount received", { exact: true });
+  await amount.focus();
+  await page.waitForFunction(() => {
+    const input = document.querySelector(
+      '[data-slot="expense-amount-control"] input',
+    );
+    return getComputedStyle(input, "::placeholder").opacity === "0";
+  });
+  const focusStyle = await amount.evaluate((input) => {
+    const style = getComputedStyle(input);
+    return {
+      outline: style.outlineStyle,
+      shadow: style.boxShadow,
+      underline: style.borderBottomWidth,
+      opacity: style.opacity,
+    };
+  });
+  check(
+    focusStyle.outline === "none" && focusStyle.shadow === "none",
+    "Money inputs must not show a focus box",
+  );
+  check(
+    focusStyle.underline === "2px" && focusStyle.opacity === "1",
+    "Keyboard focus must keep the underline and entered amount visible",
+  );
+  await amount.blur();
+  await page.waitForFunction(() => {
+    const input = document.querySelector(
+      '[data-slot="expense-amount-control"] input',
+    );
+    return getComputedStyle(input, "::placeholder").opacity === "1";
+  });
+  await amount.fill("351");
+  check(
+    (await amount.getAttribute("aria-invalid")) === "true",
+    "Overpayments must remain invalid",
+  );
+  check(
+    await dialog
+      .getByRole("button", { name: "Confirm received", exact: true })
+      .isDisabled(),
+    "Invalid amounts must block confirmation",
+  );
+  await amount.fill("100");
+  check(
+    (await amount.getAttribute("aria-invalid")) === "false",
+    "Corrected amounts must recover",
+  );
+  check(
+    await dialog
+      .locator("#repayment-balance")
+      .innerText()
+      .then((text) => text.includes("250")),
+    "Partial repayment must update the balance",
+  );
+  const appearance = await amount.evaluate((input) => {
+    const style = getComputedStyle(input);
+    return {
+      border: style.borderBottomStyle,
+      background: style.backgroundColor,
+      color: style.color,
+    };
+  });
+  check(
+    appearance.border === "solid" &&
+      appearance.background === "rgba(0, 0, 0, 0)",
+    "Money entry must retain its underlined ocean appearance",
+  );
+  check(
+    appearance.color === "rgb(189, 210, 206)",
+    "The amount must remain readable on ocean",
+  );
   await page.emulateMedia({ reducedMotion: "reduce", contrast: "more" });
+  check(
+    (await amount.evaluate(
+      (input) => getComputedStyle(input, "::placeholder").transitionDuration,
+    )) === "0s",
+    "Reduced motion must disable the placeholder fade",
+  );
   const motion = await dialog.evaluate((element) => ({
     transition: getComputedStyle(element).transitionDuration,
     animation: getComputedStyle(element).animationDuration,

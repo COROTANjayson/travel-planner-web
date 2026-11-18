@@ -23,6 +23,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - Use App Router, TypeScript, Tailwind, and existing shadcn/Base UI primitives.
   Keep Server Components unless interaction or browser APIs require a client.
+- Style screens and components with Tailwind utilities. Extract repeated styling
+  into reusable components; keep `globals.css` for theme tokens, framework setup,
+  and app-wide base rules. Keep feature-specific styling out of global CSS and
+  CSS modules.
 - Put routes in `src/app`, feature UI in `src/components/features/<feature>`
   (modals in `dialogs/`, right-side panels in `drawers/`), UI used by more than
   one feature in `src/components/shared`, shared primitives in
