@@ -38,15 +38,14 @@ export function DayConflictsDialog({
     <TripDialog
       title={`Conflicts on ${dateLabel(selected)}`}
       description="Overlapping activities on this day."
+      mobilePresentation="sheet"
+      itineraryStyle
+      className="md:max-w-[560px]"
       open={conflictsOpen}
       onOpenChange={setConflictsOpen}
       finalFocus={finalFocus}
     >
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Overlaps are advisory. Parallel activities are allowed. Overlap times
-          below use {trip.time_zone}.
-        </p>
+      <div className="space-y-4 md:space-y-5">
         {conflictsQuery.isPending ? (
           <p role="status">Loading conflicts…</p>
         ) : conflictsQuery.isError ? (
@@ -73,6 +72,10 @@ export function DayConflictsDialog({
             )}
           </>
         )}
+        <p className="text-[0.8125rem] leading-5 text-muted-foreground">
+          Overlaps are a heads-up only. Nothing is rescheduled for you. Times
+          are shown in {trip.time_zone}.
+        </p>
       </div>
     </TripDialog>
   );

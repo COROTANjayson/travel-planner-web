@@ -6,6 +6,12 @@ const apiBaseUrl = (
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  experimental: {
+    optimizePackageImports: [
+      "@phosphor-icons/react",
+      "@phosphor-icons/react/ssr",
+    ],
+  },
   async redirects() {
     return [
       {

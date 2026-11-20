@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
 import { ExpenseCostEditor } from "@/components/features/expenses/drawers/cost-editor/expense-cost-editor";
 import { ExpensePaymentWorkspace } from "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace";
 import { PersonalPayments } from "@/components/features/expenses/personal-payments/personal-payments";
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRightIcon, PlusIcon } from "@phosphor-icons/react";
 import { TripError } from "@/components/shared/trip-states";
 import type { ExpenseEditor } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
 import { ExpenseEditorDialog } from "@/components/features/expenses/dialogs/expense-editor-dialog";
@@ -344,7 +344,7 @@ export function ActivityExpenses(
                 </h3>
                 {hasActivity && isEditor && (
                   <Button onClick={() => open({ type: "cost" })}>
-                    <Plus aria-hidden="true" />
+                    <PlusIcon aria-hidden="true" />
                     Add expense
                   </Button>
                 )}
@@ -361,7 +361,7 @@ export function ActivityExpenses(
                 </h3>
                 {writable && hasActivity && (
                   <Button onClick={() => open({ type: "loan" })}>
-                    <Plus aria-hidden="true" />
+                    <PlusIcon aria-hidden="true" />
                     Add borrow
                   </Button>
                 )}
@@ -386,7 +386,7 @@ export function ActivityExpenses(
                   onClick={() => props.onViewChange?.("details")}
                 >
                   View expenses
-                  <ArrowRight aria-hidden="true" className="size-3.5" />
+                  <ArrowRightIcon aria-hidden="true" className="size-3.5" />
                 </Button>
               </div>
             )}

@@ -27,16 +27,14 @@ export default function TripMap({ activities }: { activities: Activity[] }) {
       map.on("error", () => setFailed(true));
       const bounds = new LngLatBounds();
       for (const [index, activity] of located.entries()) {
-        const position: [number, number] = [
-          activity.place!.longitude,
-          activity.place!.latitude,
-        ];
+        const place = activity.place!;
+        const position: [number, number] = [place.longitude, place.latitude];
         const pin = document.createElement("button");
         pin.type = "button";
         pin.textContent = String(index + 1);
         pin.setAttribute(
           "aria-label",
-          `${index + 1}. ${activity.title}: ${activity.place!.name}`,
+          `${index + 1}. ${activity.title}: ${place.name}`,
         );
         pin.className =
           "flex size-12 items-center justify-center rounded-full border-2 border-white bg-primary font-semibold text-primary-foreground shadow";
@@ -44,7 +42,7 @@ export default function TripMap({ activities }: { activities: Activity[] }) {
           .setLngLat(position)
           .setPopup(
             new Popup({ offset: 20 }).setText(
-              `${activity.title}: ${activity.place!.name}`,
+              `${activity.title}: ${place.name}${place.address ? `, ${place.address}` : ""}`,
             ),
           )
           .addTo(map);
@@ -66,7 +64,7 @@ export default function TripMap({ activities }: { activities: Activity[] }) {
       </p>
     );
   return (
-    <div className="space-y-3">
+    <div className="space-y-4 md:space-y-5">
       {failed && (
         <p role="status" className="text-sm text-destructive">
           The map could not load. Place details remain below.
@@ -74,16 +72,26 @@ export default function TripMap({ activities }: { activities: Activity[] }) {
       )}
       <div
         ref={container}
-        className="h-[55dvh] min-h-64 w-full overflow-hidden rounded-lg border md:h-80"
+        className="h-[280px] w-full overflow-hidden rounded-xl border bg-[var(--trip-mist)] [&_.maplibregl-ctrl-attrib-button]:bg-[url('/icons/info.svg')] [&_.maplibregl-popup-close-button]:bg-[url('/icons/x.svg')] [&_.maplibregl-popup-close-button]:bg-size-[1rem] [&_.maplibregl-popup-close-button]:bg-center [&_.maplibregl-popup-close-button]:bg-no-repeat [&_.maplibregl-popup-close-button]:[font-size:0]"
         aria-label="Map of places on the selected day"
       />
-      <ul className="divide-y text-sm">
-        {located.map((activity, index) => (
-          <li key={activity.id} className="break-words py-3">
-            <strong>
-              {index + 1}. {activity.title}:
-            </strong>{" "}
-            {activity.place!.name}, {activity.place!.address}
+      <ul className="divide-y rounded-xl border bg-card">
+        {located.map((activity) => (
+          <li
+            key={activity.id}
+            className="space-y-1 px-3.5 py-3 break-words md:p-4"
+          >
+            <p className="text-[0.9375rem] leading-5 font-semibold">
+              {activity.place!.name}
+            </p>
+            <p className="text-[0.8125rem] leading-5 text-muted-foreground">
+              {activity.title}
+            </p>
+            {activity.place!.address && (
+              <p className="text-[0.8125rem] leading-5 text-muted-foreground">
+                {activity.place!.address}
+              </p>
+            )}
           </li>
         ))}
       </ul>

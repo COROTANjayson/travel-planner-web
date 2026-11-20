@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { DotsThreeIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -37,7 +37,7 @@ export function OptionsMenu({
           />
         }
       >
-        <MoreHorizontal aria-hidden="true" />
+        <DotsThreeIcon aria-hidden="true" />
       </PopoverTrigger>
       <PopoverContent
         align="end"

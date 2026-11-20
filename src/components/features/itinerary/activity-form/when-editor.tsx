@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { fieldRequired } from "@/components/shared/field-required";
-import { Clock } from "lucide-react";
+import { ClockIcon } from "@phosphor-icons/react";
 import type { Duration } from "@/components/features/itinerary/activity-form/activity-form";
 import {
   DateTimeField,
@@ -98,7 +98,7 @@ export function WhenEditor({
             }}
           />
           <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
-            <Clock className="mt-0.5 size-4 shrink-0" />
+            <ClockIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
             <span className="min-w-0 wrap-break-word">{whenSummary}</span>
           </p>
         </div>

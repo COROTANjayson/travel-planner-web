@@ -2,7 +2,7 @@
 
 import type { ActivityExpenseView } from "@/components/features/expenses/activity-expenses";
 import { Button } from "@/components/ui/button";
-import { ChevronRight } from "lucide-react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import type { ActivityLedger } from "@/lib/expenses";
 
 export function BorrowListLink({
@@ -36,7 +36,7 @@ export function BorrowListLink({
           )
           .join("")}
       </span>
-      <ChevronRight aria-hidden="true" className="size-4" strokeWidth={1.75} />
+      <CaretRightIcon aria-hidden="true" className="size-4" />
     </Button>
   );
 }

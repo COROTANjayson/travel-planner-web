@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentProps, ReactNode, RefObject } from "react";
-import { Trash2 } from "lucide-react";
+import { TrashIcon } from "@phosphor-icons/react";
 import {
   ActivityExpenses,
   type ActivityExpenseView,
@@ -177,7 +177,7 @@ export function ActivityDetailsDrawer({
                   setViewing(null);
                 }}
               >
-                <Trash2 aria-hidden="true" />
+                <TrashIcon aria-hidden="true" />
                 Delete
               </Button>
             )}

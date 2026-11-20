@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Compass, Plus } from "lucide-react";
+import { CompassIcon, PlusIcon } from "@phosphor-icons/react";
 import type { Status } from "@/components/features/trips/trip-filters";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,9 +18,9 @@ export function TripsEmptyState({
   resetFilters: () => void;
 }) {
   return (
-    <Card className="rounded-2xl border border-border px-6 py-12 shadow-none md:py-16">
+    <Card className="border border-border px-6 py-12 shadow-none md:py-16">
       <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-3 text-center">
-        <Compass
+        <CompassIcon
           aria-hidden="true"
           className="mb-2 size-14 rounded-full bg-secondary p-4 text-primary"
         />
@@ -42,7 +42,7 @@ export function TripsEmptyState({
             render={<Link href="/trips/new" />}
             nativeButton={false}
           >
-            <Plus aria-hidden="true" />
+            <PlusIcon aria-hidden="true" />
             Plan your first trip
           </Button>
         ) : (

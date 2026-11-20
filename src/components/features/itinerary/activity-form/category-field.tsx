@@ -1,7 +1,7 @@
 "use client";
 
 import { fieldRequired } from "@/components/shared/field-required";
-import { Tag } from "lucide-react";
+import { TagIcon } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { activityCategories, activityCategoryIcons } from "@/lib/itinerary";
@@ -29,7 +29,7 @@ export function CategoryField({
           const value = category === "Custom" ? "custom" : category;
           const Icon = Object.hasOwn(activityCategoryIcons, category)
             ? activityCategoryIcons[category]
-            : Tag;
+            : TagIcon;
           return (
             <label
               key={category}

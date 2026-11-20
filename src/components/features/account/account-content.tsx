@@ -2,7 +2,7 @@
 
 import type { useAuth0 } from "@auth0/auth0-react";
 import type { QueryClient, UseQueryResult } from "@tanstack/react-query";
-import { UserRound } from "lucide-react";
+import { UserIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { ApiError, type ApiUser } from "@/lib/api";
 
@@ -43,17 +43,19 @@ export function AccountContent({
           </Button>
         </div>
       ) : (
-        <div className="space-y-2 break-words">
+        <div className="flex min-w-0 items-center gap-3 break-words">
           <span
             className="participant-avatar flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary font-semibold text-primary"
             aria-hidden="true"
           >
-            <UserRound className="size-5" />
+            <UserIcon aria-hidden="true" className="size-5" />
           </span>
-          <p className="font-semibold">Welcome back, {name}</p>
-          <p className="text-sm text-muted-foreground">
-            {user.data?.email || "No email provided"}
-          </p>
+          <div className="min-w-0">
+            <p className="font-semibold">{name}</p>
+            <p className="text-sm text-muted-foreground">
+              {user.data?.email || "No email provided"}
+            </p>
+          </div>
         </div>
       )}
       {actionError && (

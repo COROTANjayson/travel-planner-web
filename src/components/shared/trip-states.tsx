@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ApiError } from "@/lib/api";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -20,8 +20,8 @@ export function TripLoading({ overview = false }: { overview?: boolean }) {
           key={index}
           className={
             overview
-              ? "min-h-52 space-y-4 rounded-3xl bg-muted p-6 first:min-h-60 first:lg:col-span-full lg:px-7"
-              : "surface border border-border rounded-2xl bg-card space-y-4 p-5"
+              ? "min-h-52 space-y-4 rounded-2xl bg-muted p-6 first:min-h-60 first:lg:col-span-full lg:px-7"
+              : "surface border border-border rounded-xl bg-card space-y-4 p-5"
           }
         >
           <Skeleton className="h-6 w-40 max-w-full" />
@@ -35,16 +35,19 @@ export function TripLoading({ overview = false }: { overview?: boolean }) {
 }
 
 export function TripError({
+  title,
   error,
   retry,
   pending = false,
 }: {
+  title?: string;
   error: unknown;
   retry?: () => void;
   pending?: boolean;
 }) {
   return (
     <Alert variant="destructive">
+      {title && <AlertTitle>{title}</AlertTitle>}
       <AlertDescription>
         {error instanceof ApiError
           ? error.message
@@ -66,7 +69,7 @@ export function TripError({
 
 export function TripNotFound() {
   return (
-    <div className="surface border border-border rounded-2xl bg-card space-y-4 p-6">
+    <div className="surface border border-border rounded-xl bg-card space-y-4 p-6">
       <h1 className="page-title text-3xl font-[650] leading-[1.2] tracking-[-0.03em] text-balance md:[&]:[font-size:2.25rem]">
         Trip not found
       </h1>

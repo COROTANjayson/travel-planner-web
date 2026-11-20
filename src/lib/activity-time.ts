@@ -115,7 +115,7 @@ export function formatActivityDuration(start: string, end: string) {
   );
   const hours = Math.floor(total / 60);
   const minutes = total % 60;
-  return [hours && `${hours} hr`, (minutes || !hours) && `${minutes} min`]
+  return [hours && `${hours}h`, (minutes || !hours) && `${minutes}m`]
     .filter(Boolean)
     .join(" ");
 }

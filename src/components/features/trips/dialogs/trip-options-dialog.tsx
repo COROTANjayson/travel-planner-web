@@ -2,18 +2,19 @@
 
 import Link from "next/link";
 import {
-  ListChecks,
-  MoreHorizontal,
-  Receipt,
-  Settings,
-  Users,
-} from "lucide-react";
+  ListChecksIcon,
+  DotsThreeIcon,
+  ReceiptIcon,
+  GearIcon,
+  UsersIcon,
+} from "@phosphor-icons/react";
 import { TripDialog } from "@/components/shared/trip-dialog";
 import { Button } from "@/components/ui/button";
 
 export function TripOptionsDialog({
   tripID,
   tripName,
+  itineraryStyle = false,
   memberCount,
   canEdit,
   menuOpen,
@@ -25,6 +26,7 @@ export function TripOptionsDialog({
 }: {
   tripID: number;
   tripName: string;
+  itineraryStyle?: boolean;
   memberCount?: number;
   canEdit: boolean;
   menuOpen: boolean;
@@ -39,6 +41,12 @@ export function TripOptionsDialog({
       title="Trip options"
       description={tripName}
       mobilePresentation="sheet"
+      itineraryStyle={itineraryStyle}
+      headerClassName={
+        itineraryStyle
+          ? "[&_[data-slot=trip-dialog-description]]:sr-only"
+          : undefined
+      }
       open={menuOpen}
       onOpenChange={setMenuOpen}
       finalFocus={() =>
@@ -54,11 +62,20 @@ export function TripOptionsDialog({
           className="size-12 shrink-0"
           aria-label="Trip options"
         >
-          <MoreHorizontal aria-hidden="true" />
+          <DotsThreeIcon
+            aria-hidden="true"
+            className={itineraryStyle ? "size-5" : undefined}
+          />
         </Button>
       }
     >
-      <div className="space-y-2">
+      <div
+        className={
+          itineraryStyle
+            ? "grid gap-1 [&_[data-slot=button]]:gap-3 [&_[data-slot=button]]:rounded-xl [&_[data-slot=button]]:px-3 [&_[data-slot=button]]:text-base [&_[data-slot=button]]:font-normal [&_svg]:size-5"
+            : "space-y-2"
+        }
+      >
         <Button
           variant="ghost"
           className="w-full justify-start"
@@ -67,7 +84,7 @@ export function TripOptionsDialog({
             setPeopleOpen(true);
           }}
         >
-          <Users aria-hidden="true" />
+          <UsersIcon aria-hidden="true" />
           People {memberCount ?? ""}
         </Button>
         <Button
@@ -76,7 +93,7 @@ export function TripOptionsDialog({
           render={<Link href={`/trips/${tripID}/expenses`} />}
           nativeButton={false}
         >
-          <Receipt aria-hidden="true" />
+          <ReceiptIcon aria-hidden="true" />
           Expenses
         </Button>
         <Button
@@ -85,7 +102,7 @@ export function TripOptionsDialog({
           render={<Link href={`/trips/${tripID}/prep`} />}
           nativeButton={false}
         >
-          <ListChecks aria-hidden="true" />
+          <ListChecksIcon aria-hidden="true" />
           Prep
         </Button>
         {canEdit && (
@@ -97,7 +114,7 @@ export function TripOptionsDialog({
               setEditing(true);
             }}
           >
-            <Settings aria-hidden="true" />
+            <GearIcon aria-hidden="true" />
             Settings
           </Button>
         )}

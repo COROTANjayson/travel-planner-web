@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "sonner";
+import { CheckCircleIcon } from "@phosphor-icons/react/ssr";
 import localFont from "next/font/local";
 
 const manrope = localFont({
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-background text-foreground text-base leading-6">
         <Providers>{children}</Providers>
         <Toaster
+          icons={{ success: <CheckCircleIcon size={16} aria-hidden="true" /> }}
           position="top-right"
           offset={24}
           mobileOffset={{

@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject, ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import type { ExpenseEditor } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
 import { Button } from "@/components/ui/button";
 import type {
@@ -79,10 +79,9 @@ export function CostArticle({
                 {equal && cost.shares[0]
                   ? `${money(cost.shares[0].amount_minor, cost.currency)} each`
                   : money(cost.amount_minor, cost.currency)}
-                <ChevronRight
+                <CaretRightIcon
                   aria-hidden="true"
                   className="size-4 text-muted-foreground"
-                  strokeWidth={1.75}
                 />
               </span>
             </span>

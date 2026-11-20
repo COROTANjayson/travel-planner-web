@@ -3,6 +3,14 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import {
+  AirplaneIcon,
+  CoffeeIcon,
+  DotsThreeIcon,
+  ForkKnifeIcon,
+  MountainsIcon,
+  TagIcon,
+} from "@phosphor-icons/react";
 import { createLoader, isAutoLoaded } from "./lib/load.mjs";
 const require = createRequire(import.meta.url);
 let activityRequestNumber = 0;
@@ -26,23 +34,23 @@ const load = createLoader({
 const time = load("src/lib/activity-time.ts");
 assert.equal(
   time.formatActivityDuration("2026-10-24T02:00:00Z", "2026-10-24T03:30:00Z"),
-  "1 hr 30 min",
+  "1h 30m",
 );
 assert.equal(
   time.formatActivityDuration("2026-10-24T02:00:00Z", "2026-10-24T02:45:00Z"),
-  "45 min",
+  "45m",
 );
 assert.equal(
   time.formatActivityDuration("2026-10-24T01:00:00Z", "2026-10-24T05:00:00Z"),
-  "4 hr",
+  "4h",
 );
 assert.equal(
   time.formatActivityDuration("2026-10-24T01:00:00Z", "2026-10-24T01:00:00Z"),
-  "0 min",
+  "0m",
 );
 assert.equal(
   time.formatActivityDuration("2026-03-08T06:30:00Z", "2026-03-08T07:30:00Z"),
-  "1 hr",
+  "1h",
   "Duration measures elapsed time across DST",
 );
 const sameDayRange = time.formatActivityRange(
@@ -845,6 +853,9 @@ const tripFormModule = load("src/components/features/trips/trip-form.tsx", {
   "@/lib/api": apiMock,
   "@/lib/activity-time": time,
   "@/lib/trips": trips,
+  "@/components/features/trips/trip-range-fields": {
+    TripRangeFields: () => null,
+  },
   "@/components/ui/input": {
     Input: (props) => React.createElement("input", props),
   },
@@ -881,7 +892,7 @@ const dateOnlyForm = tripFormModule.TripForm({
 assert.match(renderToStaticMarkup(dateOnlyForm), /type="date"/);
 assert.match(
   renderToStaticMarkup(dateOnlyForm),
-  /Add exact start and end times/,
+  /Add arrival and departure times/,
 );
 dateOnlyForm.props.onSubmit({ preventDefault() {} });
 assert.equal(submittedTrip.start_date, datesOnly.start_date);
@@ -909,6 +920,131 @@ assert.equal(
   tripDraft.ends_at,
   "Editing an exact-time trip preserves timestamp precision",
 );
+const creationDates = (end) => ({
+  start: { value: "2026-11-12T", occurrence: "" },
+  end: { value: `${end}T`, occurrence: "" },
+});
+const createFromDraft = (name, dates, destinationName = "El Nido") => {
+  tripFormHookIndex = 0;
+  tripFormState = [
+    name,
+    { id: 9, name: destinationName, time_zone: "Asia/Manila" },
+    dates,
+  ];
+  submittedTrip = undefined;
+  tripFormModule
+    .TripForm({
+      creating: true,
+      onSubmit: (input) => {
+        submittedTrip = input;
+      },
+      pending: false,
+      submitLabel: "Create trip",
+    })
+    .props.onSubmit({ preventDefault() {} });
+  tripFormState = null;
+  return submittedTrip;
+};
+assert.equal(
+  createFromDraft("", creationDates("2026-11-12")).name,
+  "Trip to El Nido",
+);
+assert.equal(
+  createFromDraft("Island weekend", creationDates("2026-11-16")).name,
+  "Island weekend",
+);
+const destinationAtNameLimit = "é".repeat(96);
+assert.equal(
+  createFromDraft("", creationDates("2026-11-12"), destinationAtNameLimit).name,
+  `Trip to ${destinationAtNameLimit}`,
+  "A 200-byte suggestion fits the API name limit",
+);
+assert.equal(
+  createFromDraft("", creationDates("2026-11-12"), `${destinationAtNameLimit}a`)
+    .name,
+  "My trip",
+  "A 201-byte suggestion falls back even if it has fewer than 200 characters",
+);
+assert.equal(
+  createFromDraft("", creationDates("2026-11-10")),
+  undefined,
+  "A reversed range cannot be submitted",
+);
+
+const { TripRangeFields } = load(
+  "src/components/features/trips/trip-range-fields.tsx",
+  {
+    ...primitiveMocks,
+    "@/components/ui/calendar": { Calendar: () => null },
+    "@/lib/trips": trips,
+    react: {
+      useRef: () => ({ current: null }),
+      useState(initial) {
+        const index = rangeHookIndex++;
+        if (!(index in rangeState)) rangeState[index] = initial;
+        return [rangeState[index], (value) => (rangeState[index] = value)];
+      },
+    },
+  },
+  { window: { matchMedia: () => ({ matches: true }) } },
+);
+let rangeHookIndex;
+const rangeState = [];
+let dates = { start: "2026-11-12", end: "2026-11-17" };
+const rangeControl = (predicate) => {
+  rangeHookIndex = 0;
+  return nodes(
+    TripRangeFields({ dates, onChange: (next) => (dates = next) }),
+  ).find((node) => predicate(node.props)).props;
+};
+const openRange = (field) =>
+  rangeControl((props) => props.id === `trip-range-${field}`).onClick({
+    currentTarget: { focus() {} },
+  });
+const pickDay = (day) =>
+  rangeControl((props) => props.mode === "range").onDayClick(
+    new Date(2026, 10, day),
+  );
+const done = () => rangeControl((props) => props.children === "Done");
+openRange("start");
+pickDay(13);
+assert.equal(done().disabled, false);
+done().onClick();
+assert.equal(dates.start, "2026-11-13");
+assert.equal(dates.end, "2026-11-17", "Editing Start preserves End");
+openRange("end");
+pickDay(10);
+assert.equal(done().disabled, true, "Done blocks a reversed range");
+pickDay(13);
+assert.equal(done().disabled, false, "A same-day range is valid");
+done().onClick();
+assert.equal(dates.start, "2026-11-13");
+assert.equal(dates.end, "2026-11-13");
+dates = { start: "", end: "" };
+openRange("start");
+pickDay(12);
+assert.equal(done().disabled, true, "A new range needs an explicit End");
+pickDay(12);
+assert.equal(done().disabled, false);
+done().onClick();
+assert.equal(dates.start, "2026-11-12");
+assert.equal(dates.end, "2026-11-12");
+dates = { start: "2026-11-30", end: "2027-01-02" };
+openRange("end");
+assert.equal(
+  rangeControl((props) => props.mode === "range").defaultMonth.getTime(),
+  new Date(2027, 0, 2).getTime(),
+  "End opens its own month, even after a year boundary",
+);
+done().onClick();
+dates = { start: "2026-11-30", end: "" };
+openRange("end");
+assert.equal(
+  rangeControl((props) => props.mode === "range").defaultMonth.getTime(),
+  new Date(2026, 10, 30).getTime(),
+  "An empty End opens in the Start month",
+);
+
 let submitted;
 const form = formModule.ActivityForm({
   initialValue: { ...activity, starts_at: precise },
@@ -1055,10 +1191,12 @@ response = placeResponse;
 activityFormState = null;
 
 tripFormState = [];
+let creatingDestination = false;
 const destinationForm = () => {
   tripFormHookIndex = 0;
   return nodes(
     tripFormModule.TripForm({
+      creating: creatingDestination,
       onSubmit() {},
       pending: false,
       submitLabel: "Create trip",
@@ -1086,6 +1224,102 @@ searchDestinations();
 await new Promise((resolve) => setTimeout(resolve));
 assert.ok(destinationError() instanceof ApiError);
 assert.match(destinationError().message, /search is unavailable/);
+creatingDestination = true;
+tripFormState = [];
+response = () => [];
+calls = [];
+typeDestination("Cebu");
+const destinationInput = destinationForm().find(
+  (node) => node.props.id === "trip-destination-search",
+).props;
+assert.equal(calls.length, 0, "Typing alone does not search for a destination");
+const pressSearchEnter = (isComposing) =>
+  destinationInput.onKeyDown({
+    key: "Enter",
+    nativeEvent: { isComposing },
+    preventDefault() {},
+  });
+pressSearchEnter(true);
+assert.equal(calls.length, 0, "Enter during text composition does not search");
+pressSearchEnter(false);
+assert.equal(calls.length, 1);
+assert.equal(calls[0][0], "/api/v1/places/search?scope=destination&q=Cebu");
+await new Promise((resolve) => setTimeout(resolve));
+assert.ok(
+  destinationForm().some(
+    (node) => node.props.children === "No destinations found.",
+  ),
+);
+typeDestination("Tokyo");
+assert.equal(calls.length, 1);
+searchDestinations();
+assert.equal(calls.length, 2);
+assert.equal(calls[1][0], "/api/v1/places/search?scope=destination&q=Tokyo");
+await new Promise((resolve) => setTimeout(resolve));
+response = destinationResponse;
+for (const creating of [false, true]) {
+  creatingDestination = creating;
+  tripFormState = [
+    "Island trip",
+    {
+      id: 9,
+      name: "El Nido",
+      address: "Palawan, Philippines",
+      time_zone: "Asia/Manila",
+    },
+  ];
+  const selectedDestination = destinationForm();
+  assert.ok(
+    selectedDestination.some(
+      (node) => node.props.children === "Palawan, Philippines · Manila time",
+    ),
+    "Selected destinations show their address and readable time zone",
+  );
+  assert.ok(
+    !selectedDestination.some(
+      (node) => node.props.id === "trip-destination-search",
+    ),
+    "Search stays hidden until Change is selected",
+  );
+  selectedDestination
+    .find((node) => node.props.children === "Change")
+    .props.onClick();
+  typeDestination("Tokyo");
+  destinationForm()
+    .find((node) => node.props.children === "Keep current destination")
+    .props.onClick();
+  assert.ok(
+    destinationForm().some((node) => node.props.children === "El Nido"),
+    "Canceling a change preserves the selected destination",
+  );
+  assert.ok(
+    !destinationForm().some(
+      (node) => node.props.id === "trip-destination-search",
+    ),
+  );
+  destinationForm()
+    .find((node) => node.props.children === "Change")
+    .props.onClick();
+  response = () => ({
+    id: 10,
+    name: "Kyoto",
+    address: "Japan",
+    kind: "city",
+    time_zone: "Asia/Tokyo",
+  });
+  await destinationForm()
+    .find((node) => typeof node.props.choose === "function")
+    .props.choose({ provider_place_id: "kyoto" });
+  assert.ok(
+    destinationForm().some((node) => node.props.children === "Kyoto"),
+    "Choosing a replacement returns to the destination card",
+  );
+  assert.ok(
+    !destinationForm().some(
+      (node) => node.props.id === "trip-destination-search",
+    ),
+  );
+}
 response = destinationResponse;
 tripFormState = null;
 console.log("Place and destination searches show their own messages.");
@@ -1424,6 +1658,8 @@ const overnight = {
 };
 let queryMode = "success";
 let boardActivities = [activity, overnight];
+let boardPrep = [];
+let boardPrepError;
 let boardConflicts = [];
 let uiState = null,
   hookIndex = 0,
@@ -1450,6 +1686,9 @@ const components = load("src/components/features/itinerary/itinerary.tsx", {
   },
   "next/link": { __esModule: true, default: wrap("a") },
   ...primitiveMocks,
+  "@/components/shared/trip-states": {
+    TripError: ({ title }) => React.createElement("p", null, title ?? "Error"),
+  },
   "@/lib/api": apiMock,
   "@/lib/activity-time": time,
   "@/lib/memberships": membership,
@@ -1519,7 +1758,8 @@ const components = load("src/components/features/itinerary/itinerary.tsx", {
       {
         isPending: queryMode === "pending",
         isSuccess: queryMode === "success" || queryMode === "empty",
-        isError: queryMode === "error",
+        isError:
+          queryKey[2] === "prep" ? !!boardPrepError : queryMode === "error",
         isFetching: false,
         data:
           queryKey[2] === "activities"
@@ -1528,22 +1768,34 @@ const components = load("src/components/features/itinerary/itinerary.tsx", {
               : queryMode === "empty"
                 ? []
                 : boardActivities
-            : boardConflicts,
-        error: new ApiError(500, "Failure"),
+            : queryKey[2] === "prep"
+              ? boardPrep
+              : boardConflicts,
+        error:
+          queryKey[2] === "prep"
+            ? boardPrepError
+            : new ApiError(500, "Failure"),
+        refetch: async () => {
+          assert.equal(queryKey[2], "prep");
+          boardPrepError = undefined;
+          boardPrep = [];
+        },
       }
     ),
   },
 });
-for (const [category, icon] of [
-  ["Rest", "coffee"],
-  ["Eating", "utensils"],
-  ["Travel", "plane"],
-  ["Activity", "sparkles"],
-  ["Shopping", "tag"],
-  ["Sleeping", "tag"],
-  ["__proto__", "tag"],
-  ["constructor", "tag"],
-  ["A".repeat(100), "tag"],
+const iconPath = (Icon) =>
+  renderToStaticMarkup(React.createElement(Icon)).match(/<path d="[^"]+"/)[0];
+for (const [category, Icon] of [
+  ["Rest", CoffeeIcon],
+  ["Eating", ForkKnifeIcon],
+  ["Travel", AirplaneIcon],
+  ["Activity", MountainsIcon],
+  ["Shopping", TagIcon],
+  ["Sleeping", TagIcon],
+  ["__proto__", TagIcon],
+  ["constructor", TagIcon],
+  ["A".repeat(100), TagIcon],
 ]) {
   boardActivities = [{ ...activity, category }];
   const html = renderToStaticMarkup(
@@ -1560,7 +1812,7 @@ for (const [category, icon] of [
     "Badges preserve category labels, including custom and legacy values",
   );
   assert.ok(
-    html.includes(`lucide-${icon}`),
+    html.includes(iconPath(Icon)),
     `${category} has an appropriate icon`,
   );
 }
@@ -1633,9 +1885,10 @@ for (const role of ["owner", "editor", "member", "viewer", undefined]) {
   );
   assert.doesNotMatch(
     html,
-    /Activity options|Actions for|lucide-ellipsis/,
+    /Activity options|Actions for/,
     "Activity cards have no three-dot menu for any role",
   );
+  assert.ok(!html.includes(iconPath(DotsThreeIcon)));
   assert.doesNotMatch(
     html,
     /Quick add|Add (Rest|Eating|Travel|Activity|Custom) activity/,
@@ -1674,6 +1927,76 @@ for (const [mode, text] of [
   );
   assert.ok(html.includes(text));
 }
+queryMode = "empty";
+const emptyOwner = renderToStaticMarkup(
+  React.createElement(components.Itinerary, {
+    trip,
+    canEdit: true,
+    onFailure() {},
+  }),
+);
+assert.match(
+  emptyOwner,
+  /day-empty[^]*?Add activity[^]*?<\/section>/,
+  "Empty day gives editors an inline action",
+);
+queryMode = "success";
+boardPrep = [
+  {
+    activity: { id: activity.id },
+    kind: "one_person",
+    assignee: { user_id: 7 },
+    completed_at: null,
+  },
+];
+const renderWithPrep = () =>
+  renderToStaticMarkup(
+    React.createElement(components.Itinerary, {
+      trip,
+      current: { user_id: 7 },
+      canEdit: false,
+      onFailure() {},
+    }),
+  );
+assert.match(renderWithPrep(), /1 prep task for you/);
+boardPrep[0].completed_at = "2026-10-01T00:00:00Z";
+assert.match(renderWithPrep(), /1 of 1 prep done/);
+boardPrepError = new ApiError(500, "Failure");
+assert.doesNotMatch(renderWithPrep(), /load prep tasks/);
+boardPrep = undefined;
+assert.match(renderWithPrep(), /load prep tasks/);
+uiState = [];
+board()
+  .find((node) => node.props.title === "Couldn’t load prep tasks")
+  .props.retry();
+uiState = null;
+assert.doesNotMatch(renderWithPrep(), /load prep tasks/);
+
+let prepReadError;
+const { ActivityTimeline } = load(
+  "src/components/features/itinerary/activity-timeline.tsx",
+  {
+    "@/lib/api": apiMock,
+    "@/lib/prep": { prepKey: () => ["prep"], usePrepApi: () => ({}) },
+    "@tanstack/react-query": { useQuery: () => ({ error: prepReadError }) },
+    react: { useEffect: (effect) => effect() },
+  },
+);
+const prepAccessFailures = [];
+for (const status of [500, 403, 404]) {
+  prepReadError = new ApiError(status, "Prep unavailable");
+  ActivityTimeline({
+    trip,
+    selected: "2026-10-01",
+    selectedActivities: [activity],
+    onFailure: (error) => prepAccessFailures.push(error.status),
+  });
+}
+assert.deepEqual(
+  prepAccessFailures,
+  [403, 404],
+  "Only Prep access failures reach the trip access handler",
+);
 console.log(
   "Itinerary timezone/DST/precision, board pagination, payloads, permissions, states and cache updates passed.",
 );
@@ -2134,7 +2457,6 @@ const { TripDialog } = load("src/components/shared/trip-dialog.tsx", {
     useEffect() {},
   },
   "@base-ui/react/dialog": { Dialog: dialogParts },
-  "lucide-react": { X: wrap("span") },
   "@/components/ui/button": {
     Button: wrap("button"),
     buttonVariants: () => "button",
@@ -2258,29 +2580,36 @@ console.log(
   "Selected-day additions hide the date picker and start at the latest same-day end.",
 );
 
-// A map failure must leave the selected day's places readable.
+let mapFailed = false;
 const { default: TripMap } = load(
   "src/components/features/itinerary/trip-map.tsx",
   {
-    react: { ...React, useEffect() {}, useState: () => [true, () => {}] },
+    react: { ...React, useEffect() {}, useState: () => [mapFailed, () => {}] },
     "maplibre-gl": {},
     "maplibre-gl/dist/maplibre-gl.css": {},
   },
 );
 const locatedActivity = {
   ...activity,
-  place: { name: "Harbor Cafe", address: "12 Waterfront Road" },
+  place: {
+    name: "Harbor Cafe",
+    address: "12 Waterfront Road ".repeat(30).trim(),
+  },
 };
-const mapHtml = renderToStaticMarkup(
-  React.createElement(TripMap, { activities: [locatedActivity] }),
-);
-assert.match(mapHtml, /map could not load/);
-assert.match(mapHtml, /Harbor Cafe, 12 Waterfront Road/);
+for (mapFailed of [false, true]) {
+  const mapHtml = renderToStaticMarkup(
+    React.createElement(TripMap, { activities: [locatedActivity] }),
+  );
+  assert.equal(mapHtml.includes("map could not load"), mapFailed);
+  assert.match(mapHtml, /Harbor Cafe/);
+  assert.ok(mapHtml.includes(locatedActivity.place.address));
+  assert.doesNotMatch(mapHtml, /class="sr-only">12 Waterfront Road/);
+}
 assert.match(
   renderToStaticMarkup(React.createElement(TripMap, { activities: [] })),
   /Add a place/,
 );
-console.log("Map fallback preserves place details and empty-state guidance.");
+console.log("Map addresses stay visible in both success and failure states.");
 
 uiState = [];
 uiRefs = [];

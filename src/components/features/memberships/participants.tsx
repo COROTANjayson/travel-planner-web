@@ -10,8 +10,7 @@ import {
 } from "@/lib/memberships";
 import { Button } from "@/components/ui/button";
 import { Confirmation } from "@/components/features/memberships/confirmation-dialog";
-import { RoleSelect } from "@/components/features/memberships/role-select";
-import { OptionsMenu } from "@/components/shared/options-menu";
+import { MemberRoleMenu } from "@/components/features/memberships/member-role-menu";
 import { TripError } from "@/components/shared/trip-states";
 
 export function Participants({
@@ -47,64 +46,62 @@ export function Participants({
   }
   return (
     <section className="space-y-3" aria-label="On this trip">
-      <h3 className="font-semibold">On this trip ({participants.length})</h3>
-      <ul>
+      <ul className="divide-y rounded-[16px] border bg-card">
         {participants.map((person) => (
           <li
             key={person.user_id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b py-3 first:pt-0 last:border-0 last:pb-0"
+            className="flex min-h-16 items-center gap-3 py-3 pr-3 pl-3.5 md:pl-4"
           >
             <div className="participant-row flex items-center gap-3 min-w-0 flex-1">
               <span
-                className="participant-avatar flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary font-semibold text-primary"
+                className="participant-avatar flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary font-semibold text-primary"
                 aria-hidden="true"
               >
                 {Array.from(participantName(person))[0].toLocaleUpperCase()}
               </span>
-              <p className="min-w-0 font-medium break-words">
-                {participantName(person)}
-                {person.user_id === current?.user_id && (
-                  <span className="font-normal text-muted-foreground">
-                    {" "}
-                    (you)
-                  </span>
-                )}
-              </p>
+              <div className="min-w-0 space-y-0.5">
+                <p
+                  className="truncate leading-[22px] font-semibold"
+                  title={participantName(person)}
+                >
+                  {person.display_name.trim() ||
+                    person.email?.split("@")[0] ||
+                    participantName(person)}
+                  {person.user_id === current?.user_id && (
+                    <span className="font-normal text-muted-foreground">
+                      {" "}
+                      (you)
+                    </span>
+                  )}
+                </p>
+                {person.email &&
+                  person.email !== person.display_name.trim() && (
+                    <p
+                      className="truncate text-[0.8125rem] leading-5 text-muted-foreground"
+                      title={person.email}
+                    >
+                      {person.email}
+                    </p>
+                  )}
+              </div>
             </div>
             {allowed.manage && person.role !== "owner" ? (
-              <div className="flex w-full items-center gap-2 pl-14 sm:w-auto sm:pl-0">
-                <RoleSelect
-                  id={`role-${person.user_id}`}
-                  label={`Role for ${participantName(person)}`}
-                  value={person.role}
-                  disabled={api.pending}
-                  onChange={(role) => {
-                    if (role !== person.role)
-                      void api.updateRole(person.user_id, role).catch(() => {});
-                  }}
-                />
-                <OptionsMenu
-                  name={participantName(person)}
-                  disabled={api.pending}
-                  items={[
-                    {
-                      label: "Transfer ownership",
-                      onClick: () => {
-                        api.reset();
-                        setConfirm({ action: "transfer", person });
-                      },
-                    },
-                    {
-                      label: "Remove",
-                      destructive: true,
-                      onClick: () => {
-                        api.reset();
-                        setConfirm({ action: "remove", person });
-                      },
-                    },
-                  ]}
-                />
-              </div>
+              <MemberRoleMenu
+                name={participantName(person)}
+                role={person.role}
+                disabled={api.pending}
+                onChange={(role) => {
+                  void api.updateRole(person.user_id, role).catch(() => {});
+                }}
+                onTransfer={() => {
+                  api.reset();
+                  setConfirm({ action: "transfer", person });
+                }}
+                onRemove={() => {
+                  api.reset();
+                  setConfirm({ action: "remove", person });
+                }}
+              />
             ) : (
               <span className="shrink-0 text-sm text-muted-foreground capitalize">
                 {person.role}
@@ -131,12 +128,19 @@ export function Participants({
         (confirm.action === "leave" ? allowed.leave : allowed.manage) && (
           <Confirmation
             pending={api.pending}
+            destructiveLabel={
+              confirm.action === "remove"
+                ? "Remove"
+                : confirm.action === "leave"
+                  ? "Leave trip"
+                  : undefined
+            }
             title={
               confirm.action === "transfer"
                 ? "Transfer ownership?"
                 : confirm.action === "leave"
                   ? "Leave this trip?"
-                  : "Remove participant?"
+                  : "Remove from trip?"
             }
             description={
               confirm.action === "transfer"

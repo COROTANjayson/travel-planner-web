@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, ChevronRight, MapPin } from "lucide-react";
+import {
+  CalendarDotsIcon,
+  CaretRightIcon,
+  MapPinIcon,
+} from "@phosphor-icons/react";
 import {
   formatTripDates,
   tripDayCount,
@@ -35,10 +39,10 @@ export function TripCard({
     <Link
       href={`/trips/${trip.id}`}
       className={cn(
-        "group/card relative isolate flex min-w-0 flex-col gap-7 rounded-3xl border border-transparent p-6 text-foreground no-underline transition-[border-color] duration-150 ease-out",
+        "group/card relative isolate flex min-w-0 flex-col gap-5 rounded-2xl border border-transparent p-5 text-foreground no-underline transition-[border-color] duration-150 ease-out",
         "before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-[url('/coastal/journey.svg')] before:bg-[position:right_-80px_top_-28px] before:bg-no-repeat before:[background-size:260px_200px] before:opacity-[0.38] before:content-['']",
         "hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-ring",
-        "lg:min-h-[15.75rem] lg:px-7 lg:py-6 [@media(width<360px)]:p-5",
+        "lg:min-h-[15.75rem] lg:gap-7 lg:px-7 lg:py-6",
         featured
           ? "lg:col-span-full lg:min-h-[17.5rem] lg:p-7 lg:before:[background-position:right_105px_top_-23px] lg:before:[background-size:410px_290px]"
           : "",
@@ -59,11 +63,11 @@ export function TripCard({
       >
         <div
           className={cn(
-            "mb-6 flex items-center justify-between gap-4 text-muted-foreground",
+            "mb-4 flex items-center justify-between gap-4 text-muted-foreground lg:mb-6",
             past && "col-start-2 row-[1/3] m-0 justify-end [&>svg]:hidden",
           )}
         >
-          <MapPin aria-hidden="true" className="size-4" />
+          <MapPinIcon aria-hidden="true" className="size-4" />
           <span
             className={cn(
               "inline-flex w-fit items-center rounded-full px-3 py-1 text-xs leading-5 font-semibold whitespace-nowrap",
@@ -81,7 +85,7 @@ export function TripCard({
         </div>
         <p
           className={cn(
-            "mb-3 text-[clamp(1.625rem,2.5vw,2rem)] leading-[1.2] tracking-[-0.035em] font-semibold",
+            "mb-2 text-[clamp(1.625rem,2.5vw,2rem)] leading-[1.2] tracking-[-0.035em] font-semibold lg:mb-3",
             past && "m-0 text-[1.375rem]",
             featured && "lg:text-[clamp(2rem,3.3vw,3rem)]",
           )}
@@ -97,14 +101,14 @@ export function TripCard({
       </div>
       <div
         className={cn(
-          "mt-auto flex min-w-0 items-center justify-between gap-4 border-t border-[#c9dbd0] pt-5",
+          "mt-auto flex min-w-0 items-center justify-between gap-4 border-t border-[#c9dbd0] pt-4 lg:pt-5",
           past && "lg:m-0 lg:border-0 lg:p-0",
           featured && "lg:w-[calc(100%-225px)]",
         )}
       >
         <div className="min-w-0">
           <p className="flex items-start gap-2 text-[0.8125rem] leading-[1.6] font-semibold">
-            <CalendarDays
+            <CalendarDotsIcon
               aria-hidden="true"
               className="mt-0.5 size-4 shrink-0"
             />
@@ -129,7 +133,7 @@ export function TripCard({
           )}
         >
           <span className="sr-only">View trip</span>
-          <ChevronRight aria-hidden="true" className="size-[1.125rem]" />
+          <CaretRightIcon aria-hidden="true" className="size-[1.125rem]" />
         </span>
       </div>
       {featured && (

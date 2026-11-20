@@ -1,10 +1,31 @@
 # Travel Planner UI/UX guide
 
-Read this before changing screens or shared UI. This is the source of approved
-frontend design decisions; the API owns domain behavior and authorization.
+Read this before changing any UI. Approved Figma designs are the source of truth
+for visual implementation. This guide records implementation conventions, and
+the API owns domain behavior and authorization.
 Exact implemented theme values live in `src/app/globals.css` and shared UI
 components. Change them centrally within the requested scope. Code paths in this
 guide are relative to the repository root.
+
+## Figma-first UI workflow
+
+1. Before editing any UI, including CSS-only fixes, use the Figma plugin to
+   open the relevant approved frames and components in the
+   [Travel Planner Figma file](https://www.figma.com/design/fSnvj7wJlyAcAUGdWsGxFX/Travel-Planner-%E2%80%94-Coastal-Folio).
+   Confirm which frames are approved. The file also contains generated
+   references that mirror the app.
+2. Check the full affected UI against the approved design, including buttons,
+   forms, component states, typography, icons, colors, alignment, dimensions,
+   gaps, margins, padding, and responsive layouts. Use the Figma measurements
+   and layout properties to guide the implementation.
+3. If a required screen, component, or state is missing, tell the user exactly
+   what needs to be added and wait for their Figma update before implementing
+   that UI. If plugin access is blocked or the approved frame is unclear,
+   report the blocker and wait for verified design context.
+4. Before reporting completion, compare the rendered app and approved Figma
+   frames at matching viewport widths. Measure the affected dimensions and
+   spacing in both, and resolve discrepancies across the affected layouts and
+   states.
 
 ## Coastal Folio design
 
@@ -14,14 +35,12 @@ and rebuilds navigation and Trips. Step 2 extends this direction to trip details
 the day rail and activity detail views. Landing, authentication and forms retain
 their existing layouts and behavior.
 
-The [Figma file](https://www.figma.com/design/fSnvj7wJlyAcAUGdWsGxFX/Travel-Planner-%E2%80%94-Coastal-Folio)
-has three generated pages: Foundations (colors, type, spacing, radius), Components
-and Screens. They are rebuilt from this repository's tokens and components by a
-local Figma plugin, so edit the code or this guide, not those pages. The Screens
-page shows the [form simplification](#form-simplification-approved-design-not-yet-built)
-design for New trip, Add activity and Add expense, and the
-[Prep redesign](#prep-redesign-approved-design-not-yet-built), which the app does
-not implement yet; its other screens show the app as built.
+The Figma file includes Foundations (colors, type, spacing, radius), Components,
+and Screens. A local Figma plugin generates reference content from the
+repository's tokens and components. Screens also contains the approved
+[form simplification](#form-simplification-approved-design-not-yet-built) for
+Add activity and Add expense and the approved
+[Prep redesign](#prep-redesign-approved-design-not-yet-built).
 
 - Self-host Manrope through `next/font/local`; use its variable font for headings,
   controls and reading. Preserve wrapping, rem sizing and browser text scaling.
@@ -40,6 +59,15 @@ not implement yet; its other screens show the app as built.
 - Primary actions use pill shapes, shared reading cards 16px radii, trip cards
   24px, dialogs 24px, and sidebar right corners 28px. Use borders for reading
   surfaces and restrained shadows only for floating navigation and overlays.
+- Match measured Figma radius values to the project's actual tokens:
+  `rounded-xl` is 16px, `rounded-2xl` is 24px, and `rounded-3xl` is 32px at
+  the default root font size. Reading cards, maps, and bordered content lists
+  use 16px; trip cards and summaries use 24px. Desktop dialogs use 24px;
+  mobile sheets use 24px top corners and square bottom corners. Check approved
+  component variants before applying exceptions. Verify computed browser radii
+  on compact and wide surfaces at matching Figma viewport widths. Interaction
+  overlays inherit their card's radius, and nested backgrounds follow the
+  enclosing corners. Loading surfaces match the corresponding loaded surface.
 - Keep touch controls at least 44px and primary form controls 48px; inputs 16px.
   Avoid fixed text heights, preserve clear keyboard focus, and reserve safe-area
   clearance for navigation and actions. Do not introduce a dark-mode UI.
@@ -95,8 +123,15 @@ not implement yet; its other screens show the app as built.
   activity details. Cards have no three-dot menu; align Edit and Delete to the
   right in details. Preserve keyboard activation,
   visible focus, and at least 44px control touch targets.
-- Trip creation asks for destination, dates, then a name (next design: see
-  [Form simplification](#form-simplification-approved-design-not-yet-built)).
+- Trip creation searches when the traveler selects Search or presses Enter.
+  It shows the resolved place, time zone, and a Change action. Start and End
+  open the date’s month in a shared range calendar, inline on desktop and in a
+  sheet on mobile. Show the inclusive trip length and suggest “Trip to
+  {destination}” while preserving custom names. Use “My trip” when the
+  destination-based suggestion exceeds the API’s name limit.
+- Use a centered form card and Cancel on desktop. On mobile, use the page as
+  the form, a Close action in the header, and a pinned Create trip bar in
+  place of the dock. The bar summarizes the trip or says what is missing.
   Exact times remain optional in a secondary section. If a destination
   change requires clearing entered exact times, explain and confirm the change;
   preserve the dates as the existing form does.
@@ -143,7 +178,7 @@ not implement yet; its other screens show the app as built.
   without a second full-width toolbar. Reserve room for both controls.
 - Use View map to open the existing dialog at every screen size; do not reserve
   a permanent map column. Pins and the place list follow the selected day and
-  identify activities.
+  identify activities. Keep full addresses visible in the place list.
   Keep itinerary/place details usable when the map fails.
 - Show destination, dates, selected day, and trip zone clearly. Render the
   itinerary and conflicts in the trip zone using existing time helpers.
@@ -273,19 +308,6 @@ endpoints, and no new libraries (Base UI `Combobox` is already installed).
 - Buttons: every button variant is pill-shaped, so a Cancel beside a primary
   action has the same corners. Today only the primary variant is a pill; the
   outline, secondary, ghost and destructive variants use 16px corners.
-- Create trip, destination: results appear in a list under the field as the
-  person types (2 or more characters, debounced), using the existing search and
-  resolve calls. There is no Search button. Once chosen, the field collapses to
-  one row with the destination, its time zone and a Change action. If the
-  backend cannot take search-as-you-type, keep the Search button.
-- Create trip, dates: keep the native date inputs. Choosing a start date fills an
-  empty end date with the same day. Show the inclusive length ("5 days") under
-  the row once both are set.
-- Create trip, name: pre-fill "Trip to {destination}" when a destination is
-  chosen and the name is empty or still the previous suggestion. Never overwrite
-  a name the person typed.
-- Create trip, exact times: the checkbox reads "Add arrival and departure times
-  (optional)". Its position and behavior are unchanged.
 - Empty day: for owners and editors, the "Nothing planned yet" card holds an
   outlined Add activity button. Add activity above the timeline stays the only
   filled action. Viewers see no button.
@@ -375,7 +397,8 @@ activities, which replaces the activity To do list and needs backend work.
   separate View expenses button. Notes keeps its own pencil.
 - Activity cards: an activity with prep tasks shows one line under the place,
   "2 of 3 prep done", or "1 prep task for you" in teal when one waits on you.
-  Cards without tasks show nothing.
+  Cards without tasks show nothing. If Prep cannot load, offer a retry above
+  the timeline. Route access errors through the trip’s access handling.
 - Add activity: the To do pill becomes Prep task. It opens title-only task
   lines with Add another, saved as up for grabs; people are assigned later from
   the activity.

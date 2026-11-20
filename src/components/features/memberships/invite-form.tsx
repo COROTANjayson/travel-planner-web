@@ -35,15 +35,17 @@ export function InviteForm({
   }
   return (
     <section className="space-y-3" aria-label="Invite someone">
-      <h3 className="font-semibold">Invite someone</h3>
+      <h3 className="leading-[22px] font-semibold">Invite someone</h3>
       <form
         onSubmit={(event) => void create(event)}
-        className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end sm:gap-x-2"
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3"
       >
-        <div className="space-y-2">
+        <div className="col-span-2 space-y-2">
           <Label htmlFor="invite-email">Email they sign in with</Label>
           <Input
             id="invite-email"
+            className="bg-card md:min-h-12"
+            placeholder="name@example.com"
             type="email"
             required
             maxLength={320}
@@ -52,7 +54,7 @@ export function InviteForm({
             onChange={(event) => setEmail(event.target.value)}
           />
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="flex min-w-0 flex-col gap-2">
           <Label htmlFor="invite-role">Role</Label>
           <RoleSelect
             id="invite-role"
@@ -62,14 +64,14 @@ export function InviteForm({
           />
         </div>
         <Button
-          className="w-full sm:w-auto md:min-h-11"
+          className="h-12 font-normal"
           type="submit"
           disabled={api.pending}
         >
           {api.pending ? "Inviting…" : "Invite"}
         </Button>
       </form>
-      <p className="text-sm leading-6 text-muted-foreground">
+      <p className="text-[0.8125rem] leading-5 text-muted-foreground">
         They&apos;ll find it in their Invitations. No email is sent.
       </p>
       {api.error && <InvitationError error={api.error} />}

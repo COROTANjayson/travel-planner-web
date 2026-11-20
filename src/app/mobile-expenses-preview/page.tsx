@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ArrowLeft, Ellipsis } from "lucide-react";
+import { ArrowLeftIcon, DotsThreeIcon } from "@phosphor-icons/react";
 import { Expenses } from "@/components/features/expenses/expenses";
 import { MobileBottomNav } from "@/components/features/account/mobile-bottom-nav";
 import { Button } from "@/components/ui/button";
@@ -172,7 +172,7 @@ export default function Preview() {
                 variant="ghost"
                 aria-label="Back to itinerary"
               >
-                <ArrowLeft />
+                <ArrowLeftIcon aria-hidden="true" />
               </Button>
               <p className="min-w-0 flex-1 text-sm font-medium">
                 Trip expenses
@@ -182,7 +182,7 @@ export default function Preview() {
                 variant="ghost"
                 aria-label="Trip options"
               >
-                <Ellipsis />
+                <DotsThreeIcon aria-hidden="true" />
               </Button>
             </div>
             <header className="planning-header [display:flex] [flex-direction:column] [gap:0.75rem] [&>nav]:[order:-1] [&>nav]:[width:100%] [&>nav]:[align-items:center] md:[&]:[margin-bottom:0.75rem]">

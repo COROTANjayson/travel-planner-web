@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { ApiError, useApi } from "@/lib/api";
 import {
   type ActivityLedger,
@@ -132,7 +132,7 @@ export function ActivityExpenseDrafts({
           disabled={adding}
           onClick={startAdding}
         >
-          <Plus aria-hidden="true" className="size-3.5" />
+          <PlusIcon aria-hidden="true" className="size-3.5" />
           Expense
         </Button>
       ) : (
@@ -237,7 +237,7 @@ export function ActivityExpenseDrafts({
             disabled={adding}
             onClick={startAdding}
           >
-            <Plus aria-hidden="true" className="size-3.5" />
+            <PlusIcon aria-hidden="true" className="size-3.5" />
             {costs.length ? "Add another expense" : "Add expense"}
           </Button>
         </div>

@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Plus, Briefcase } from "lucide-react";
+import {
+  CalendarDotsIcon,
+  PlusIcon,
+  BriefcaseIcon,
+} from "@phosphor-icons/react";
 import {
   orderTrips,
   tripStatus,
@@ -69,7 +73,7 @@ export default function TripsPage() {
   return (
     <div className="trips-overview grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-6 lg:gap-6 [@media(width<360px)]:gap-x-0 [@media(width<360px)]:gap-y-5 [&>:not(nav,[data-order])]:col-span-full">
       <div className="hidden items-center lg:flex gap-2 text-sm text-muted-foreground">
-        <Briefcase aria-hidden="true" className="size-4" />
+        <BriefcaseIcon aria-hidden="true" className="size-4" />
         My trips
       </div>
       <div className="col-span-full mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-5 lg:mb-3 lg:gap-8">
@@ -87,7 +91,7 @@ export default function TripsPage() {
           render={<Link href="/trips/new" />}
           nativeButton={false}
         >
-          <Plus aria-hidden="true" className="size-5" />
+          <PlusIcon aria-hidden="true" className="size-5" />
           <span className="hidden md:inline">Create a trip</span>
         </Button>
         <SearchField
@@ -112,7 +116,7 @@ export default function TripsPage() {
         data-order
         className="hidden items-center justify-self-end gap-2 text-xs text-muted-foreground lg:flex"
       >
-        <CalendarDays aria-hidden="true" className="size-3.5" />
+        <CalendarDotsIcon aria-hidden="true" className="size-3.5" />
         Ongoing first, then upcoming
       </p>
       <p

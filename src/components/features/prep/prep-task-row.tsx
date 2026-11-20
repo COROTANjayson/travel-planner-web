@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckCircleIcon, CircleIcon } from "@phosphor-icons/react";
 import { OptionsMenu } from "@/components/shared/options-menu";
 import { Button } from "@/components/ui/button";
 import { dateLabel, localDate } from "@/lib/activity-time";
@@ -66,7 +66,7 @@ export function PrepTaskRow({
   const assignee = task.assignee ? participantName(task.assignee) : "";
   const ready = task.ready_user_ids.length;
   const total = ready + task.waiting_user_ids.length;
-  const Icon = isTaskDone(task) ? CheckCircle2 : Circle;
+  const Icon = isTaskDone(task) ? CheckCircleIcon : CircleIcon;
   // One-person tasks: [label, variant, shown, action].
   const actions = [
     ["Claim", "outline", active && !finished && !task.assignee, api.claim],
@@ -78,7 +78,7 @@ export function PrepTaskRow({
     <li
       id={`prep-task-${task.id}`}
       tabIndex={-1}
-      className="flex items-start gap-1 rounded-2xl border bg-card p-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="flex items-start gap-1 rounded-xl border bg-card p-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       {tickable ? (
         <label className="flex size-11 shrink-0 cursor-pointer items-center justify-center">

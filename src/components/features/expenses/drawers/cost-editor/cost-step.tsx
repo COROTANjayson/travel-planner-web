@@ -5,7 +5,7 @@ import { ExpenseSummary } from "@/components/features/expenses/expense-layout";
 import { ExpenseAmountPanel } from "@/components/features/expenses/expense-amount-panel";
 
 import { fieldRequired } from "@/components/shared/field-required";
-import { ChevronRight } from "lucide-react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { ExpensePriceField } from "@/components/features/expenses/expense-fields";
 import { ExpenseSelect } from "@/components/features/expenses/expense-forms";
 import { Button } from "@/components/ui/button";
@@ -230,7 +230,7 @@ export function CostStep({
               ? `${expenseName(people.find((p) => p.user_id === coverer))} · reservation ${plannedLabel}`
               : "Decide later"}
           </span>
-          <ChevronRight aria-hidden="true" />
+          <CaretRightIcon aria-hidden="true" />
         </Button>
       </div>
     </>

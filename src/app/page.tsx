@@ -1,4 +1,4 @@
-import { ArrowRight, Compass } from "lucide-react";
+import { ArrowRightIcon, CompassIcon } from "@phosphor-icons/react/ssr";
 import { AuthPanel } from "@/components/features/account/auth-panel";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ export default function Home() {
             className="inline-flex min-h-12 items-center gap-2 font-semibold tracking-tight"
           >
             <span className="inline-flex size-9 items-center justify-center rounded-xl bg-[var(--ocean)] text-white">
-              <Compass aria-hidden="true" className="size-5" />
+              <CompassIcon aria-hidden="true" className="size-5" />
             </span>
             Travel Planner
           </Link>
@@ -47,7 +47,7 @@ export default function Home() {
               render={<Link href="/trips/new" />}
               nativeButton={false}
             >
-              Plan a trip <ArrowRight aria-hidden="true" />
+              Plan a trip <ArrowRightIcon aria-hidden="true" />
             </Button>
             <p className="mt-4 text-sm text-muted-foreground">
               Sign in to save your plans and invite your people.

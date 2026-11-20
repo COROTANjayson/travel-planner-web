@@ -79,54 +79,74 @@ export function ConflictList({
           }}
         />
       )}
-      <ul className="space-y-4">
+      <ul className="divide-y rounded-xl border bg-card">
         {conflicts.map((conflict) => (
-          <li
-            key={conflict.activity_ids.join("-")}
-            className="space-y-2 border-b pb-4 last:border-0 last:pb-0"
-          >
-            <p className="break-words font-medium">
-              {title(conflict.activity_ids[0])} and{" "}
-              {title(conflict.activity_ids[1])}
-            </p>
-            <p className="text-sm">
-              <time dateTime={conflict.overlap_starts_at}>
-                {formatActivityTime(conflict.overlap_starts_at, trip.time_zone)}
-              </time>{" "}
-              –{" "}
-              <time dateTime={conflict.overlap_ends_at}>
-                {formatActivityTime(conflict.overlap_ends_at, trip.time_zone)}
-              </time>
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="min-h-11"
-                onClick={() =>
-                  onViewDay(
-                    localDate(conflict.overlap_starts_at, trip.time_zone),
-                  )
-                }
-              >
-                View day
-              </Button>
-              {onEdit &&
-                conflict.activity_ids.map((id) => (
-                  <Button
-                    key={id}
-                    type="button"
-                    variant="ghost"
-                    className="min-h-11"
-                    disabled={!activityFor(id)}
-                    onClick={() => {
-                      const activity = activityFor(id);
-                      if (activity) onEdit(activity);
-                    }}
-                  >
-                    Edit {title(id)}
-                  </Button>
-                ))}
+          <li key={conflict.activity_ids.join("-")} className="divide-y">
+            {conflict.activity_ids.map((id) => {
+              const activity = activityFor(id);
+              return (
+                <div key={id} className="space-y-1 px-3.5 py-3 md:p-4">
+                  <p className="text-[0.9375rem] leading-5 font-semibold break-words">
+                    {title(id)}
+                  </p>
+                  {activity && (
+                    <p className="text-[0.8125rem] leading-5 text-muted-foreground">
+                      <time dateTime={activity.starts_at}>
+                        {formatActivityTime(activity.starts_at, trip.time_zone)}
+                      </time>{" "}
+                      –{" "}
+                      <time dateTime={activity.ends_at}>
+                        {formatActivityTime(activity.ends_at, trip.time_zone)}
+                      </time>
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+            <div className="space-y-2 px-3.5 py-3 md:p-4">
+              <p className="text-[0.8125rem] leading-5 text-muted-foreground">
+                Overlap{" "}
+                <time dateTime={conflict.overlap_starts_at}>
+                  {formatActivityTime(
+                    conflict.overlap_starts_at,
+                    trip.time_zone,
+                  )}
+                </time>{" "}
+                –{" "}
+                <time dateTime={conflict.overlap_ends_at}>
+                  {formatActivityTime(conflict.overlap_ends_at, trip.time_zone)}
+                </time>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={() =>
+                    onViewDay(
+                      localDate(conflict.overlap_starts_at, trip.time_zone),
+                    )
+                  }
+                >
+                  View day
+                </Button>
+                {onEdit &&
+                  conflict.activity_ids.map((id) => (
+                    <Button
+                      key={id}
+                      type="button"
+                      variant="ghost"
+                      className="min-h-11"
+                      disabled={!activityFor(id)}
+                      onClick={() => {
+                        const activity = activityFor(id);
+                        if (activity) onEdit(activity);
+                      }}
+                    >
+                      Edit {title(id)}
+                    </Button>
+                  ))}
+              </div>
             </div>
           </li>
         ))}

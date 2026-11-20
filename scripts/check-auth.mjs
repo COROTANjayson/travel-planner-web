@@ -248,7 +248,6 @@ async function checkSessionRecovery() {
   assert.match(html(), /Try again/);
   assert.match(html(), /Log out/);
   profile = { data: { display_name: "Alex", email: "alex@example.com" } };
-  assert.match(html(), /Welcome back/);
   assert.match(html(), /Alex/);
   assert.match(html(), /alex@example.com/);
   assert.doesNotMatch(html(), /Sign up/);

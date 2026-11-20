@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import type { Screen } from "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace";
 import { Button } from "@/components/ui/button";
 import type { Expense, PaymentStatus } from "@/lib/expenses";
@@ -92,7 +92,7 @@ export function PaymentListScreen({
                           .join("")}`}
               </span>
               <span className="payment-row-action [display:inline-flex] [gap:4px] [align-items:center] [font-size:12px] [font-weight:600] [color:var(--primary)] [&_svg]:[width:14px] [&_svg]:[height:14px]">
-                View payment <ChevronRight aria-hidden="true" />
+                View payment <CaretRightIcon aria-hidden="true" />
               </span>
             </span>
           </button>

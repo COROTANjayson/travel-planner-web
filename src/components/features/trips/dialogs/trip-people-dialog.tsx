@@ -1,6 +1,6 @@
 "use client";
 
-import { Users } from "lucide-react";
+import { UsersIcon } from "@phosphor-icons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { InviteForm } from "@/components/features/memberships/invite-form";
 import { Participants } from "@/components/features/memberships/participants";
@@ -32,7 +32,14 @@ export function TripPeopleDialog({
   return (
     <TripDialog
       title="People"
-      className="[&_[data-slot=trip-dialog-header]]:items-center"
+      description={
+        members.data ? `${members.data.length} on this trip` : undefined
+      }
+      className="data-[nested-dialog-open]:opacity-0 md:max-w-[560px]"
+      mobilePresentation="tall-sheet"
+      itineraryStyle
+      focusTitleOnChange
+      initialFocus={false}
       keepMounted
       open={peopleOpen}
       onOpenChange={setPeopleOpen}
@@ -58,14 +65,14 @@ export function TripPeopleDialog({
             </span>
           ) : (
             <>
-              <Users aria-hidden="true" />
+              <UsersIcon aria-hidden="true" />
               People
             </>
           )}
         </Button>
       }
     >
-      <div className="space-y-8">
+      <div className="space-y-4 md:space-y-5">
         {canManage && <InviteForm id={id} onFailure={handleFailure} />}
         {members.isPending ? (
           <p role="status">Loading participants...</p>

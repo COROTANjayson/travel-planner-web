@@ -1,13 +1,11 @@
 "use client";
 
 import type { ReactNode, RefObject } from "react";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontalIcon } from "@phosphor-icons/react";
 import { TripDialog } from "@/components/shared/trip-dialog";
 import { Button } from "@/components/ui/button";
-import { dateLabel } from "@/lib/activity-time";
 
 export function DayOptionsDialog({
-  selected,
   dayOptionsOpen,
   setDayOptionsOpen,
   mapOpen,
@@ -15,7 +13,6 @@ export function DayOptionsDialog({
   dayOptionsTrigger,
   dayTools,
 }: {
-  selected: string;
   dayOptionsOpen: boolean;
   setDayOptionsOpen: (open: boolean) => void;
   mapOpen: boolean;
@@ -26,7 +23,7 @@ export function DayOptionsDialog({
   return (
     <TripDialog
       title="Day options"
-      description={dateLabel(selected)}
+      itineraryStyle
       mobilePresentation="sheet"
       open={dayOptionsOpen}
       onOpenChange={setDayOptionsOpen}
@@ -36,15 +33,15 @@ export function DayOptionsDialog({
       trigger={
         <Button
           variant="ghost"
-          className="size-11"
+          className="size-11 min-h-11 p-0"
           ref={dayOptionsTrigger}
           aria-label="Day options"
         >
-          <SlidersHorizontal aria-hidden="true" />
+          <SlidersHorizontalIcon aria-hidden="true" className="size-5" />
         </Button>
       }
     >
-      <div className="mobile-day-options [&_nav]:[flex-direction:column] [&_nav]:[gap:0.25rem] [&_[data-slot='button']]:[min-height:48px] [&_[data-slot='button']]:[justify-content:flex-start] [&_[data-slot='button']]:[padding-inline:0.75rem]">
+      <div className="mobile-day-options [&_nav]:[flex-direction:column] [&_nav]:[gap:0.25rem] [&_[data-slot='button']]:[min-height:48px] [&_[data-slot='button']]:[justify-content:flex-start] [&_[data-slot='button']]:rounded-xl [&_[data-slot='button']]:gap-3 [&_[data-slot='button']]:px-3 [&_[data-slot='button']]:text-base [&_[data-slot='button']]:font-normal [&_svg]:size-5">
         {dayTools}
       </div>
     </TripDialog>

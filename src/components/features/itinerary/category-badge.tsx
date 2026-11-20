@@ -1,4 +1,4 @@
-import { Tag } from "lucide-react";
+import { TagIcon } from "@phosphor-icons/react";
 import { activityCategoryIcons } from "@/lib/itinerary";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ export function CategoryBadge({
 }) {
   const Icon = Object.hasOwn(activityCategoryIcons, category)
     ? activityCategoryIcons[category]
-    : Tag;
+    : TagIcon;
   return (
     <span
       className={cn(

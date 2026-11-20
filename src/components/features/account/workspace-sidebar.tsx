@@ -3,13 +3,13 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
-  Briefcase,
-  ChevronDown,
-  Compass,
-  Mail,
-  Plus,
-  UserRound,
-} from "lucide-react";
+  BriefcaseIcon,
+  CaretDownIcon,
+  CompassIcon,
+  EnvelopeSimpleIcon,
+  PlusIcon,
+  UserIcon,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -36,7 +36,7 @@ export function WorkspaceSidebar({
         aria-label="Travel Planner home"
       >
         <span className="inline-flex size-11 items-center justify-center rounded-[0.875rem] bg-[#28585d] text-[#f1faf6]">
-          <Compass aria-hidden="true" className="size-[1.625rem]" />
+          <CompassIcon aria-hidden="true" className="size-[1.625rem]" />
         </span>
         <span>
           Travel
@@ -49,7 +49,7 @@ export function WorkspaceSidebar({
         render={<Link href="/trips/new" />}
         nativeButton={false}
       >
-        <Plus aria-hidden="true" />
+        <PlusIcon aria-hidden="true" />
         Create a trip
       </Button>
       <nav className="sidebar-links grid gap-3" aria-label="Main navigation">
@@ -58,7 +58,7 @@ export function WorkspaceSidebar({
           aria-current={pathname.startsWith("/trips") ? "page" : undefined}
           className="flex min-h-12 items-center gap-3 rounded-[0.875rem] px-4 py-3 text-sm text-[var(--ocean-text)] hover:bg-[#28585d] hover:text-white aria-[current=page]:bg-[#28585d] aria-[current=page]:text-white"
         >
-          <Briefcase aria-hidden="true" className="size-5 shrink-0" />
+          <BriefcaseIcon aria-hidden="true" className="size-5 shrink-0" />
           My trips
         </Link>
         <Link
@@ -68,7 +68,7 @@ export function WorkspaceSidebar({
           }
           className="flex min-h-12 items-center gap-3 rounded-[0.875rem] px-4 py-3 text-sm text-[var(--ocean-text)] hover:bg-[#28585d] hover:text-white aria-[current=page]:bg-[#28585d] aria-[current=page]:text-white"
         >
-          <Mail aria-hidden="true" className="size-5 shrink-0" />
+          <EnvelopeSimpleIcon aria-hidden="true" className="size-5 shrink-0" />
           Invitations
         </Link>
       </nav>
@@ -91,7 +91,7 @@ export function WorkspaceSidebar({
             }
           >
             <span className="sidebar-avatar grid size-10 flex-none place-items-center rounded-full bg-[#28585d]">
-              <UserRound
+              <UserIcon
                 aria-hidden="true"
                 className="size-[1.125rem] shrink-0"
               />
@@ -104,7 +104,7 @@ export function WorkspaceSidebar({
                 Make yourself at home
               </small>
             </span>
-            <ChevronDown
+            <CaretDownIcon
               aria-hidden="true"
               className="size-[1.125rem] shrink-0"
             />

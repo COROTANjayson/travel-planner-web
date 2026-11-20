@@ -13,12 +13,14 @@ import {
 
 export function Confirmation({
   title,
+  destructiveLabel,
   description,
   pending,
   onCancel,
   onConfirm,
 }: {
   title: string;
+  destructiveLabel?: "Remove" | "Revoke" | "Leave trip";
   description: string;
   pending: boolean;
   onCancel: () => void;
@@ -31,7 +33,7 @@ export function Confirmation({
         if (!open && !pending) onCancel();
       }}
     >
-      <AlertDialogContent className="w-[calc(100%-2rem)]">
+      <AlertDialogContent tripSheet>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription className="break-words">
@@ -42,8 +44,13 @@ export function Confirmation({
           <AlertDialogCancel className="min-h-11" disabled={pending}>
             Cancel
           </AlertDialogCancel>
-          <Button className="min-h-11" disabled={pending} onClick={onConfirm}>
-            {pending ? "Saving…" : "Confirm"}
+          <Button
+            className="min-h-11"
+            variant={destructiveLabel ? "destructive" : "default"}
+            disabled={pending}
+            onClick={onConfirm}
+          >
+            {pending ? "Saving…" : (destructiveLabel ?? "Confirm")}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

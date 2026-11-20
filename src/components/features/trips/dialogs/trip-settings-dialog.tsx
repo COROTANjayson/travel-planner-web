@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings } from "lucide-react";
+import { GearIcon } from "@phosphor-icons/react";
 import { DeleteTripDialog } from "@/components/features/trips/dialogs/delete-trip-dialog";
 import { TripForm } from "@/components/features/trips/trip-form";
 import { TripDialog } from "@/components/shared/trip-dialog";
@@ -39,6 +39,10 @@ export function TripSettingsDialog({
   return (
     <TripDialog
       title="Trip settings"
+      className="md:max-w-[560px]"
+      mobilePresentation="tall-sheet"
+      itineraryStyle
+      bodyClassName="pb-0"
       description="Update your destination, dates, and time zone."
       open={editing}
       onOpenChange={(open) => {
@@ -53,7 +57,7 @@ export function TripSettingsDialog({
           className="trip-settings [padding:0] size-11 min-h-11 [&]:[color:var(--muted-foreground)] [&:hover]:[color:var(--foreground)]"
           aria-label="Trip settings"
         >
-          <Settings aria-hidden="true" className="size-5" />
+          <GearIcon aria-hidden="true" className="size-5" />
         </Button>
       }
     >
@@ -77,16 +81,18 @@ export function TripSettingsDialog({
             Cancel
           </Button>
         }
+        beforeActions={
+          canManage && (
+            <div className="mt-6 border-t pt-5">
+              <DeleteTripDialog
+                confirming={confirming}
+                setConfirming={setConfirming}
+                remove={remove}
+              />
+            </div>
+          )
+        }
       />
-      {canManage && (
-        <div className="mt-6 border-t pt-5">
-          <DeleteTripDialog
-            confirming={confirming}
-            setConfirming={setConfirming}
-            remove={remove}
-          />
-        </div>
-      )}
     </TripDialog>
   );
 }

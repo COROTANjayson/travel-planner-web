@@ -54,7 +54,7 @@ export default function InvitationsPage() {
 
   return (
     <section
-      className="form-surface [--form-surface:var(--card)] mx-auto w-full max-w-[44rem] rounded-2xl border border-border bg-card p-8 space-y-6"
+      className="form-surface [--form-surface:var(--card)] mx-auto w-full max-w-[44rem] rounded-xl border border-border bg-card p-8 space-y-6"
       aria-labelledby="invitations-heading"
     >
       <div className="form-heading pb-6 border-b border-border space-y-3">

@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useAuth0 } from "@auth0/auth0-react";
 import { type ReactNode } from "react";
 import { AuthPanel } from "@/components/features/account/auth-panel";
-import { Compass } from "lucide-react";
+import { CompassIcon } from "@phosphor-icons/react";
 
 export default function TripsLayout({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth0();
 
   return (
     <div
-      className="app-shell flex min-h-dvh flex-col bg-background text-foreground [&]:[--app-top:calc(56px_+_env(safe-area-inset-top,_0px))] [&]:[--app-bottom:calc(6rem_+_env(safe-area-inset-bottom,_0px))] [&:has(.trip-detail)_>_main#trips-main]:[padding-top:1rem] max-md:[&:has(.trips-overview)_>_.content-shell]:[padding-inline:max(1.25rem,_env(safe-area-inset-left,_0px))_max(1.25rem,_env(safe-area-inset-right,_0px))] max-md:[&:has(.mobile-trip-header)_>_.app-topbar]:[visibility:hidden] max-md:[&:has(.mobile-bottom-nav)_>_footer]:[padding-bottom:calc(var(--app-bottom)_+_24px)] max-md:[&_>_main#trips-main]:[padding-bottom:calc(var(--app-bottom)_+_24px)] max-md:[&:has(.mobile-add-activity)_>_main#trips-main]:[padding-bottom:calc(var(--app-bottom)_+_72px)] max-md:[&_.form-actions]:[bottom:var(--app-bottom)] max-md:[&_.form-surface]:[border:0] max-md:[&_.form-surface]:[border-radius:0] max-md:[&_.form-surface]:[background:transparent] max-md:[&_.form-surface]:[padding:0] max-md:[&_.form-surface]:[--form-surface:var(--background)] md:[&:has(.trip-detail)_>_main#trips-main]:[padding-top:0.5rem] lg:[&[data-authenticated='true']]:[padding-left:236px] lg:[&[data-authenticated='true']_>_.app-topbar]:[display:none] lg:[&[data-authenticated='true']_>_.content-shell]:[padding:2rem_2.5rem] max-[360px]:[&:has(.trips-overview)_>_.content-shell]:[padding-inline:1rem] max-md:[&:has(.trip-expenses-page)_>_main#trips-main]:[padding-inline:max(12px,_env(safe-area-inset-left,_0px))_max(12px,_env(safe-area-inset-right,_0px))] max-md:[&:has(.trip-expenses-page)_>_main#trips-main]:[padding-top:12px]"
+      className="max-md:[&:has(.new-trip)_.mobile-bottom-nav]:hidden max-md:[&:has(.new-trip)_>_.app-topbar]:hidden max-md:[&:has(.new-trip)_>_main#trips-main]:[padding-inline:max(1.25rem,env(safe-area-inset-left))_max(1.25rem,env(safe-area-inset-right))] max-md:[&:has(.new-trip)_>_main#trips-main]:pt-0 app-shell flex min-h-dvh flex-col bg-background text-foreground [&]:[--app-top:calc(56px_+_env(safe-area-inset-top,_0px))] [&]:[--app-bottom:calc(6rem_+_env(safe-area-inset-bottom,_0px))] [&:has(.trip-detail)_>_main#trips-main]:[padding-top:1rem] max-md:[&:has(.trip-itinerary)_>_main#trips-main]:pt-5 max-md:[&:has(.trips-overview)_>_.content-shell]:[padding-inline:max(1.25rem,_env(safe-area-inset-left,_0px))_max(1.25rem,_env(safe-area-inset-right,_0px))] max-md:[&:has(.mobile-trip-header)_>_.app-topbar]:[visibility:hidden] max-md:[&:has(.mobile-bottom-nav)_>_footer]:[padding-bottom:calc(var(--app-bottom)_+_24px)] max-md:[&_>_main#trips-main]:[padding-bottom:calc(var(--app-bottom)_+_24px)] max-md:[&:has(.mobile-add-activity)_>_main#trips-main]:[padding-bottom:calc(var(--app-bottom)_+_72px)] max-md:[&_.form-actions]:[bottom:var(--app-bottom)] max-md:[&_.form-surface]:[border:0] max-md:[&_.form-surface]:[border-radius:0] max-md:[&_.form-surface]:[background:transparent] max-md:[&_.form-surface]:[padding:0] max-md:[&_.form-surface]:[--form-surface:var(--background)] md:[&:has(.trip-detail)_>_main#trips-main]:[padding-top:0.5rem] lg:[&[data-authenticated='true']]:[padding-left:236px] lg:[&[data-authenticated='true']_>_.app-topbar]:[display:none] lg:[&[data-authenticated='true']_>_.content-shell]:[padding:2rem_2.5rem] lg:[&[data-authenticated='true']:has(.trip-itinerary)_>_main#trips-main]:[padding:2rem_3rem_3rem] max-[360px]:[&:has(.trips-overview)_>_.content-shell]:[padding-inline:1rem] max-md:[&:has(.trip-expenses-page)_>_main#trips-main]:[padding-inline:max(12px,_env(safe-area-inset-left,_0px))_max(12px,_env(safe-area-inset-right,_0px))] max-md:[&:has(.trip-expenses-page)_>_main#trips-main]:[padding-top:12px]"
       data-authenticated={isAuthenticated}
     >
       <a
@@ -32,7 +32,7 @@ export default function TripsLayout({ children }: { children: ReactNode }) {
             className="inline-flex min-h-12 items-center gap-2 font-semibold tracking-tight"
           >
             <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--ocean)] text-white">
-              <Compass aria-hidden="true" className="size-5" />
+              <CompassIcon aria-hidden="true" className="size-5" />
             </span>
             Travel Planner
           </Link>
@@ -53,7 +53,7 @@ export default function TripsLayout({ children }: { children: ReactNode }) {
         ) : isAuthenticated ? (
           children
         ) : (
-          <div className="form-surface [--form-surface:var(--card)] mx-auto w-full max-w-[44rem] rounded-2xl border border-border bg-card p-8 space-y-3">
+          <div className="form-surface [--form-surface:var(--card)] mx-auto w-full max-w-[44rem] rounded-xl border border-border bg-card p-8 space-y-3">
             <h1 className="page-title text-3xl font-[650] leading-[1.2] tracking-[-0.03em] text-balance md:[&]:[font-size:2.25rem]">
               Sign in to manage your trips
             </h1>

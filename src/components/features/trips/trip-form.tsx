@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
+import { PlusIcon, SunIcon } from "@phosphor-icons/react";
 import { ApiError, useApi } from "@/lib/api";
 import { instantToLocal, localToInstant } from "@/lib/activity-time";
 import { type Place, type PlaceCandidate } from "@/lib/places";
 import {
   tripInput,
+  formatTripDates,
+  tripDayCount,
   validateTrip,
   type Trip,
   type TripInput,
@@ -14,11 +17,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/shared/form-field";
+import { fieldRequired } from "@/components/shared/field-required";
 import { Label } from "@/components/ui/label";
 import { type LocalDraft } from "@/components/shared/date-time-field";
 import { TripError } from "@/components/shared/trip-states";
 import { DestinationSearch } from "@/components/features/trips/destination-search";
 import { ExactTimesSection } from "@/components/features/trips/exact-times-section";
+import { TripRangeFields } from "@/components/features/trips/trip-range-fields";
 
 export type Destination = Pick<
   Place,
@@ -27,19 +32,23 @@ export type Destination = Pick<
 const empty: LocalDraft = { value: "", occurrence: "" };
 
 export function TripForm({
+  creating = false,
   initialValue,
   onSubmit,
   pending,
   error,
   submitLabel,
   cancel,
+  beforeActions,
 }: {
+  creating?: boolean;
   initialValue?: Trip;
   onSubmit: (input: TripInput) => void;
   pending: boolean;
   error: unknown;
   submitLabel: string;
   cancel: ReactNode;
+  beforeActions?: ReactNode;
 }) {
   const api = useApi();
   const [name, setName] = useState(initialValue?.name ?? "");
@@ -74,8 +83,30 @@ export function TripForm({
   const [searchError, setSearchError] = useState<unknown>(null);
   const [searchPending, setSearchPending] = useState(false);
   const [validationError, setValidationError] = useState<string>();
+  const [changing, setChanging] = useState(false);
+
+  const start = times.start.value.slice(0, 10);
+  const end = times.end.value.slice(0, 10);
+  const days =
+    creating && start && end && end >= start ? tripDayCount(start, end) : 0;
+  const duration = `${days} ${days === 1 ? "day" : "days"}`;
+  const destinationBasedName = destination ? `Trip to ${destination.name}` : "";
+  const suggestion =
+    new TextEncoder().encode(destinationBasedName).length <= 200
+      ? destinationBasedName
+      : "My trip";
+  const createHint =
+    !destination || !start || !end
+      ? "Add a destination and dates"
+      : !days
+        ? "Fix the end date to continue"
+        : exactTimes &&
+            (!times.start.value.slice(11) || !times.end.value.slice(11))
+          ? "Add arrival and departure times"
+          : "";
 
   async function search() {
+    if (pending || searchPending) return;
     const term = query.trim();
     const size = new TextEncoder().encode(term).length;
     if (size < 2 || size > 200) {
@@ -136,6 +167,14 @@ export function TripForm({
         destination.time_zone !== selected.time_zone &&
         exactTimes
       ) {
+        if (
+          creating &&
+          (times.start.value.slice(11) || times.end.value.slice(11)) &&
+          !window.confirm(
+            "Changing the destination’s time zone clears the arrival and departure times. Continue?",
+          )
+        )
+          return;
         setTimes((current) => ({
           start: {
             value: `${current.start.value.slice(0, 10)}T`,
@@ -144,6 +183,8 @@ export function TripForm({
           end: { value: `${current.end.value.slice(0, 10)}T`, occurrence: "" },
         }));
       }
+      setChanging(false);
+      setQuery("");
       setDestination(selected);
       setResults(null);
       setValidationError(undefined);
@@ -156,12 +197,13 @@ export function TripForm({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pending || searchPending) return;
+    if (pending || searchPending || (creating && (changing || createHint)))
+      return;
     try {
       if (!destination)
         throw new Error("Select a destination from the search results.");
       const input = tripInput({
-        name,
+        name: creating ? name.trim() || suggestion : name,
         destination_place_id: destination.id,
         start_date: times.start.value.slice(0, 10),
         end_date: times.end.value.slice(0, 10),
@@ -194,74 +236,145 @@ export function TripForm({
   }
 
   return (
-    <form onSubmit={submit} className="max-w-[40rem] space-y-6">
+    <form
+      onSubmit={submit}
+      className={
+        creating
+          ? "max-w-[40rem] space-y-6"
+          : "flex min-h-full flex-col space-y-6"
+      }
+    >
       <fieldset
         disabled={pending || searchPending}
-        className="min-w-0 space-y-5"
+        className={creating ? "min-w-0 space-y-7" : "min-w-0 space-y-4"}
       >
         <DestinationSearch
           destination={destination}
+          changing={changing}
+          setChanging={setChanging}
           query={query}
-          setQuery={setQuery}
+          setQuery={
+            creating
+              ? (value) => {
+                  setQuery(value);
+                  setResults(null);
+                  setSearchError(null);
+                }
+              : setQuery
+          }
           search={search}
           choose={choose}
           results={results}
           searchPending={searchPending}
           searchError={searchError}
         />
-        <div className="form-section border-t border-border pt-6 grid gap-5 sm:grid-cols-2">
-          {(["start", "end"] as const).map((field) => (
-            <div key={field} className="min-w-0 space-y-2">
-              <Label htmlFor={`trip-${field}-date`}>
-                {field === "start" ? "Start date" : "End date"}
-              </Label>
-              <Input
-                id={`trip-${field}-date`}
-                type="date"
-                required
-                className="min-h-11"
-                value={times[field].value.slice(0, 10)}
-                min={
-                  field === "end"
-                    ? times.start.value.slice(0, 10) || undefined
-                    : undefined
-                }
-                max="9999-12-31"
-                onChange={(event) => {
-                  const date = event.target.value;
-                  setTimes((current) => ({
-                    ...current,
-                    [field]: {
-                      value: `${date}T${current[field].value.slice(11)}`,
-                      occurrence: "",
-                    },
-                  }));
-                  setValidationError(undefined);
-                }}
-              />
-            </div>
-          ))}
-        </div>
-        <div className="form-section border-t border-border pt-6 space-y-2">
+        {creating ? (
+          <div className="space-y-3">
+            <TripRangeFields
+              dates={{ start, end }}
+              onChange={(dates) => {
+                setTimes((current) => ({
+                  start:
+                    dates.start === start
+                      ? current.start
+                      : {
+                          value: `${dates.start}T${current.start.value.slice(11)}`,
+                          occurrence: "",
+                        },
+                  end:
+                    dates.end === end
+                      ? current.end
+                      : {
+                          value: `${dates.end}T${current.end.value.slice(11)}`,
+                          occurrence: "",
+                        },
+                }));
+                setValidationError(undefined);
+              }}
+            />
+            {exactTimes && renderExactTimes(true)}
+            {!!days && destination && (
+              <p className="flex w-fit items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-sm">
+                <SunIcon
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-primary"
+                />
+                {duration} in {destination.name}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {(["start", "end"] as const).map((field) => (
+              <div key={field} className="min-w-0 space-y-2">
+                <Label htmlFor={`trip-${field}-date`} className={fieldRequired}>
+                  {field === "start" ? "Start date" : "End date"}
+                </Label>
+                <Input
+                  id={`trip-${field}-date`}
+                  type="date"
+                  required
+                  className="min-h-11"
+                  value={times[field].value.slice(0, 10)}
+                  min={
+                    field === "end"
+                      ? times.start.value.slice(0, 10) || undefined
+                      : undefined
+                  }
+                  max="9999-12-31"
+                  onChange={(event) => {
+                    const date = event.target.value;
+                    setTimes((current) => ({
+                      ...current,
+                      [field]: {
+                        value: `${date}T${current[field].value.slice(11)}`,
+                        occurrence: "",
+                      },
+                    }));
+                    setValidationError(undefined);
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+        <div className={creating ? "space-y-2" : "space-y-2"}>
           <FormField
             id="trip-name"
-            label="Give your trip a name"
-            className="min-h-11"
-            required
-            placeholder="e.g. A long weekend in Cebu"
+            label={creating ? "Trip name" : "Give your trip a name"}
+            className={creating ? "min-h-12" : "min-h-11"}
+            required={!creating}
+            placeholder={
+              creating
+                ? suggestion || "We’ll name it after your destination"
+                : "e.g. A long weekend in Cebu"
+            }
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
+          {creating && destination && !name.trim() && (
+            <p className="text-sm text-muted-foreground">
+              Leave blank to use “{suggestion}”.
+            </p>
+          )}
         </div>
-        <ExactTimesSection
-          exactTimes={exactTimes}
-          setExactTimes={setExactTimes}
-          destination={destination}
-          times={times}
-          setTimes={setTimes}
-          pending={pending}
-          setValidationError={setValidationError}
-        />
+        {creating ? (
+          <Button
+            type="button"
+            variant="link"
+            aria-expanded={exactTimes}
+            className="min-h-11 px-0 whitespace-normal text-left"
+            onClick={() => {
+              setExactTimes(!exactTimes);
+              setValidationError(undefined);
+            }}
+          >
+            {!exactTimes && <PlusIcon aria-hidden="true" className="size-4" />}
+            {exactTimes ? "Remove times" : "Add arrival and departure times"}
+          </Button>
+        ) : (
+          renderExactTimes(false)
+        )}
       </fieldset>
       {validationError && (
         <Alert variant="destructive">
@@ -269,16 +382,55 @@ export function TripForm({
         </Alert>
       )}
       {!!error && <TripError error={error} />}
-      <div className="form-actions sticky bottom-0 z-10 flex flex-wrap gap-3 border-t border-border bg-[var(--form-surface,var(--background))] py-4 [.activity-form_>_&]:[justify-content:flex-end] [.activity-form_>_&]:[margin-inline:-1.5rem] [.activity-form_>_&]:[padding-inline:1.5rem] [.activity-form_>_&_>_:first-child]:[flex:0_1_auto] max-md:[&_>_*]:[min-width:0] max-md:[&_>_*]:[white-space:normal] max-md:[&_>_:first-child]:[flex:1_1_10rem] [.activity-planning-form_>_&]:[padding-bottom:max(1rem,_env(safe-area-inset-bottom))] [.activity-planning-form_>_&]:[background:var(--background)] [.activity-section-form_>_&]:[position:static] [.activity-section-form_>_&]:[justify-content:flex-end] [.activity-section-form_>_&]:[margin-top:16px] [.activity-section-form_>_&]:[padding:0] [.activity-section-form_>_&]:[border-top:0] [.activity-section-form_>_&]:[background:transparent] [.activity-section-form_>_&_>_[data-slot='button']]:[flex:0_0_6rem] [.activity-section-form_>_&_>_[data-slot='button']]:[width:6rem] [.activity-section-form_>_&_>_[data-slot='button']]:[min-height:44px] [.activity-section-form_>_&_>_[data-slot='button']]:[border-radius:0.75rem]">
-        <Button
-          type="submit"
-          className="min-h-11"
-          disabled={pending || searchPending}
-        >
-          {pending ? "Saving…" : submitLabel}
-        </Button>
-        {cancel}
-      </div>
+      {beforeActions}
+      {creating ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 grid gap-2 border-t bg-card px-5 pt-2.5 pb-[max(1rem,env(safe-area-inset-bottom))] md:static md:flex md:items-center md:justify-end md:gap-3 md:border-0 md:p-0">
+          <p
+            aria-live="polite"
+            className="text-center text-xs text-muted-foreground md:mr-auto md:text-left md:text-sm"
+          >
+            {createHint || (
+              <span className="block truncate md:hidden">
+                {destination?.name} · {formatTripDates(start, end)} · {duration}
+              </span>
+            )}
+          </p>
+          <div className="hidden md:block">{cancel}</div>
+          <Button
+            type="submit"
+            className="min-h-12 w-full md:w-auto"
+            disabled={pending || searchPending || changing || !!createHint}
+          >
+            {pending ? "Saving…" : submitLabel}
+          </Button>
+        </div>
+      ) : (
+        <div className="sticky bottom-0 z-10 -mx-6 mt-auto grid grid-cols-2 gap-3 border-t bg-background px-6 py-4 md:flex md:justify-end">
+          {cancel}
+          <Button
+            type="submit"
+            className="min-h-11"
+            disabled={pending || searchPending}
+          >
+            {pending ? "Saving…" : submitLabel}
+          </Button>
+        </div>
+      )}
     </form>
   );
+
+  function renderExactTimes(fieldsOnly: boolean) {
+    return (
+      <ExactTimesSection
+        fieldsOnly={fieldsOnly}
+        exactTimes={exactTimes}
+        setExactTimes={setExactTimes}
+        destination={destination}
+        times={times}
+        setTimes={setTimes}
+        pending={pending}
+        setValidationError={setValidationError}
+      />
+    );
+  }
 }

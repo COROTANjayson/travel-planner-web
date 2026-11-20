@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import { createRequire } from "node:module";
+import * as phosphor from "@phosphor-icons/react";
 import ts from "typescript";
 
 const nodeRequire = createRequire(import.meta.url);
@@ -54,6 +55,7 @@ export function createLoader({
         exports,
         require: (id) => {
           if (allMocks[id]) return allMocks[id];
+          if (id === "@phosphor-icons/react") return phosphor;
           const local = localFile(id, current);
           return local ? run(path.normalize(local), true) : nodeRequire(id);
         },

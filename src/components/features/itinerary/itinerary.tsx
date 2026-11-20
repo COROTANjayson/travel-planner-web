@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { ActivityExpenseView } from "@/components/features/expenses/activity-expenses";
 import { useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
-import { Plus, Pencil } from "lucide-react";
+import { PlusIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 import { ApiError } from "@/lib/api";
 import { type Activity, useItineraryApi } from "@/lib/itinerary";
 import {
@@ -403,7 +403,7 @@ export function Itinerary({
         disabled={api.pending || editing !== null}
         onClick={() => startSectionEdit(section)}
       >
-        <Pencil aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
+        <PencilSimpleIcon aria-hidden="true" className="size-3.5" />
       </Button>
     );
   const sectionAddButton = (section: typeof editSection, label: string) =>
@@ -416,7 +416,7 @@ export function Itinerary({
         disabled={api.pending || editing !== null}
         onClick={() => startSectionEdit(section)}
       >
-        <Plus aria-hidden="true" className="size-3.5" />
+        <PlusIcon aria-hidden="true" className="size-3.5" />
         {label}
       </Button>
     );
@@ -425,7 +425,7 @@ export function Itinerary({
     <div className="coastal-itinerary flex min-w-0 flex-col gap-6 max-md:[&]:[gap:1rem]">
       <section
         aria-labelledby="itinerary-heading"
-        className="itinerary-workspace [min-width:0] lg:[&]:[display:grid] lg:[&]:[grid-template-columns:10rem_minmax(0,_1fr)] lg:[&]:[gap:1.75rem] lg:[&]:[align-items:start]"
+        className="itinerary-workspace min-w-0 max-md:flex max-md:flex-col max-md:gap-4 lg:[&]:[display:grid] lg:[&]:[grid-template-columns:10rem_minmax(0,_1fr)] lg:[&]:[gap:1.75rem] lg:[&]:[align-items:start]"
       >
         <DayRail
           trip={trip}
@@ -437,7 +437,7 @@ export function Itinerary({
           dayRail={dayRail}
         />
         <div className="itinerary-agenda [min-width:0] [display:flex] [flex-direction:column] [gap:1rem]">
-          <div className="itinerary-toolbar [background:var(--background)] flex flex-wrap items-center justify-between gap-2 md:[&]:[padding-bottom:0.5rem] md:[&_>_[data-slot='button']]:[min-height:2.75rem]">
+          <div className="itinerary-toolbar [background:var(--background)] flex flex-wrap items-center justify-between gap-2 md:[&_>_[data-slot='button']]:[min-height:2.75rem]">
             <h2 id="itinerary-heading" className="sr-only">
               Daily itinerary
             </h2>
@@ -446,14 +446,14 @@ export function Itinerary({
                 id={`day-${selected}-heading`}
                 ref={selectedHeading}
                 tabIndex={-1}
-                className="day-summary [font-size:1.25rem] [font-weight:600] [letter-spacing:-0.02em] [line-height:1.4] outline-none focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-ring"
+                className="day-summary text-lg leading-[1.625rem] font-semibold md:text-xl md:leading-7 outline-none focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <time dateTime={selected}>{fullDateLabel(selected)}</time>
               </h3>
               <p
                 role="status"
                 aria-live="polite"
-                className="itinerary-day-meta [font-size:0.75rem] [line-height:1.75] [color:var(--muted-foreground)] [margin-top:0.25rem]"
+                className="itinerary-day-meta text-xs leading-4 [color:var(--muted-foreground)] [margin-top:0.25rem]"
               >
                 Day {dayNumber} of {dayCount} ·{" "}
                 {activities.isPending
@@ -468,7 +468,6 @@ export function Itinerary({
             </div>
             <div className="md:hidden">
               <DayOptionsDialog
-                selected={selected}
                 dayOptionsOpen={dayOptionsOpen}
                 setDayOptionsOpen={setDayOptionsOpen}
                 mapOpen={mapOpen}
@@ -484,7 +483,7 @@ export function Itinerary({
                 disabled={api.pending || editing !== null}
                 onClick={(event) => addActivity(selected, event.currentTarget)}
               >
-                <Plus aria-hidden="true" />
+                <PlusIcon aria-hidden="true" />
                 Add activity
               </Button>
             )}
@@ -526,7 +525,23 @@ export function Itinerary({
                   trip={trip}
                   selected={selected}
                   selectedActivities={selectedActivities}
-                  canEdit={canEdit}
+                  emptyAction={
+                    canEdit && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={api.pending || editing !== null}
+                        onClick={(event) =>
+                          addActivity(selected, event.currentTarget)
+                        }
+                      >
+                        <PlusIcon aria-hidden="true" />
+                        Add activity
+                      </Button>
+                    )
+                  }
+                  onFailure={onFailure}
+                  currentUserID={current?.user_id}
                   viewing={viewing}
                   setViewing={setViewing}
                   detailTriggerRef={detailTrigger}
@@ -540,7 +555,7 @@ export function Itinerary({
                 disabled={api.pending || editing !== null}
                 onClick={(event) => addActivity(selected, event.currentTarget)}
               >
-                <Plus aria-hidden="true" />
+                <PlusIcon aria-hidden="true" />
                 Add activity
               </Button>
             </div>

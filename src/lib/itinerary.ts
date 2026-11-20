@@ -1,23 +1,23 @@
 "use client";
 
 import {
-  Coffee,
-  Plane,
-  Sparkles,
-  Utensils,
-  type LucideIcon,
-} from "lucide-react";
+  CoffeeIcon,
+  AirplaneIcon,
+  MountainsIcon,
+  ForkKnifeIcon,
+  type Icon,
+} from "@phosphor-icons/react";
 import { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, useApi } from "@/lib/api";
 import { type Place } from "@/lib/places";
 import { toast } from "sonner";
 
-export const activityCategoryIcons: Record<string, LucideIcon> = {
-  Rest: Coffee,
-  Eating: Utensils,
-  Travel: Plane,
-  Activity: Sparkles,
+export const activityCategoryIcons: Record<string, Icon> = {
+  Rest: CoffeeIcon,
+  Eating: ForkKnifeIcon,
+  Travel: AirplaneIcon,
+  Activity: MountainsIcon,
 };
 
 export const activityCategories = [

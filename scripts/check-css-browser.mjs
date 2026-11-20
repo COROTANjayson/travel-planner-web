@@ -173,6 +173,13 @@ export default async function checkCssBrowser(
       ),
       `Landing page overflows at ${width}px`,
     );
+    check(
+      (await page
+        .locator(".sample-itinerary")
+        .evaluate((element) => getComputedStyle(element).borderRadius)) ===
+        "16px",
+      `Sample itinerary must retain its 16px radius at ${width}px`,
+    );
   }
   return "CSS browser checks passed: responsive layouts, repayment amount, drawer sizing, keyboard focus, reduced motion and high contrast.";
 }

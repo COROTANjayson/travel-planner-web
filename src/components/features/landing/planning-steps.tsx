@@ -1,4 +1,8 @@
-import { CalendarDays, MapPin, Users } from "lucide-react";
+import {
+  CalendarDotsIcon,
+  MapPinIcon,
+  UsersIcon,
+} from "@phosphor-icons/react/ssr";
 
 export function PlanningSteps() {
   return (
@@ -13,7 +17,7 @@ export function PlanningSteps() {
         <div className="planning-steps mt-7 grid gap-6 md:grid-cols-3 md:gap-8">
           <article className="border-t border-border pt-5">
             <h3 className="flex items-center gap-2 font-semibold">
-              <MapPin aria-hidden="true" className="size-4 text-primary" />
+              <MapPinIcon aria-hidden="true" className="size-4 text-primary" />
               Choose your destination
             </h3>
             <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
@@ -22,7 +26,7 @@ export function PlanningSteps() {
           </article>
           <article className="border-t border-border pt-5">
             <h3 className="flex items-center gap-2 font-semibold">
-              <CalendarDays
+              <CalendarDotsIcon
                 aria-hidden="true"
                 className="size-4 text-primary"
               />
@@ -35,7 +39,7 @@ export function PlanningSteps() {
           </article>
           <article className="border-t border-border pt-5">
             <h3 className="flex items-center gap-2 font-semibold">
-              <Users aria-hidden="true" className="size-4 text-primary" />
+              <UsersIcon aria-hidden="true" className="size-4 text-primary" />
               Bring your people
             </h3>
             <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">

@@ -48,7 +48,7 @@ export function PendingInvitations({
   return (
     <section className="space-y-3" aria-label="Waiting to join">
       {waiting.length > 0 && (
-        <h3 className="font-semibold">Waiting to join ({waiting.length})</h3>
+        <h3 className="leading-[22px] font-semibold">Waiting to join</h3>
       )}
       {api.error && <InvitationError error={api.error} />}
       {invitations.isPending ? (
@@ -61,14 +61,14 @@ export function PendingInvitations({
         />
       ) : (
         waiting.length > 0 && (
-          <ul>
+          <ul className="divide-y rounded-[16px] border bg-card">
             {waiting.map((invitation) => (
               <li
                 key={invitation.id}
-                className="flex items-center gap-3 border-b py-3 first:pt-0 last:border-0 last:pb-0"
+                className="flex min-h-16 items-center gap-3 py-3 pr-3 pl-3.5 md:pl-4"
               >
                 <span
-                  className="participant-avatar flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary font-semibold text-primary"
+                  className="participant-avatar flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary font-semibold text-primary"
                   aria-hidden="true"
                 >
                   {participantInitials({
@@ -76,9 +76,14 @@ export function PendingInvitations({
                     email: invitation.email,
                   })}
                 </span>
-                <div className="min-w-0 flex-1 break-words">
-                  <p className="font-medium">{invitation.email}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p
+                    className="truncate leading-[22px] font-semibold"
+                    title={invitation.email}
+                  >
+                    {invitation.email}
+                  </p>
+                  <p className="truncate text-[0.8125rem] leading-5 text-muted-foreground">
                     <span className="capitalize">{invitation.role}</span> ·{" "}
                     <time dateTime={invitation.expires_at}>
                       {invitationExpiry(invitation)}
@@ -86,8 +91,8 @@ export function PendingInvitations({
                   </p>
                 </div>
                 <Button
-                  className="min-h-11"
-                  variant="outline"
+                  className="min-h-11 shrink-0 px-2 text-xs"
+                  variant="ghost"
                   disabled={api.pending}
                   onClick={() => {
                     api.reset();
@@ -104,6 +109,7 @@ export function PendingInvitations({
       {revoke && (
         <Confirmation
           title="Revoke invitation?"
+          destructiveLabel="Revoke"
           description={`Revoke the invitation for ${revoke.email}?`}
           pending={api.pending}
           onCancel={() => setRevoke(null)}

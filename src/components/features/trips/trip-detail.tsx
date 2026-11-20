@@ -13,7 +13,11 @@ import { Prep } from "@/components/features/prep/prep";
 import { Itinerary } from "@/components/features/itinerary/itinerary";
 import { formatTripDates, type TripInput, useTripsApi } from "@/lib/trips";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ListChecks, Receipt } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  ListChecksIcon,
+  ReceiptIcon,
+} from "@phosphor-icons/react";
 import { TripOptionsDialog } from "@/components/features/trips/dialogs/trip-options-dialog";
 import { TripPeopleDialog } from "@/components/features/trips/dialogs/trip-people-dialog";
 import { TripSettingsDialog } from "@/components/features/trips/dialogs/trip-settings-dialog";
@@ -134,7 +138,9 @@ export function TripDetail({
   }
 
   return (
-    <div className="trip-detail mx-auto flex w-full max-w-6xl flex-col gap-3">
+    <div
+      className={`trip-detail mx-auto flex w-full max-w-6xl flex-col ${view ? "gap-3" : "trip-itinerary gap-4 lg:gap-6"}`}
+    >
       <div className="mobile-trip-header fixed inset-x-0 top-0 z-40 flex min-h-[var(--app-top)] items-center gap-2 border-b bg-background pt-[env(safe-area-inset-top,0px)] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] md:hidden">
         <Button
           variant="ghost"
@@ -143,14 +149,18 @@ export function TripDetail({
           render={<Link href={backHref} />}
           nativeButton={false}
         >
-          <ArrowLeft aria-hidden="true" />
+          <ArrowLeftIcon
+            aria-hidden="true"
+            className={view ? undefined : "size-5"}
+          />
         </Button>
-        <p className="min-w-0 flex-1 text-sm font-medium">
-          {`Trip ${view ?? "itinerary"}`}
+        <p className="min-w-0 flex-1 truncate text-sm font-medium">
+          {view ? `Trip ${view}` : trip.data.name}
         </p>
         <TripOptionsDialog
           tripID={id}
           tripName={trip.data.name}
+          itineraryStyle={!view}
           memberCount={members.data?.length}
           canEdit={allowed.edit}
           menuOpen={menuOpen}
@@ -176,7 +186,7 @@ export function TripDetail({
           pending={me.isFetching}
         />
       )}
-      <header className="planning-header [display:flex] [flex-direction:column] [gap:0.75rem] [&>nav]:[order:-1] [&>nav]:[width:100%] [&>nav]:[align-items:center] md:[&]:[margin-bottom:0.75rem]">
+      <header className="planning-header flex flex-col gap-3 [&>nav]:order-first [&>nav]:w-full [&>nav]:items-center has-[.trip-summary]:gap-6 md:mb-3 lg:has-[.trip-summary]:mb-0">
         <div className="min-w-0 flex-1">
           {view ? (
             <div className="trip-summary-compact [display:flex] [flex-wrap:wrap] [align-items:baseline] [gap:0.25rem_0.75rem] [&_h1]:[font-size:1.25rem] [&_h1]:[line-height:1.25] [&_h1]:[font-weight:600] [&_h1]:[letter-spacing:-0.025em] [&_p]:[font-size:0.8125rem] [&_p]:[color:var(--muted-foreground)]">
@@ -199,7 +209,7 @@ export function TripDetail({
               render={<Link href={backHref} />}
               nativeButton={false}
             >
-              <ArrowLeft aria-hidden="true" />
+              <ArrowLeftIcon aria-hidden="true" />
               {backLabel}
             </Button>
             {!view && (
@@ -210,7 +220,7 @@ export function TripDetail({
                   render={<Link href={`/trips/${id}/expenses`} />}
                   nativeButton={false}
                 >
-                  <Receipt aria-hidden="true" />
+                  <ReceiptIcon aria-hidden="true" />
                   Expenses
                 </Button>
                 <Button
@@ -219,7 +229,7 @@ export function TripDetail({
                   render={<Link href={`/trips/${id}/prep`} />}
                   nativeButton={false}
                 >
-                  <ListChecks aria-hidden="true" />
+                  <ListChecksIcon aria-hidden="true" />
                   Prep
                 </Button>
               </>

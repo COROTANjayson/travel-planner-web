@@ -1,7 +1,11 @@
 "use client";
 
 import type { RefObject } from "react";
-import { CalendarCheck, CalendarDays, MapPin } from "lucide-react";
+import {
+  CalendarCheckIcon,
+  CalendarDotsIcon,
+  MapPinIcon,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { dateLabel } from "@/lib/activity-time";
 import type { Trip } from "@/lib/trips";
@@ -50,7 +54,7 @@ export function DayTools({
               setSelected(today);
             }}
           >
-            <CalendarDays aria-hidden="true" />
+            <CalendarDotsIcon aria-hidden="true" />
             Today
           </Button>
         )}
@@ -65,7 +69,7 @@ export function DayTools({
           setMapOpen(true);
         }}
       >
-        <MapPin aria-hidden="true" />
+        <MapPinIcon aria-hidden="true" />
         View map
       </Button>
       {(conflictsFailed || dayConflictCount > 0) && (
@@ -80,7 +84,7 @@ export function DayTools({
             setConflictsOpen(true);
           }}
         >
-          <CalendarCheck aria-hidden="true" />
+          <CalendarCheckIcon aria-hidden="true" />
           Overlaps
           <span className="rounded-full px-2 py-0.5 text-xs">
             {conflictsFailed ? "Unavailable" : dayConflictCount}

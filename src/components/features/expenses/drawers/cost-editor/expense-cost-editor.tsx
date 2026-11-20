@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ApiError, useApi } from "@/lib/api";
 import { Temporal } from "@js-temporal/polyfill";
-import { Users } from "lucide-react";
+import { UsersIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   expenseMoney,
@@ -417,7 +417,7 @@ export function ExpenseCostEditor({
               </span>
             ) : (
               <>
-                <Users aria-hidden="true" />
+                <UsersIcon aria-hidden="true" />
                 Members
               </>
             )}

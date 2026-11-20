@@ -39,11 +39,13 @@ export function DeleteTripDialog({
       }}
     >
       <AlertDialogTrigger
-        render={<Button className="min-h-11" variant="destructive" />}
+        render={
+          <Button type="button" className="min-h-11" variant="destructive" />
+        }
       >
         Delete trip
       </AlertDialogTrigger>
-      <AlertDialogContent className="w-[calc(100%-2rem)]">
+      <AlertDialogContent tripSheet>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete this trip?</AlertDialogTitle>
           <AlertDialogDescription>
@@ -51,7 +53,11 @@ export function DeleteTripDialog({
             and recorded payments. This cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {remove.error && <TripError error={remove.error} />}
+        {remove.error && (
+          <div className="px-6 pb-4">
+            <TripError error={remove.error} />
+          </div>
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel className="min-h-11" disabled={remove.isPending}>
             Cancel

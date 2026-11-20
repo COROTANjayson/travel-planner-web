@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ChevronDown, UserRound } from "lucide-react";
+import { CaretDownIcon, UserIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -42,9 +42,9 @@ export function DesktopAccountNav({
         <PopoverTrigger
           render={<Button variant="ghost" className="min-h-11" />}
         >
-          <UserRound aria-hidden="true" className="size-4" />
+          <UserIcon aria-hidden="true" className="size-4" />
           My account
-          <ChevronDown aria-hidden="true" className="size-4" />
+          <CaretDownIcon aria-hidden="true" className="size-4" />
         </PopoverTrigger>
         <PopoverContent
           align="end"

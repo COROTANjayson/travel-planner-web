@@ -2,7 +2,7 @@
 
 import { ExpenseAmountPanel } from "@/components/features/expenses/expense-amount-panel";
 
-import { UserRound } from "lucide-react";
+import { UserIcon } from "@phosphor-icons/react";
 import { ExpenseNumberInput } from "@/components/features/expenses/expense-number-input";
 import { expenseMoney } from "@/lib/money";
 import type { Currency, Debt } from "@/lib/expenses";
@@ -29,7 +29,7 @@ export function RepaymentConfirmation({
     <div className="repayment-confirmation mx-auto max-w-lg space-y-6">
       <div className="flex items-start gap-3">
         <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
-          <UserRound className="size-5" aria-hidden="true" />
+          <UserIcon className="size-5" aria-hidden="true" />
         </span>
         <div className="min-w-0 space-y-3 [overflow-wrap:anywhere]">
           <div>

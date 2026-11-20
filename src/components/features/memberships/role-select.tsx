@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const roleHelp: Record<AssignableRole, string> = {
+export const roleHelp: Record<AssignableRole, string> = {
   editor: "Can change the trip, activities, prep tasks, and all expenses",
   member: "Can view plans, take prep tasks, and record expenses and payments",
   viewer: "Can view the trip but can't change anything",
@@ -37,7 +37,11 @@ export function RoleSelect({
           onChange(role);
       }}
     >
-      <SelectTrigger id={id} aria-label={label} className="w-full sm:w-32">
+      <SelectTrigger
+        id={id}
+        aria-label={label}
+        className="w-full md:data-[size=default]:min-h-12"
+      >
         <SelectValue className="capitalize" />
       </SelectTrigger>
       <SelectContent

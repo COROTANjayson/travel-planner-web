@@ -1,7 +1,7 @@
 "use client";
 
 import type { TZDate } from "react-day-picker";
-import { CalendarDays } from "lucide-react";
+import { CalendarDotsIcon } from "@phosphor-icons/react";
 import type { LocalDraft } from "@/components/shared/date-time-field";
 import { TripDialog } from "@/components/shared/trip-dialog";
 import type { inspectLocalTime } from "@/lib/activity-time";
@@ -68,7 +68,7 @@ export function DateTimePickerSheet({
           disabled={disabled}
           className="min-h-11 w-full justify-start font-normal"
         >
-          <CalendarDays className="size-4" />
+          <CalendarDotsIcon aria-hidden="true" className="size-4" />
           {date
             ? `${date}${split ? "" : ` ${time || "Choose time"}`}`
             : split

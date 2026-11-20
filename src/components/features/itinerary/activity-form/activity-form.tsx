@@ -5,7 +5,7 @@ import { FormField } from "@/components/shared/form-field";
 import { useId, useRef, useState, type Ref, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
-import { Plus } from "lucide-react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { ApiError, useApi } from "@/lib/api";
 import {
   activityCategories,
@@ -318,7 +318,7 @@ export function ActivityForm({
       aria-label={`Add ${label.toLowerCase()}`}
       onClick={onClick}
     >
-      <Plus aria-hidden="true" className="size-3.5" />
+      <PlusIcon aria-hidden="true" className="size-3.5" />
       {label}
     </Button>
   );
@@ -337,7 +337,7 @@ export function ActivityForm({
         ]);
       }}
     >
-      <Plus aria-hidden="true" className="size-3.5" />
+      <PlusIcon aria-hidden="true" className="size-3.5" />
       {pill ? "To do" : "Add to-do item"}
     </Button>
   );

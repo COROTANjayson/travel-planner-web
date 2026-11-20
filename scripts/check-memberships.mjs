@@ -135,18 +135,16 @@ const wrap = (tag) =>
 let invitationQuery;
 const membershipMocks = {
   "@tanstack/react-query": { useQuery: () => invitationQuery },
-  "@/components/ui/popover": Object.fromEntries(
-    ["Popover", "PopoverContent", "PopoverTitle", "PopoverTrigger"].map(
-      (key) => [key, wrap("div")],
-    ),
-  ),
   "@/lib/memberships": {
     ...membership,
     useMembershipsApi: () => ({ pending: false }),
   },
   "@/lib/api": apiModule,
   "next/navigation": { useRouter: () => ({}) },
-  "@/components/ui/button": { Button: wrap("button") },
+  "@/components/ui/button": {
+    Button: ({ children, "aria-label": label }) =>
+      React.createElement("button", { "aria-label": label }, children),
+  },
   "@/components/ui/input": { Input: wrap("input") },
   "@/components/ui/label": { Label: wrap("label") },
   "@/components/ui/card": Object.fromEntries(
@@ -183,10 +181,11 @@ for (const role of ["owner", "editor", "member", "viewer", undefined]) {
       onFailure: () => {},
     }),
   );
-  assert.equal(html.includes("Transfer ownership"), role === "owner");
-  assert.equal(html.includes(">Remove<"), role === "owner");
+  assert.equal(
+    html.includes('aria-label="Role for Sam: member"'),
+    role === "owner",
+  );
   assert.equal(html.includes("Leave trip"), !!role && role !== "owner");
-  if (role === "owner") assert.equal((html.match(/>Remove</g) || []).length, 1);
 }
 
 const waitingHtml = (query) => {
@@ -217,7 +216,7 @@ const waiting = waitingHtml({
   isSuccess: true,
   data: [waitingInvitation, ...closedInvitations],
 });
-assert.match(waiting, /Waiting to join \(1\)/);
+assert.match(waiting, />Waiting to join<\/h3>/);
 assert.match(waiting, /sam@example\.com/);
 assert.match(waiting, /Expires in 6 days/);
 assert.equal((waiting.match(/>Revoke</g) || []).length, 1);

@@ -1,17 +1,23 @@
-import { Check, Coffee, MapPin, Sparkles, Utensils } from "lucide-react";
+import {
+  CheckIcon,
+  CoffeeIcon,
+  MapPinIcon,
+  SparkleIcon,
+  ForkKnifeIcon,
+} from "@phosphor-icons/react/ssr";
 
 export function SampleItinerary() {
   return (
     <aside
       aria-label="Sample itinerary"
-      className="sample-itinerary surface border border-border rounded-2xl bg-card min-w-0 p-5 sm:p-6 [&]:[border-top:3px_solid_var(--primary)]"
+      className="sample-itinerary surface border border-border rounded-xl bg-card min-w-0 p-5 sm:p-6 [&]:[border-top:3px_solid_var(--primary)]"
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-5">
         <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-primary">
           Sample itinerary
         </span>
         <span className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin aria-hidden="true" className="size-4" />
+          <MapPinIcon aria-hidden="true" className="size-4" />
           Lisbon, Portugal
         </span>
       </div>
@@ -30,21 +36,21 @@ export function SampleItinerary() {
             title: "Coffee in the neighborhood",
             place: "A local cafe",
             category: "Rest",
-            Icon: Coffee,
+            Icon: CoffeeIcon,
           },
           {
             time: "11:00",
             title: "Wander the old town",
             place: "Alfama",
             category: "Activity",
-            Icon: Sparkles,
+            Icon: SparkleIcon,
           },
           {
             time: "18:30",
             title: "Dinner together",
             place: "By the waterfront",
             category: "Eating",
-            Icon: Utensils,
+            Icon: ForkKnifeIcon,
           },
         ].map((stop) => (
           <li
@@ -69,7 +75,7 @@ export function SampleItinerary() {
         ))}
       </ol>
       <p className="mt-6 flex items-start gap-2 border-t pt-4 text-xs leading-5 text-muted-foreground">
-        <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+        <CheckIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
         Just an example. Your itinerary starts with your own ideas.
       </p>
     </aside>

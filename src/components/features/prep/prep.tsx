@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { AssignPrepTaskDialog } from "@/components/features/prep/dialogs/assign-prep-task-dialog";
 import { DeletePrepTaskDialog } from "@/components/features/prep/dialogs/delete-prep-task-dialog";
 import { PrepTaskDialog } from "@/components/features/prep/dialogs/prep-task-dialog";
@@ -120,7 +120,7 @@ export function Prep({
         </div>
         {canEdit && tasks.isSuccess && (
           <Button className="hidden min-h-11 md:inline-flex" onClick={add}>
-            <Plus aria-hidden="true" />
+            <PlusIcon aria-hidden="true" />
             Add task
           </Button>
         )}
@@ -135,8 +135,8 @@ export function Prep({
       {tasks.isPending ? (
         <div role="status" className="space-y-3">
           <span className="sr-only">Loading prep tasks…</span>
-          <Skeleton className="h-20 w-full rounded-2xl" />
-          <Skeleton className="h-20 w-full rounded-2xl" />
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-xl" />
         </div>
       ) : tasks.isError && !tasks.data ? (
         <TripError
@@ -172,7 +172,7 @@ export function Prep({
       {canEdit && tasks.isSuccess && (
         <div className="mobile-add-activity fixed right-[max(1.5rem,env(safe-area-inset-right,0px))] bottom-[var(--app-bottom)] z-30 md:hidden">
           <Button className="min-h-12" onClick={add}>
-            <Plus aria-hidden="true" />
+            <PlusIcon aria-hidden="true" />
             Add task
           </Button>
         </div>

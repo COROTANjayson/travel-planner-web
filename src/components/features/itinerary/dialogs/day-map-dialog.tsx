@@ -36,6 +36,9 @@ export function DayMapDialog({
     <TripDialog
       title={`Places on ${dateLabel(selected)}`}
       description="Places attached to activities on the selected day."
+      mobilePresentation="tall-sheet"
+      itineraryStyle
+      className="md:max-w-[720px]"
       open={mapOpen}
       onOpenChange={setMapOpen}
       finalFocus={finalFocus}

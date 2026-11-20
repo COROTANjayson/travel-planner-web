@@ -21,7 +21,7 @@ export function ExpenseAmountPanel({
   return (
     <div
       data-slot="expense-amount-panel"
-      className="min-w-0 rounded-2xl bg-[var(--ocean)] p-5 text-[var(--ocean-text)] [--money-border:var(--ocean-text)] [--money-error:#ffd5ca] [--money-focus:var(--aqua)] sm:p-6"
+      className="min-w-0 rounded-xl bg-[var(--ocean)] p-5 text-[var(--ocean-text)] [--money-border:var(--ocean-text)] [--money-error:#ffd5ca] [--money-focus:var(--aqua)] sm:p-6"
     >
       <div className="flex items-center justify-between gap-4 [&_[data-slot=label]]:text-sm [&_[data-slot=label]]:font-medium [&_[data-slot=label]]:text-inherit">
         <Label

@@ -277,11 +277,6 @@ for (const name of ["claim", "drop", "complete", "reopen"])
 const realPrep = load("src/lib/prep.ts", hookMocks);
 const { PrepTaskRow } = load("src/components/features/prep/prep-task-row.tsx", {
   react: { ...React, useState: (value) => [value, () => {}] },
-  "lucide-react": {
-    CheckCircle2: () => null,
-    Circle: () => null,
-    MoreHorizontal: () => null,
-  },
   "@/lib/prep": { ...realPrep, usePrepApi: () => rowApi },
   "@/lib/memberships": {
     participantName: (p) => p.display_name.trim() || p.email || "Traveler",
@@ -820,7 +815,6 @@ const prepRowMock = ({ task }) =>
   React.createElement("li", null, `${task.title}`);
 const { Prep } = load("src/components/features/prep/prep.tsx", {
   ...uiMocks,
-  "lucide-react": { Plus: () => null },
   "@tanstack/react-query": { useQuery: () => query },
   "@/lib/api": { ApiError },
   "@/lib/prep": { ...realPrep, usePrepApi: () => ({ list() {}, reset() {} }) },
