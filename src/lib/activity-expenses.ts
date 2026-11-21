@@ -128,7 +128,7 @@ export function personalTotals(
     currency: string;
     activity_id?: number;
     activity_name?: string;
-  }) => x.currency === currency && (!activity || activityKey(x) === activity);
+  }) => x.currency === currency && matchesActivity(x, activity);
   const costs = ledger.expenses.filter(matches);
   const cost = costs.reduce(
     (n, e) =>
@@ -186,4 +186,16 @@ export function activityKey(x: {
     : x.activity_name
       ? `removed:${x.activity_name}`
       : "unassigned";
+}
+
+export function matchesActivity(
+  record: { activity_id?: number; activity_name?: string },
+  activity?: string,
+) {
+  return (
+    !activity ||
+    (activity === "unassigned"
+      ? !record.activity_id
+      : activityKey(record) === activity)
+  );
 }

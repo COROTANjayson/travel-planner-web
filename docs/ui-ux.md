@@ -40,7 +40,8 @@ and Screens. A local Figma plugin generates reference content from the
 repository's tokens and components. Screens also contains the approved
 [form simplification](#form-simplification-approved-design-not-yet-built) for
 Add activity and Add expense and the approved
-[Prep redesign](#prep-redesign-approved-design-not-yet-built).
+[Prep inside activities](#prep-inside-activities-approved-design-not-yet-built)
+design.
 
 - Self-host Manrope through `next/font/local`; use its variable font for headings,
   controls and reading. Preserve wrapping, rem sizing and browser text scaling.
@@ -234,16 +235,43 @@ Add activity and Add expense and the approved
   labels, or strikethroughs. Preserve historical completion values in storage.
   This applies to activity to-dos only; Prep tasks are a separate trip-level list.
   Existing Sleeping activities retain their label and edit as a custom category.
-- Prep splits tasks into To do and Done. An everyone task shows your checkbox, "3 of
-  5 ready", and "Still to do" names. A one-person task shows Claim while open, a
-  checkbox and Drop when it's yours, a name when it's someone else's, and "Done by"
-  when finished. People only tick their own tasks; editors reopen others' finished
-  tasks with Reopen. Owners and editors manage tasks from each row's options and add
-  them with Add task, which is the same right-aligned mobile pill as Add activity.
-  A task's optional activity and date show under its title. Both are set in the
-  add/edit form, where the date is a list of the trip's days and the activity
-  picker's own loading or failure never blocks saving. Viewers get read-only rows and a one-line note. A task that changed underneath
-  someone shows a notice above the list, refreshes it, and keeps the page in place.
+- Prep follows the Figma Prep frames (Screens page, Prep section). Under the
+  heading, "2 of 6 done" and a thin progress bar replace the subtitle; an
+  everyone task counts as done when every current participant has ticked it.
+  The All, For you, and By activity chips switch views and survive dialogs.
+  All shows For you (your unfinished tasks and everyone tasks awaiting your
+  tick), Up for grabs, With others, then a collapsed "Done · N"; empty sections
+  are left out. For you shows only what waits on you. By activity groups
+  unfinished tasks by activity date, earliest first, then Whole trip.
+- Each section is one bordered list with a 16px radius, flat rows and
+  dividers. A row leads with a checkbox when you can tick it, a dashed circle
+  when unclaimed, the assignee's initials when it's someone else's, and a check
+  when done. Its detail line joins who it waits on or who did it, the day, the
+  activity (an itinerary deep link, except in By activity), and linked expense
+  totals per currency with " · ". Claim shows on unclaimed tasks, Drop on yours,
+  and everyone tasks show a "3 of 5" pill. Owners and editors get the options
+  menu: Reopen (finished tasks), Edit, Assign (unfinished one-person tasks), and
+  Delete. The title opens task details; the checkbox, buttons, link, and menu
+  work on their own. Focus returns to a row that an action moved, or the Prep
+  heading when that row is hidden by the current view.
+- Add task asks What needs doing and Who's on it (Up for grabs by default, Me,
+  Pick someone, Everyone), with Trip day and Activity behind Add more pills.
+  Its footer is Cancel, Save and add another, and Add task (full width above
+  the other two on mobile). Save and add another keeps the assignment, day and
+  activity, clears and focuses the title. One request key covers every retry
+  until success or cancellation, including edited retries after a failed save.
+  Edit shows who's on it as text; Assign changes the person.
+  Delete names the task and says its expenses stay in the trip's expenses.
+- Task details is the 680px right drawer on desktop and a tall sheet on mobile:
+  who's on it, the activity link or Whole trip, the expenses with each one's
+  total, your share and payment status, a per-currency task total, and the one
+  action you can take (Mark done, Mark my part done, or Claim). Editors add and
+  edit expenses with the shared cost editor, which shows the task as fixed
+  context; tapping an expense opens the shared payment workspace. Both return to
+  the task. Expenses failing to load show their own retry; the task stays usable.
+- Viewers get read-only rows and details with a one-line note. A task that
+  changed underneath someone shows a notice above the list, refreshes it, and
+  keeps the page in place.
 - The People dialog shows the owner's invite form, then one row per person, then
   pending invitations only, omitting that section when there are none. Explain role
   capabilities inside the role dropdown rather than on every row. Transfer ownership
@@ -336,47 +364,13 @@ endpoints, and no new libraries (Base UI `Combobox` is already installed).
   reservation, repayment and loan screens. A wider wording pass for money terms
   is not part of this design.
 
-## Prep redesign (approved design, not yet built)
+## Prep inside activities (approved design, not yet built)
 
 Approved 2026-11-14 as a design only. **The app does not implement this section
-yet**; the Prep rule under Navigation and trip planning still describes current
-behavior. When a rule here is built, move it there and delete it from here. The
-Figma Screens page shows these designs.
+yet.** The Prep page, task details and task-linked expenses are built and
+described under Navigation and trip planning. When a rule here is built, move it
+there and delete it from here. The Figma Screens page shows these designs.
 
-The aim is a list that says who acts next and a shorter Add task form. It uses
-only today's task fields (title, one-person or everyone, assignee, activity,
-date): no new endpoints or response fields. The exception is Prep inside
-activities, which replaces the activity To do list and needs backend work.
-
-- Heading: "2 of 6 done" with a thin progress bar sits under Prep and replaces
-  the subtitle. Add task stays in the heading on desktop and as the mobile pill.
-- Sections replace To do and Done: For you (tasks assigned to you, and everyone
-  tasks you have not ticked), Up for grabs (unclaimed), With others, then Done.
-  Leave out empty sections. Done starts collapsed and shows its count.
-- Row lead: a checkbox only when you can tick the task, a dashed circle when
-  nobody has claimed it, the assignee's initials when it is someone else's, and
-  a check when done.
-- Row text: the title over one muted line. Join what applies with " · ": who it
-  waits on or who did it, the day, the activity. No "Activity:" or "Date:" labels.
-- Row action: Claim on unclaimed tasks, a quiet Drop on yours, none on others'.
-  Everyone tasks show a "3 of 5" count pill instead. Owners and editors get the
-  options menu with Edit, Assign, Reopen and Delete; Reopen is no longer a button.
-- Done rows use a muted struck-through title and "Done by" a name.
-- Empty state: owners and editors get an outlined Add task button in the
-  "Nothing to prepare yet" card. Viewers see no button.
-- Add task asks two things: What needs doing, and Who's on it. Who's on it is
-  one chip row (Up for grabs, Me, Pick someone, Everyone) with one helper line
-  that follows the choice. Up for grabs is the default. Pick someone shows the
-  person dropdown. It replaces the two radio cards and the
-  assignee dropdown and sends the same kind and assignee values.
-- Trip day and Activity sit behind Add more pills, as in Add activity. Each
-  opens its existing dropdown and its pill goes.
-- Add task footer: Cancel, a quiet Save and add another, then Add task. Save and
-  add another saves, keeps the dialog open and clears the title. On mobile, Add
-  task takes the full width above the other two.
-- Edit task uses the same form. Who's on it is read-only text, because the kind
-  is set only when adding; Assign still changes the person.
-- Delete task names the task in its confirmation, like Delete activity.
 - Prep inside activities: a prep task linked to an activity shows in that
   activity's details as well as on the Prep page. It is one task; ticking,
   claiming or editing it in either place is the same change.
@@ -402,16 +396,10 @@ activities, which replaces the activity To do list and needs backend work.
 - Add activity: the To do pill becomes Prep task. It opens title-only task
   lines with Add another, saved as up for grabs; people are assigned later from
   the activity.
-- Prep page: a filter row (All, For you, By activity). By activity groups tasks
-  under each activity, then Whole trip for tasks without one. In the other
-  views, the activity name in a row's detail line links to that activity.
 - Building this needs backend work: existing activity to-do items become
   unclaimed prep tasks on their activity, and the activity's to-do list stops
   being edited separately. Until then, activity To do stays as described under
   Navigation and trip planning.
-- Unchanged: who may tick, claim, drop, reopen and manage tasks, the viewer
-  note, the Assign dialog, and the notice shown when a task changed underneath
-  someone.
 
 ## Expenses
 
@@ -422,6 +410,12 @@ activities, which replaces the activity To do list and needs backend work.
 - Expenses is an activity list; management lives inside activity details. Show
   estimated total, my share, expense items, and per-member Share/Paid/Remaining.
   Separate business payments from named reimbursements and keep currencies apart.
+- Trip expenses also offers **Costs without an activity** when such costs exist.
+  It opens the existing expense list and payment screens in a detail drawer,
+  including whole-trip and removed-activity costs. Task costs kept after deletion
+  use the shared cost editor without requiring a replacement activity. Preserve
+  editor/member/viewer permissions and return focus to the entry button, or the
+  expenses heading if removing the last cost hides the button.
 - (Next design for this step: see
   [Form simplification](#form-simplification-approved-design-not-yet-built).)
   Expense setup follows the reference field order: expense name, per-person/group

@@ -120,7 +120,7 @@ export function CostArticle({
                 {cost.description}
               </button>
             </h4>
-            <span className="max-w-[60%] text-base leading-[26px] [overflow-wrap:anywhere]">
+            <span className="max-w-[60%] shrink-0 text-base leading-[26px] [overflow-wrap:anywhere]">
               {equal && cost.shares[0]
                 ? `${money(cost.shares[0].amount_minor, cost.currency)} each`
                 : money(cost.amount_minor, cost.currency)}

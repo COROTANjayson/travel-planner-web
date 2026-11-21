@@ -10,9 +10,10 @@ import { CostArticle } from "@/components/features/expenses/cost-article";
 import { LoanArticle } from "@/components/features/expenses/loan-article";
 import { ReceiptRows } from "@/components/features/expenses/receipt-rows";
 import { ApiError } from "@/lib/api";
-import { activityKey } from "@/lib/activity-expenses";
+import { matchesActivity } from "@/lib/activity-expenses";
 import {
   expenseName,
+  tripPeople,
   type Expense,
   type ExpenseInput,
   type TransactionInput,
@@ -70,6 +71,7 @@ export function ActivityExpenses(
   const editing =
     editor ??
     (auto && !autoDismissed && isEditor ? { type: "cost" as const } : null);
+  const useCostEditor = hasActivity || !!editing?.cost?.prep_task_name;
   const [localError, setLocalError] = useState<Error | null>(null);
   const [history, setHistory] = useState<ReceiptHistory[] | null>(null);
   const [historyID, setHistoryID] = useState<number | null>(null);
@@ -79,20 +81,13 @@ export function ActivityExpenses(
   const heading = useRef<HTMLHeadingElement>(null);
   const key = useRef("");
   const data = ledger.data;
-  const people = [
-    ...new Map(
-      [...(data?.people ?? []), ...(participants ?? [])].map((p) => [
-        p.user_id,
-        p,
-      ]),
-    ).values(),
-  ];
+  const people = tripPeople(data?.people, participants);
   const name = (id: number) =>
     expenseName(people.find((p) => p.user_id === id));
   const money = moneyIn(currencies.data ?? []);
   const costs =
-    data?.expenses.filter((e) => activityKey(e) === activityID) ?? [];
-  const loans = data?.loans.filter((l) => activityKey(l) === activityID) ?? [];
+    data?.expenses.filter((e) => matchesActivity(e, activityID)) ?? [];
+  const loans = data?.loans.filter((l) => matchesActivity(l, activityID)) ?? [];
   const ownLoans = loans.filter((l) => l.from_user_id === current?.user_id);
   const codes = [...new Set([...costs, ...loans].map((e) => e.currency))];
   const hasOtherBalances =
@@ -493,11 +488,11 @@ export function ActivityExpenses(
             trigger.current?.isConnected ? trigger.current : heading.current
           }
           onBack={() => setPaymentCost(null)}
-          backLabel={flow ? "Back to expenses" : undefined}
+          backLabel={flow || !hasActivity ? "Back to expenses" : undefined}
           onFailure={props.onFailure}
         />
       )}
-      {editing?.type === "cost" && hasActivity && currencies.data && (
+      {editing?.type === "cost" && useCostEditor && currencies.data && (
         <ExpenseCostEditor
           tripID={trip.id}
           key={`${revision}-${editing.cost?.id ?? "new"}`}
@@ -505,6 +500,7 @@ export function ActivityExpenses(
             id: Number(activityID) || undefined,
             title: activityTitle,
           }}
+          backLabel={hasActivity ? undefined : "Back to expenses"}
           initial={editing.cost}
           people={people.filter(
             (p) =>
@@ -544,7 +540,7 @@ export function ActivityExpenses(
         editing={editing}
         editor={editor}
         setEditor={setEditor}
-        hasActivity={hasActivity}
+        useCostEditor={useCostEditor}
         activityID={activityID}
         activityTitle={activityTitle}
         options={options}

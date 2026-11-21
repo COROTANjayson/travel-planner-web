@@ -46,6 +46,10 @@ previous view inside the activity window. Existing activity expense links remain
 supported. Currency totals stay separate. **Expenses** in the trip header (desktop) or
 trip menu (mobile) opens `/trips/{id}/expenses`, a read-only trip overview: your per-currency
 balance and one filterable list of your own expenses, loans, amounts owed to you and settlements.
+**Costs without an activity** opens the existing expense and payment screens
+for whole-trip costs and costs whose activity was removed, including expenses
+kept after deleting a Prep task. Owners and editors can correct these costs and
+record business payments; other participants retain their usual read/receipt permissions.
 
 Members, owners, and editors can **Record money lent** to one other active trip
 participant through **Add borrow** in the activity's **Borrow list**, always the
@@ -106,8 +110,9 @@ A task can also name an activity on the trip, one of the trip's days, or both.
 Deleting the activity keeps the task. If the trip's dates later move, a saved date
 outside them still shows and can be kept, but any new date must fit the trip.
 
-Owners and editors add, edit, assign, and delete tasks, and can reopen a finished
-one-person task. Members claim, tick, and finish their own. Viewers can read the
+Owners and editors add, edit, and delete tasks, and can reopen a finished
+one-person task. Edit also changes who's on an unfinished task; switching between
+one person and everyone starts it over (needs the API's optional `kind` on edit). Members claim, tick, and finish their own. Viewers can read the
 list, but aren't counted and can't take tasks. The API computes counts and assignees
 on each read, so people joining, leaving, or changing role need no Prep writes. There
 are no live updates: other people's changes appear when the list next refetches.

@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ApiError, useApi } from "@/lib/api";
 import { Temporal } from "@js-temporal/polyfill";
-import { UsersIcon } from "@phosphor-icons/react";
+import { ListChecksIcon, UsersIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   expenseMoney,
@@ -33,6 +33,8 @@ import { SplitStatusFooter } from "@/components/features/expenses/drawers/cost-e
 
 export function ExpenseCostEditor({
   activity,
+  prepTask,
+  backLabel,
   tripID,
   initial,
   people,
@@ -47,6 +49,10 @@ export function ExpenseCostEditor({
   finalFocus,
 }: {
   activity: { id?: number; title: string };
+  /** Adding from a prep task: the task (and its activity, if any) is fixed. */
+  prepTask?: { id: number; title: string };
+  /** Replaces "Back to activity" on the first step. */
+  backLabel?: string;
   tripID: number;
   initial?: Expense;
   people: ExpensePerson[];
@@ -281,6 +287,7 @@ export function ExpenseCostEditor({
         throw new Error("Check the planned reservation amount.");
       input = {
         activity_id: activity.id,
+        ...(prepTask && !initial ? { prep_task_id: prepTask.id } : {}),
         description: description.trim(),
         currency,
         amount_minor: total,
@@ -348,7 +355,7 @@ export function ExpenseCostEditor({
               : "Add expense";
   const subtitle =
     step === "cost"
-      ? activity.title
+      ? activity.title || undefined
       : `${description || "Expense"} · ${money(total)} ${basis === "per_person" ? "total" : "group price"}`;
   const footerLabel =
     step === "custom"
@@ -366,7 +373,9 @@ export function ExpenseCostEditor({
       presentation="detail"
       className="activity-details-dialog expense-flow-dialog [&_[data-slot='input']]:min-h-12 [&_[data-slot='input']]:rounded-[0.875rem] [&_[data-slot='select-trigger']]:[min-height:3rem] [&_[data-slot='select-trigger']]:[border-radius:0.875rem] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[min-height:44px] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[padding:0] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[text-align:left] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[white-space:normal] [&_.activity-detail-navigation_.trip-people[data-slot='button']]:[min-width:44px] [&_.activity-detail-navigation_.trip-people[data-slot='button']]:[justify-content:flex-end] [&_.activity-detail-navigation_.trip-people[data-slot='button']]:[border-radius:9999px] [&_.activity-detail-navigation_.trip-people[data-slot='button']:focus-visible]:[outline:2px_solid_var(--ring)] [&_.activity-detail-navigation_.trip-people[data-slot='button']:focus-visible]:[outline-offset:2px] [&_[data-slot='select-trigger']_>_svg]:[display:block] [&_.repayment-panel_[data-slot='input']]:[border-radius:0] [&_.repayment-panel_[data-slot='input']]:[border-color:var(--ocean-text)] [&_.repayment-panel_[data-slot='input']]:[background:transparent] [&_.repayment-panel_[data-slot='input']]:[color:#fff] [&_.repayment-panel_[data-slot='input']]:[caret-color:#fff] [&_.repayment-panel_[data-slot='input']:focus-visible]:[outline:2px_solid_var(--aqua)] [&_.repayment-panel_[data-slot='input']:focus-visible]:[outline-offset:4px] [&_.repayment-panel_[data-slot='input']:focus-visible]:[box-shadow:none] [&_.repayment-panel_[data-slot='input'][aria-invalid='true']]:[border-color:#ffd5ca] [&_.repayment-panel_[data-slot='input'][aria-invalid='true']]:[box-shadow:none]"
       variant="expense"
-      backLabel={step === "cost" ? "Back to activity" : "Back to expense"}
+      backLabel={
+        step === "cost" ? (backLabel ?? "Back to activity") : "Back to expense"
+      }
       backdropClassName="bg-black/60"
       title={title}
       description={subtitle}
@@ -469,6 +478,24 @@ export function ExpenseCostEditor({
         }}
       >
         <fieldset disabled={busy} className="space-y-6 min-w-0">
+          {step === "cost" && prepTask && (
+            <div className="flex items-center gap-2.5 rounded-xl bg-secondary p-3">
+              <ListChecksIcon
+                aria-hidden="true"
+                className="size-[1.125rem] shrink-0 text-primary"
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold break-words">
+                  For: {prepTask.title}
+                </p>
+                {activity.id && (
+                  <p className="text-[0.8125rem] break-words text-muted-foreground">
+                    Also shows on {activity.title}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           {step === "cost" && (
             <CostStep
               formID={formID}

@@ -14,11 +14,17 @@ import {
   type Context,
 } from "@/components/features/expenses/use-finance";
 import { TripError } from "@/components/shared/trip-states";
+import { TripDialog } from "@/components/shared/trip-dialog";
+import { Button } from "@/components/ui/button";
+import { ActivityExpenses } from "@/components/features/expenses/activity-expenses";
 
 export function Expenses(props: Context & { active: boolean }) {
   const { trip, active, participants, current } = props;
   const { api, ledger, currencies } = useFinance(props, active);
   const [selected, setSelected] = useState<MyEntry | null>(null);
+  const [unassignedOpen, setUnassignedOpen] = useState(false);
+  const unassignedTrigger = useRef<HTMLButtonElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
   const receiptKey = useRef("");
   const trigger = useRef<HTMLButtonElement | null>(null);
   const filterRef = useRef<HTMLButtonElement | null>(null);
@@ -53,6 +59,8 @@ export function Expenses(props: Context & { active: boolean }) {
   const heading = (
     <h2
       id="trip-expenses-heading"
+      ref={headingRef}
+      tabIndex={-1}
       className="trip-balance-title [font-size:1.25rem] [line-height:1.3] [font-weight:600] [letter-spacing:-0.02em] sr-only md:not-sr-only"
     >
       Your expenses
@@ -116,6 +124,40 @@ export function Expenses(props: Context & { active: boolean }) {
               : undefined
           }
         />
+      )}
+      {loaded && loaded.data.expenses.some((cost) => !cost.activity_id) && (
+        <Button
+          variant="outline"
+          className="min-h-11"
+          onClick={(event) => {
+            unassignedTrigger.current = event.currentTarget;
+            setUnassignedOpen(true);
+          }}
+        >
+          Costs without an activity
+        </Button>
+      )}
+      {unassignedOpen && (
+        <TripDialog
+          open
+          presentation="detail"
+          title="Costs without an activity"
+          backLabel="Back to expenses"
+          onBack={() => setUnassignedOpen(false)}
+          onOpenChange={(open) => setUnassignedOpen(open)}
+          finalFocus={() =>
+            unassignedTrigger.current?.isConnected
+              ? unassignedTrigger.current
+              : headingRef.current
+          }
+        >
+          <ActivityExpenses
+            {...props}
+            activityID="unassigned"
+            activityTitle="Costs without an activity"
+            activities={activities.data}
+          />
+        </TripDialog>
       )}
       {loaded && current && canReceive && (
         <MarkAsPaidDialog

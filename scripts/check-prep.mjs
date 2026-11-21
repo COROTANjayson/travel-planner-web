@@ -12,7 +12,7 @@ const testDocument = {
 };
 const load = createLoader({
   compilerOptions: { target: ts.ScriptTarget.ES2020 },
-  globals: { TextEncoder, document: testDocument },
+  globals: { TextEncoder, crypto, document: testDocument },
 });
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const wrap = (type) =>
@@ -66,7 +66,10 @@ const hookMocks = {
 const prep = load("src/lib/prep.ts", hookMocks);
 const invalidated = () =>
   plain(calls.filter((call) => call[0] === "invalidate").map((c) => c[1]));
-const prepInvalidation = [{ queryKey: ["trip", 7, "prep"] }];
+const prepInvalidation = [
+  { queryKey: ["trip", 7, "prep"] },
+  { queryKey: ["trip", 7, "ledger"] },
+];
 let tripFailures = 0;
 const api = prep.usePrepApi(7, () => tripFailures++);
 
@@ -247,6 +250,65 @@ assert.equal(prep.prepTitleError(" Van "), null);
 assert.equal(prep.prepTitleError("a".repeat(200)), null);
 assert.ok(prep.prepTitleError("a".repeat(201)));
 assert.ok(prep.prepTitleError("日".repeat(67)), "The limit counts bytes");
+// Sections: who acts next. Everyone tasks you ticked wait on others.
+const task = (id, extra) => ({ ...onePerson(), id, ...extra });
+const tasks = [
+  task(1, { assignee: { user_id: 3 } }),
+  task(2),
+  task(3, { assignee: { user_id: 2 } }),
+  { ...everyone([], [3, 2]), id: 4 },
+  { ...everyone([3], [2]), id: 5 },
+  task(6, { assignee: { user_id: 3 }, completed_at: "2026-10-01" }),
+  { ...everyone([2, 3], []), id: 7 },
+];
+const ids = (list) => plain(list.map((t) => t.id));
+let sorted = prep.prepSections(tasks, 3);
+assert.deepEqual(ids(sorted.forYou), [1, 4]);
+assert.deepEqual(ids(sorted.upForGrabs), [2]);
+assert.deepEqual(ids(sorted.withOthers), [3, 5]);
+assert.deepEqual(ids(sorted.done), [6, 7]);
+sorted = prep.prepSections(tasks, undefined);
+assert.deepEqual(
+  ids(sorted.forYou),
+  [],
+  "Viewers have nothing waiting on them",
+);
+assert.deepEqual(ids(sorted.withOthers), [1, 3, 4, 5]);
+// By activity: unfinished tasks, earliest activity first, then Whole trip.
+const at = (id, starts_at) => ({ id, title: `A${id}`, starts_at });
+const byActivityGroups = prep.prepByActivity([
+  task(1, { activity: at(20, "2026-10-02T01:00:00Z") }),
+  task(2),
+  task(3, { activity: at(10, "2026-10-01T01:00:00Z") }),
+  task(4, { activity: at(20, "2026-10-02T01:00:00Z") }),
+  task(5, {
+    activity: at(10, "2026-10-01T01:00:00Z"),
+    completed_at: "x",
+    assignee: { user_id: 1 },
+  }),
+]);
+assert.deepEqual(
+  plain(byActivityGroups.activities.map((g) => [g.activity.id, ids(g.tasks)])),
+  [
+    [10, [3]],
+    [20, [1, 4]],
+  ],
+);
+assert.deepEqual(ids(byActivityGroups.wholeTrip), [2]);
+// Totals stay apart by currency and never lose minor units.
+assert.deepEqual(
+  plain(
+    prep.totalsByCurrency([
+      { currency: "PHP", amount_minor: "440000" },
+      { currency: "USD", amount_minor: "2000" },
+      { currency: "PHP", amount_minor: "9223372036854775000" },
+    ]),
+  ),
+  [
+    { currency: "PHP", amount_minor: "9223372036855215000" },
+    { currency: "USD", amount_minor: "2000" },
+  ],
+);
 console.log("Prep API paths, refreshes and failure routing passed.");
 
 // Rows
@@ -275,11 +337,17 @@ for (const name of ["claim", "drop", "complete", "reopen"])
     return true;
   };
 const realPrep = load("src/lib/prep.ts", hookMocks);
+const nextLink = {
+  default: ({ href, children, ...props }) =>
+    React.createElement("a", { href, ...props }, children),
+};
 const { PrepTaskRow } = load("src/components/features/prep/prep-task-row.tsx", {
   react: { ...React, useState: (value) => [value, () => {}] },
+  "next/link": nextLink,
   "@/lib/prep": { ...realPrep, usePrepApi: () => rowApi },
   "@/lib/memberships": {
     participantName: (p) => p.display_name.trim() || p.email || "Traveler",
+    participantInitials: (p) => p.display_name.slice(0, 2).toUpperCase(),
   },
   "@/components/ui/button": {
     Button: ({ children, ...props }) =>
@@ -319,19 +387,22 @@ function row(task, currentID, overrides = {}) {
     ),
     box: all.find((node) => node.props.type === "checkbox"),
     button: (label) =>
-      all.find((node) =>
-        String(node.props["aria-label"] ?? node.props.children).startsWith(
-          label,
-        ),
+      all.find(
+        (node) =>
+          typeof node.props.onClick === "function" &&
+          // Menu items lead with an icon; match on their text.
+          (node.props["aria-label"] ?? renderToStaticMarkup(node))
+            .replace(/<[^>]+>/g, "")
+            .startsWith(label),
       ),
   };
 }
 const claimLabel = (title) => `Claim ${title}`;
 
-// Everyone: your own tick, the count, and who's left.
-let view = row(everyone([1, 2], [3, 4]), 3);
-assert.match(view.text, /2 of 4 ready/);
-assert.match(view.text, /Still to do: You, Dee/);
+// Everyone: your own tick and the count; names stay in the details.
+let view = row(everyone([1, 2], [4, 3]), 3);
+assert.doesNotMatch(view.text, /Waiting on/);
+assert.match(view.text, /2 of 4/);
 assert.equal(view.box.props.checked, false);
 await view.box.props.onChange({ target: { checked: true } });
 assert.deepEqual(plain(rowActions.splice(0)), [["complete", 4]]);
@@ -339,17 +410,11 @@ view = row(everyone([1, 3], [2]), 3);
 assert.equal(view.box.props.checked, true);
 await view.box.props.onChange({ target: { checked: false } });
 assert.deepEqual(plain(rowActions.splice(0)), [["reopen", 4]]);
-assert.match(
-  row(everyone([1, 3], []), 3).text,
-  /2 of 2 ready.*Everyone is ready/,
-);
-assert.match(
-  row(everyone([1], [99]), 3).text,
-  /Still to do: Traveler/,
-  "A person missing from a stale member list still renders",
-);
+view = row(everyone([1, 3], []), 3);
+assert.match(view.text, /Everyone&#x27;s done|Everyone's done/);
+assert.doesNotMatch(view.text, /2 of 2/, "Done everyone tasks drop the count");
 
-// Viewers read everything and act on nothing.
+// Viewers read everything and act on nothing but opening details.
 for (const task of [
   everyone([1], [2]),
   onePerson(),
@@ -358,21 +423,27 @@ for (const task of [
 ]) {
   view = row(task, 4);
   assert.equal(view.box, undefined, "Viewers have no checkbox");
-  assert.deepEqual(view.buttons, [], "Viewers have no actions");
+  assert.deepEqual(view.buttons, [task.title], "Viewers only open details");
 }
 // Unknown membership (still loading or blocked) shows no controls either.
 view = row(everyone([1], [2]), undefined);
 assert.equal(view.box, undefined);
 
-// One person: open, mine, someone else's, finished.
+// One person: open, mine, someone else's, finished. Your own and unclaimed
+// rows leave out "who" outside By activity; their section already says it.
 view = row(onePerson(), 3);
-assert.match(view.text, /Nobody has claimed this yet/);
+assert.match(view.text, /Whole trip/);
+assert.match(row(onePerson(), 3, { byActivity: true }).text, /Up for grabs/);
 assert.equal(view.box, undefined);
 await view.button(claimLabel("Book the van")).props.onClick();
 assert.deepEqual(plain(rowActions.splice(0)), [["claim", 5]]);
 
 view = row(onePerson(assigneeOf(3)), 3);
-assert.match(view.text, /You&#x27;re on it|You're on it/);
+assert.doesNotMatch(view.text, /You/);
+assert.match(
+  row(onePerson(assigneeOf(3)), 3, { byActivity: true }).text,
+  /You/,
+);
 assert.equal(view.box.props.checked, false);
 assert.equal(view.button("Claim"), undefined);
 await view.button("Drop Book the van").props.onClick();
@@ -382,6 +453,11 @@ assert.deepEqual(plain(rowActions.splice(0)), [["complete", 5]]);
 
 view = row(onePerson(assigneeOf(2)), 3);
 assert.match(view.text, /Ben is on it/);
+assert.match(
+  view.text,
+  />BE<|BE/,
+  "Someone else's task leads with their initials",
+);
 assert.equal(view.box, undefined, "You only tick your own");
 assert.equal(view.button("Claim"), undefined);
 assert.equal(view.button("Drop"), undefined);
@@ -391,56 +467,70 @@ assert.match(view.text, /Done by you/);
 assert.equal(view.box.props.checked, true);
 assert.equal(view.button("Drop"), undefined);
 
-// Finished work keeps a former traveler's name. Editors reopen; members can't.
+// Finished work keeps a former traveler's name. Editors reopen from the options menu; members can't.
 const departed = { user_id: 99, display_name: "Sam", email: null };
 view = row(onePerson(departed, "2026-10-01T00:00:00Z"), 3);
 assert.match(view.text, /Done by Sam/);
 assert.equal(view.button("Reopen"), undefined);
 view = row(onePerson(departed, "2026-10-01T00:00:00Z"), 2);
 assert.equal(view.box, undefined, "Editors don't tick for others");
-await view.button("Reopen Book the van").props.onClick();
+await view.button("Reopen").props.onClick();
+await new Promise(setImmediate);
 assert.deepEqual(plain(rowActions.splice(0)), [["reopen", 5]]);
 
-// Editors manage tasks; a finished task can't be assigned until it is reopened.
+// The reading area opens details; the options menu holds View, Reopen, Edit and Delete.
+const opened = [];
+row(onePerson(), 3, { onOpen: (mode) => opened.push(mode) })
+  .button("Book the van")
+  .props.onClick();
+assert.deepEqual(opened, ["details"]);
 assert.deepEqual(row(onePerson(), 2).buttons, [
+  "Book the van",
   "Claim",
+  "View",
   "Edit",
-  "Assign",
   "Delete",
 ]);
-assert.deepEqual(row(onePerson(), 3).buttons, ["Claim"]);
-assert.deepEqual(row(onePerson(assigneeOf(3)), 3).buttons, ["Drop"]);
-assert.deepEqual(row(onePerson(assigneeOf(2)), 3).buttons, []);
-assert.deepEqual(row(everyone([1], [2]), 2).buttons, ["Edit", "Delete"]);
+assert.deepEqual(row(onePerson(), 3).buttons, ["Book the van", "Claim"]);
+assert.deepEqual(row(onePerson(assigneeOf(3)), 3).buttons, [
+  "Book the van",
+  "Drop",
+]);
+assert.deepEqual(row(onePerson(assigneeOf(2)), 3).buttons, ["Book the van"]);
+assert.deepEqual(row(everyone([1], [2]), 2).buttons, [
+  "Renew passport",
+  "View",
+  "Edit",
+  "Delete",
+]);
 assert.deepEqual(
   row(onePerson(assigneeOf(2), "2026-10-01T00:00:00Z"), 2).buttons,
-  ["Edit", "Delete"],
+  ["Book the van", "View", "Reopen", "Edit", "Delete"],
 );
 
-// An activity and a date show under the title, and neither is required. This
-// activity starts on Sep 30 in UTC, but Oct 1 in the trip's time zone.
-view = row(
-  {
-    ...onePerson(),
-    activity: {
-      id: 9,
-      title: "Airport transfer",
-      starts_at: "2026-09-30T17:00:00Z",
-    },
-    date: "2026-08-15",
+// The detail line joins the day, the activity (a link outside By activity)
+// and the task's costs without labels. This activity starts on Sep 30 in
+// UTC, but Oct 1 in the trip's time zone; the row shows the task's own date.
+const linked = {
+  ...onePerson(assigneeOf(2)),
+  activity: {
+    id: 9,
+    title: "Airport transfer",
+    starts_at: "2026-09-30T17:00:00Z",
   },
-  3,
-);
+  date: "2026-08-15",
+};
+view = row(linked, 3, { amounts: "₱4,400 · US$20" });
 assert.ok(
   view.text.includes(
-    `Activity: Airport transfer · ${time.dateLabel("2026-10-01")}`,
+    `Ben is on it · ${time.dateLabel("2026-08-15")} · ₱4,400 · US$20 ·  Airport transfer`,
   ),
   view.text,
 );
-assert.ok(
-  view.text.includes(`Date: ${time.dateLabel("2026-08-15")}`),
-  view.text,
-);
+const link = view.all.find((node) => node.props.href);
+assert.equal(link.props.href, "/trips/7?activity=9");
+view = row(linked, 3, { byActivity: true });
+assert.doesNotMatch(view.text, /Airport transfer/);
 assert.doesNotMatch(row(onePerson(), 3).text, /Activity:|Date:/);
 
 // A failed action is reported upward, because the row itself may be gone.
@@ -492,17 +582,25 @@ const render = (component, props) => {
 const fresh = () => {
   state = [];
 };
-const tripDialog = ({ children, title, description }) =>
-  React.createElement("div", { "data-title": title, description }, children);
+const tripDialog = ({ children, title, description, footer }) =>
+  React.createElement(
+    "div",
+    { "data-title": title, description },
+    children,
+    footer,
+  );
 const dialogApi = {
   pending: false,
   error: null,
   created: [],
   updated: [],
   assigned: [],
+  keys: [],
   outcome: true,
-  async create(input) {
+  reset() {},
+  async create(input, key) {
     this.created.push(input);
+    this.keys.push(key);
     if (this.outcome instanceof Error) throw this.outcome;
     return this.outcome;
   },
@@ -586,23 +684,46 @@ assert.match(
   /Add what needs doing/,
 );
 
-// One-person tasks offer an assignee from people taking part; viewers aren't offered.
+// Who's on it is one chip row; Up for grabs is the default. "Me" shows only
+// for someone taking part, and Pick someone lists the others, never viewers.
+const chip = (props, label) =>
+  nodes(render(PrepTaskDialog, props)).find(
+    (node) =>
+      node.props["aria-pressed"] !== undefined && node.props.children === label,
+  );
 tree = render(PrepTaskDialog, dialogProps);
-const markup = renderToStaticMarkup(tree);
-assert.match(markup, /Anyone can claim it/);
+let markup = renderToStaticMarkup(tree);
+assert.match(markup, /aria-pressed="true">Up for grabs/);
+assert.doesNotMatch(markup, />Me</, "No Me chip without a current traveler");
+assert.match(markup, /Anyone on the trip can claim it later/);
+const asCara = { ...dialogProps, current: person(3) };
+assert.ok(chip(asCara, "Me"));
+assert.equal(
+  chip({ ...dialogProps, current: person(4) }, "Me"),
+  undefined,
+  "Viewers can't take tasks",
+);
+typed(tree, " Book the van ");
+chip(dialogProps, "Pick someone").props.onClick();
+markup = renderToStaticMarkup(render(PrepTaskDialog, dialogProps));
+assert.match(markup, /It shows under For you on their list/);
 assert.match(markup, /Cara/);
 assert.doesNotMatch(markup, /Dee/, "Viewers can't be assigned");
-typed(tree, " Book the van ");
-tree = render(PrepTaskDialog, dialogProps);
-const selectChange = nodes(tree).find(
-  (node) => node.props.onChange && node.props.id === "prep-task-assignee",
+// Pick someone needs a person before it saves.
+await form(render(PrepTaskDialog, dialogProps)).props.onSubmit(submitEvent);
+assert.equal(dialogApi.created.length, 0);
+assert.match(
+  renderToStaticMarkup(render(PrepTaskDialog, dialogProps)),
+  /Pick who&#x27;s doing it/,
 );
-selectChange.props.onChange("3");
+nodes(render(PrepTaskDialog, dialogProps))
+  .find((node) => node.props.id === "prep-task-assignee")
+  .props.onChange("3");
 
-// A failed save keeps the dialog open with the entered values.
+// A failed save keeps the dialog open with the entered values, and a retry
+// of the same values reuses its request key.
 dialogApi.outcome = new ApiError(500, "Offline");
-tree = render(PrepTaskDialog, dialogProps);
-await form(tree).props.onSubmit(submitEvent);
+await form(render(PrepTaskDialog, dialogProps)).props.onSubmit(submitEvent);
 assert.equal(closed, 0, "A failed save stays open");
 assert.equal(
   nodes(render(PrepTaskDialog, dialogProps)).find(
@@ -618,15 +739,33 @@ assert.deepEqual(plain(dialogApi.created.at(-1)), {
   kind: "one_person",
   assignee_user_id: 3,
 });
+// Editing after an uncertain save still retries the original submission.
+const failedKey = dialogApi.keys.at(-1);
+typed(render(PrepTaskDialog, dialogProps), "Book a different van");
+await form(render(PrepTaskDialog, dialogProps)).props.onSubmit(submitEvent);
+assert.equal(dialogApi.keys.at(-1), failedKey);
+assert.equal(closed, 0);
+assert.equal(dialogApi.created.at(-1).title, "Book a different van");
 dialogApi.outcome = true;
 await form(render(PrepTaskDialog, dialogProps)).props.onSubmit(submitEvent);
 assert.equal(closed, 1);
+assert.equal(
+  dialogApi.keys.at(-1),
+  dialogApi.keys.at(-2),
+  "Retries reuse the key",
+);
+assert.ok(dialogApi.keys.at(-1));
 
-// Everyone tasks never send an assignee, even if one was chosen first.
-tree = render(PrepTaskDialog, dialogProps);
-nodes(tree)
-  .filter((node) => node.props.type === "radio")[1]
-  .props.onChange();
+// Me assigns the current traveler; Everyone never sends an assignee.
+fresh();
+typed(render(PrepTaskDialog, asCara), "Pack");
+chip(asCara, "Me").props.onClick();
+await form(render(PrepTaskDialog, asCara)).props.onSubmit(submitEvent);
+assert.equal(dialogApi.created.at(-1).assignee_user_id, 3);
+fresh();
+typed(render(PrepTaskDialog, dialogProps), "Passport");
+chip(dialogProps, "Pick someone").props.onClick();
+chip(dialogProps, "Everyone").props.onClick();
 tree = render(PrepTaskDialog, dialogProps);
 assert.equal(
   nodes(tree).some((node) => node.props.id === "prep-task-assignee"),
@@ -635,10 +774,55 @@ assert.equal(
 await form(tree).props.onSubmit(submitEvent);
 assert.equal(dialogApi.created.at(-1).kind, "everyone");
 assert.equal(dialogApi.created.at(-1).assignee_user_id, null);
+assert.notEqual(
+  dialogApi.keys.at(-1),
+  dialogApi.keys.at(-2),
+  "New tasks get new keys",
+);
 
-// An activity and a date are optional, and picking them sends their values.
+// Save and add another keeps the dialog, the assignment, day and activity,
+// clears the title and focuses it. A failure keeps everything.
+const focusedTitle = [];
+fresh();
+closed = 0;
+typed(render(PrepTaskDialog, asCara), "Pack");
+chip(asCara, "Me").props.onClick();
+const another = () =>
+  nodes(render(PrepTaskDialog, asCara).props.footer).find(
+    (node) => node.props.children === "Save and add another",
+  );
+// The title input's ref is the first ref the dialog makes.
+state.find(
+  (entry) =>
+    entry && typeof entry === "object" && "current" in entry && !entry.current,
+).current = { focus: () => focusedTitle.push("title") };
+dialogApi.outcome = new ApiError(500, "Offline");
+await another().props.onClick();
+assert.equal(
+  nodes(render(PrepTaskDialog, asCara)).find(
+    (node) => node.props.id === "prep-task-title",
+  ).props.value,
+  "Pack",
+);
+dialogApi.outcome = true;
+await another().props.onClick();
+tree = render(PrepTaskDialog, asCara);
+assert.equal(closed, 0, "Save and add another stays open");
+assert.equal(
+  nodes(tree).find((node) => node.props.id === "prep-task-title").props.value,
+  "",
+);
+assert.equal(chip(asCara, "Me").props["aria-pressed"], true);
+assert.ok(focusedTitle.includes("title"));
+assert.equal(dialogApi.created.at(-1).assignee_user_id, 3);
+
+// Trip day and Activity wait behind Add more; each pill opens its dropdown.
 const pickerField = (props, id) =>
   nodes(render(PrepTaskDialog, props)).find((node) => node.props.id === id);
+const pill = (props, label) =>
+  nodes(render(PrepTaskDialog, props)).find(
+    (node) => node.props["aria-label"] === `Add ${label}`,
+  );
 const airport = {
   id: 9,
   title: "Airport transfer",
@@ -648,6 +832,15 @@ fresh();
 closed = 0;
 activityQuery = { isSuccess: true, data: [airport] };
 typed(render(PrepTaskDialog, dialogProps), "Book the driver");
+assert.equal(pickerField(dialogProps, "prep-task-date"), undefined);
+assert.equal(pickerField(dialogProps, "prep-task-activity"), undefined);
+pill(dialogProps, "trip day").props.onClick();
+pill(dialogProps, "activity").props.onClick();
+assert.equal(
+  pill(dialogProps, "trip day"),
+  undefined,
+  "Each pill goes once used",
+);
 assert.deepEqual(
   plain(pickerField(dialogProps, "prep-task-activity").props.options),
   [
@@ -658,21 +851,15 @@ assert.deepEqual(
     },
   ],
 );
-// The date is picked from the trip's days, not a free calendar.
+// The day is picked from the trip's days, not a free calendar.
 assert.deepEqual(
   plain(pickerField(dialogProps, "prep-task-date").props.options),
   [
-    { value: "none", label: "No date" },
+    { value: "none", label: "No day" },
     { value: "2026-10-01", label: time.dateLabel("2026-10-01") },
     { value: "2026-10-02", label: time.dateLabel("2026-10-02") },
     { value: "2026-10-03", label: time.dateLabel("2026-10-03") },
   ],
-);
-assert.equal(
-  nodes(render(PrepTaskDialog, dialogProps)).some(
-    (node) => node.props.type === "date",
-  ),
-  false,
 );
 pickerField(dialogProps, "prep-task-activity").props.onChange("9");
 pickerField(dialogProps, "prep-task-date").props.onChange("2026-10-02");
@@ -690,6 +877,7 @@ for (const [loading, message] of [
   closed = 0;
   activityQuery = loading;
   typed(render(PrepTaskDialog, dialogProps), "Book the driver");
+  pill(dialogProps, "activity").props.onClick();
   assert.match(
     renderToStaticMarkup(render(PrepTaskDialog, dialogProps)),
     message,
@@ -750,7 +938,7 @@ const staleProps = {
 assert.deepEqual(
   plain(pickerField(staleProps, "prep-task-date").props.options).slice(0, 2),
   [
-    { value: "none", label: "No date" },
+    { value: "none", label: "No day" },
     {
       value: "2026-08-15",
       label: `${time.dateLabel("2026-08-15")} (outside the trip)`,
@@ -760,20 +948,39 @@ assert.deepEqual(
 await form(render(PrepTaskDialog, staleProps)).props.onSubmit(submitEvent);
 assert.equal(dialogApi.updated.at(-1)[1].date, "2026-08-15");
 
-// Editing never changes a task's kind or assignee.
+// Editing keeps the kind unless the chips change it; finished tasks show who as text.
 fresh();
 closed = 0;
 const renameProps = { ...dialogProps, task: everyone([], [1]) };
 tree = render(PrepTaskDialog, renameProps);
 assert.equal(
-  nodes(tree).some((node) => node.props.type === "radio"),
-  false,
+  nodes(tree).find((node) => node.props["aria-pressed"] === true).props
+    .children,
+  "Everyone",
 );
 assert.equal(
-  nodes(tree).some((node) => node.props.id === "prep-task-assignee"),
+  nodes(tree.props.footer).some(
+    (node) => node.props.children === "Save and add another",
+  ),
   false,
 );
-typed(tree, "Passport");
+assert.match(
+  renderToStaticMarkup(
+    render(PrepTaskDialog, { ...dialogProps, task: everyone([1], []) }),
+  ),
+  /Everyone · each person ticks their own.*Everyone has done it/,
+);
+assert.match(
+  renderToStaticMarkup(
+    render(PrepTaskDialog, {
+      ...dialogProps,
+      task: onePerson(assigneeOf(2), "2026-10-01T00:00:00Z"),
+    }),
+  ),
+  /Ben · one person does it.*Reopen it/,
+);
+fresh();
+typed(render(PrepTaskDialog, renameProps), "Passport");
 await form(render(PrepTaskDialog, renameProps)).props.onSubmit(submitEvent);
 assert.deepEqual(plain(dialogApi.updated.at(-1)), [
   4,
@@ -781,28 +988,56 @@ assert.deepEqual(plain(dialogApi.updated.at(-1)), [
 ]);
 assert.equal(closed, 1);
 
-// Assigning can also clear the assignee.
-const { AssignPrepTaskDialog } = load(
-  "src/components/features/prep/dialogs/assign-prep-task-dialog.tsx",
-  uiMocks,
-);
+// Editing an open one-person task can change who's on it.
 fresh();
 closed = 0;
 const assignProps = { ...dialogProps, task: onePerson(assigneeOf(3)) };
-await form(render(AssignPrepTaskDialog, assignProps)).props.onSubmit(
-  submitEvent,
-);
-assert.deepEqual(plain(dialogApi.assigned.at(-1)), [5, 3]);
+const chipLabels = (t) =>
+  nodes(t)
+    .filter((node) => node.props["aria-pressed"] !== undefined)
+    .map((node) => node.props.children);
+assert.deepEqual(chipLabels(render(PrepTaskDialog, assignProps)), [
+  "Up for grabs",
+  "Pick someone",
+  "Everyone",
+]);
+await form(render(PrepTaskDialog, assignProps)).props.onSubmit(submitEvent);
+assert.equal(dialogApi.assigned.length, 0, "An unchanged assignee isn't sent");
 assert.equal(closed, 1);
 fresh();
-tree = render(AssignPrepTaskDialog, assignProps);
-nodes(tree)
-  .find((node) => node.props.id === "prep-assign-assignee")
-  .props.onChange("0");
-await form(render(AssignPrepTaskDialog, assignProps)).props.onSubmit(
-  submitEvent,
-);
+nodes(render(PrepTaskDialog, assignProps))
+  .find((node) => node.props.children === "Up for grabs")
+  .props.onClick();
+await form(render(PrepTaskDialog, assignProps)).props.onSubmit(submitEvent);
 assert.deepEqual(plain(dialogApi.assigned.at(-1)), [5, null]);
+// Switching to Everyone sends the kind and no assignee.
+fresh();
+nodes(render(PrepTaskDialog, assignProps))
+  .find((node) => node.props.children === "Everyone")
+  .props.onClick();
+await form(render(PrepTaskDialog, assignProps)).props.onSubmit(submitEvent);
+assert.equal(plain(dialogApi.updated.at(-1))[1].kind, "everyone");
+assert.equal(dialogApi.assigned.length, 1, "Everyone tasks aren't assigned");
+// Switching an everyone task to someone sends the kind, then assigns.
+fresh();
+const switchProps = { ...dialogProps, task: everyone([1], [2]) };
+assert.match(
+  renderToStaticMarkup(render(PrepTaskDialog, switchProps)),
+  /Each person ticks/,
+);
+nodes(render(PrepTaskDialog, switchProps))
+  .find((node) => node.props.children === "Pick someone")
+  .props.onClick();
+assert.match(
+  renderToStaticMarkup(render(PrepTaskDialog, switchProps)),
+  /The 1 done so far will be/,
+);
+nodes(render(PrepTaskDialog, switchProps))
+  .find((node) => node.props.id === "prep-task-assignee")
+  .props.onChange("3");
+await form(render(PrepTaskDialog, switchProps)).props.onSubmit(submitEvent);
+assert.equal(plain(dialogApi.updated.at(-1))[1].kind, "one_person");
+assert.deepEqual(plain(dialogApi.assigned.at(-1)), [4, 3]);
 console.log(
   "Prep dialogs validate, keep values after failures, and save the right fields.",
 );
@@ -811,20 +1046,33 @@ console.log(
 const tripValue = { id: 7, name: "Cebu" };
 let query;
 const failures = [];
-const prepRowMock = ({ task }) =>
-  React.createElement("li", null, `${task.title}`);
+const prepRowMock = ({ task, byActivity, amounts }) =>
+  React.createElement(
+    "li",
+    null,
+    `${task.title}${byActivity ? " [by activity]" : ""}${amounts ? ` [${amounts}]` : ""}`,
+  );
+const detailsMock = ({ task }) =>
+  React.createElement("p", null, `Details for ${task.title}`);
+let financeLedger = { data: undefined };
 const { Prep } = load("src/components/features/prep/prep.tsx", {
   ...uiMocks,
   "@tanstack/react-query": { useQuery: () => query },
   "@/lib/api": { ApiError },
   "@/lib/prep": { ...realPrep, usePrepApi: () => ({ list() {}, reset() {} }) },
   "@/components/ui/skeleton": { Skeleton: () => null },
+  "@/components/features/expenses/use-finance": {
+    useFinance: () => ({
+      ledger: financeLedger,
+      currencies: { data: [{ code: "PHP", decimals: 2 }] },
+    }),
+  },
+  "@/components/features/prep/drawers/task-details-drawer": {
+    TaskDetailsDrawer: detailsMock,
+  },
   "@/components/features/prep/prep-task-row": { PrepTaskRow: prepRowMock },
   "@/components/features/prep/dialogs/prep-task-dialog": {
     PrepTaskDialog: () => React.createElement("p", null, "Task dialog"),
-  },
-  "@/components/features/prep/dialogs/assign-prep-task-dialog": {
-    AssignPrepTaskDialog: () => null,
   },
   "@/components/features/prep/dialogs/delete-prep-task-dialog": {
     DeletePrepTaskDialog: () => null,
@@ -891,15 +1139,71 @@ const finishedTask = {
   id: 8,
   title: "Finished",
 };
-query = { isSuccess: true, data: [finishedTask, toDo, allReady] };
-const grouped = sectionText(section());
+const open = { ...onePerson(), id: 9, title: "Open one" };
+const ninas = { ...onePerson(assigneeOf(3)), id: 10, title: "Cara's" };
+query = {
+  isSuccess: true,
+  data: [finishedTask, toDo, allReady, open, ninas],
+};
+// Progress replaces the subtitle; sections run For you, Up for grabs, With others, then Done.
+let grouped = sectionText(section());
+assert.match(grouped, /2 of 5 done/);
+const order = [
+  "For you",
+  "Renew passport",
+  "Up for grabs",
+  "Open one",
+  "With others",
+  "Cara",
+  "Done · 2",
+].map((label) => grouped.indexOf(label));
 assert.ok(
-  grouped.indexOf("To do") < grouped.indexOf("Renew passport") &&
-    grouped.indexOf("Renew passport") < grouped.indexOf("Done") &&
-    grouped.indexOf("Done") < grouped.indexOf("Finished") &&
-    grouped.indexOf("Done") < grouped.indexOf("All ready"),
+  order.every((at, i) => at >= 0 && (i === 0 || at > order[i - 1])),
   grouped,
 );
+assert.doesNotMatch(grouped, /Finished|All ready/, "Done starts collapsed");
+nodes(section())
+  .find((node) => node.props["aria-controls"] === "prep-done")
+  .props.onClick();
+grouped = sectionText(section());
+assert.match(grouped, /Finished/);
+assert.match(grouped, /All ready/);
+// For you lists only what waits on you; By activity groups unfinished tasks.
+const viewChip = (label) =>
+  nodes(section()).find(
+    (node) =>
+      node.props["aria-pressed"] !== undefined && node.props.children === label,
+  );
+viewChip("For you").props.onClick();
+grouped = sectionText(section());
+assert.match(grouped, /Renew passport/);
+assert.doesNotMatch(grouped, /Open one|Cara|Finished/);
+assert.equal(viewChip("For you").props["aria-pressed"], true);
+viewChip("By activity").props.onClick();
+grouped = sectionText(section());
+assert.match(grouped, /Whole trip/);
+assert.match(grouped, /Open one \[by activity\]/);
+assert.doesNotMatch(grouped, /Finished/);
+// Filters survive opening details, which the row's reading area asks for.
+nodes(section())
+  .find((node) => node.type === prepRowMock)
+  .props.onOpen("details");
+grouped = sectionText(section());
+assert.match(grouped, /Details for /);
+assert.equal(viewChip("By activity").props["aria-pressed"], true);
+// Rows show linked expense totals per currency.
+fresh();
+financeLedger = {
+  data: {
+    expenses: [
+      { prep_task_id: 9, currency: "PHP", amount_minor: "440000" },
+      { prep_task_id: 9, currency: "PHP", amount_minor: "10000" },
+      { prep_task_id: 3, currency: "PHP", amount_minor: "5" },
+    ],
+  },
+};
+assert.match(sectionText(section()), /Open one \[₱4,500\]/);
+financeLedger = { data: undefined };
 query = { isSuccess: true, data: [toDo] };
 assert.doesNotMatch(sectionText(section()), /Done/, "Empty groups are hidden");
 
@@ -931,6 +1235,18 @@ assert.deepEqual(
   ["prep-task-4"],
   "Lost focus returns to the row",
 );
+
+const findElement = testDocument.getElementById;
+testDocument.getElementById = (id) =>
+  id.startsWith("prep-task-") ? null : findElement(id);
+rowProps.onAction(4);
+section();
+assert.deepEqual(
+  focused.splice(0),
+  ["prep-heading"],
+  "Completing a task hidden by the current view restores focus to the heading",
+);
+testDocument.getElementById = findElement;
 testDocument.activeElement = {};
 rowProps.onAction(4);
 section();
@@ -943,7 +1259,9 @@ assert.deepEqual(focused.splice(0), [], "Later refreshes don't move focus");
 // Adding opens the dialog from either Add button.
 fresh();
 tree = section();
-const addButtons = nodes(tree).filter((node) => node.props.onClick);
+const addButtons = nodes(tree).filter(
+  (node) => node.props.onClick && /Add task/.test(renderToStaticMarkup(node)),
+);
 assert.equal(
   addButtons.length,
   2,

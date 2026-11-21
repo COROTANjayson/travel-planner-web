@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { activityKey, uncovered } from "@/lib/activity-expenses";
+import { matchesActivity, uncovered } from "@/lib/activity-expenses";
 import {
   expenseName,
   useExpensesApi,
@@ -52,7 +52,7 @@ export function PersonalPayments({
   const currency = (code: string) =>
     currencies.find((c) => c.code === code) ?? { code, decimals: 2 };
   const matches = (record: { activity_id?: number; activity_name?: string }) =>
-    !activityID || activityKey(record) === activityID;
+    matchesActivity(record, activityID);
   const business = ledger.expenses.filter(matches).flatMap((expense) => {
     const amount = BigInt(
       uncovered(expense, ledger).find((s) => s.user_id === current?.user_id)

@@ -23,6 +23,8 @@ export interface ExpenseInput {
   planned_coverer_user_id?: number;
   planned_cover_amount_minor?: string;
   activity_id?: number;
+  /** Set when adding; the API keeps the link when it is omitted later. */
+  prep_task_id?: number;
   amount_basis?: "group" | "per_person";
   description: string;
   currency: string;
@@ -55,6 +57,8 @@ interface RecordBase {
 }
 export interface Expense extends Omit<ExpenseInput, "version">, RecordBase {
   activity_name?: string;
+  /** The task's last title; kept after the task is deleted (prep_task_id is then absent). */
+  prep_task_name?: string;
   shares: Share[];
 }
 export interface Settlement
@@ -135,6 +139,15 @@ export type LedgerKind =
 export const expensePageSize = 50;
 export const expenseName = (person?: ExpensePerson) =>
   person?.display_name.trim() || person?.email || "Traveler";
+/** The ledger's people plus current participants, one entry per user. */
+export const tripPeople = <P extends { user_id: number }>(
+  ledgerPeople: ExpensePerson[] = [],
+  participants: P[] = [],
+) => [
+  ...new Map(
+    [...ledgerPeople, ...participants].map((p) => [p.user_id, p]),
+  ).values(),
+];
 export function canManageExpense(
   role: TripRole | undefined,
   userID: number | undefined,
@@ -149,6 +162,7 @@ export function canManageExpense(
 export function expenseInput(input: ExpenseInput): ExpenseInput {
   return {
     ...(input.activity_id ? { activity_id: input.activity_id } : {}),
+    ...(input.prep_task_id ? { prep_task_id: input.prep_task_id } : {}),
     ...(input.amount_basis ? { amount_basis: input.amount_basis } : {}),
     planned_coverer_user_id: input.planned_coverer_user_id ?? 0,
     planned_cover_amount_minor: input.planned_cover_amount_minor ?? "",

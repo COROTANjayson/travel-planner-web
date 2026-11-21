@@ -33,6 +33,8 @@ export interface PrepTaskDetails {
   title: string;
   activity_id: number | null;
   date: string | null;
+  /** On edit, a different kind starts the task over: no assignee, completion or ticks. */
+  kind?: PrepTaskKind;
 }
 export interface PrepTaskInput extends PrepTaskDetails {
   kind: PrepTaskKind;
@@ -49,6 +51,71 @@ export const isTaskDone = (task: PrepTask) =>
   task.kind === "everyone"
     ? task.waiting_user_ids.length === 0 && task.ready_user_ids.length > 0
     : task.completed_at !== null;
+
+/** Unfinished work that waits on `me`: their task, or an everyone task they haven't ticked. */
+export const waitsOn = (task: PrepTask, me: number | undefined) =>
+  me !== undefined &&
+  !isTaskDone(task) &&
+  (task.kind === "everyone"
+    ? task.waiting_user_ids.includes(me)
+    : task.assignee?.user_id === me);
+
+const unclaimed = (task: PrepTask) =>
+  task.kind === "one_person" && !task.assignee;
+
+/** The All view's sections, by who acts next. */
+export function prepSections(tasks: PrepTask[], me: number | undefined) {
+  const open = tasks.filter((task) => !isTaskDone(task));
+  return {
+    forYou: open.filter((task) => waitsOn(task, me)),
+    upForGrabs: open.filter(unclaimed),
+    withOthers: open.filter((task) => !waitsOn(task, me) && !unclaimed(task)),
+    done: tasks.filter(isTaskDone),
+  };
+}
+
+/** Unfinished tasks by activity, earliest activity first, then Whole trip. */
+export function prepByActivity(tasks: PrepTask[]) {
+  const groups = new Map<
+    number,
+    { activity: PrepActivity; tasks: PrepTask[] }
+  >();
+  const wholeTrip: PrepTask[] = [];
+  for (const task of tasks.filter((task) => !isTaskDone(task))) {
+    if (!task.activity) wholeTrip.push(task);
+    else
+      (
+        groups.get(task.activity.id) ??
+        groups
+          .set(task.activity.id, { activity: task.activity, tasks: [] })
+          .get(task.activity.id)!
+      ).tasks.push(task);
+  }
+  return {
+    activities: [...groups.values()].sort(
+      (a, b) =>
+        a.activity.starts_at.localeCompare(b.activity.starts_at) ||
+        a.activity.id - b.activity.id,
+    ),
+    wholeTrip,
+  };
+}
+
+/** Sums minor-unit amounts per currency, in first-seen order. */
+export function totalsByCurrency(
+  items: { currency: string; amount_minor: string }[],
+) {
+  const totals = new Map<string, bigint>();
+  for (const item of items)
+    totals.set(
+      item.currency,
+      (totals.get(item.currency) ?? 0n) + BigInt(item.amount_minor),
+    );
+  return [...totals].map(([currency, minor]) => ({
+    currency,
+    amount_minor: minor.toString(),
+  }));
+}
 
 export function prepTitleError(title: string) {
   const trimmed = title.trim();
@@ -68,12 +135,19 @@ export function usePrepApi(
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const base = `/api/v1/trips/${tripID}/prep-tasks`;
-  const refresh = () => client.invalidateQueries({ queryKey: prepKey(tripID) });
+  // Task edits move linked expenses to the task's activity and deleting a task
+  // detaches them, so the ledger refreshes with the list.
+  const refresh = () =>
+    Promise.all([
+      client.invalidateQueries({ queryKey: prepKey(tripID) }),
+      client.invalidateQueries({ queryKey: ["trip", tripID, "ledger"] }),
+    ]);
   async function mutate<T>(
     path: string,
     method: "POST" | "PUT" | "DELETE",
     body?: object,
     successMessage?: string,
+    key?: string,
   ): Promise<T | true | undefined> {
     if (busy.current) return;
     busy.current = true;
@@ -84,7 +158,10 @@ export function usePrepApi(
         method,
         ...(body
           ? {
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                ...(key ? { "Idempotency-Key": key } : {}),
+              },
               body: JSON.stringify(body),
             }
           : {}),
@@ -127,12 +204,14 @@ export function usePrepApi(
         throw new ApiError(500, "Unable to load prep tasks. Please try again.");
       return tasks;
     },
-    create: (input: PrepTaskInput) =>
+    /** `key` stays the same for retries of one submission, so a retry can't add a second task. */
+    create: (input: PrepTaskInput, key?: string) =>
       mutate<PrepTask>(
         base,
         "POST",
         { ...input, title: input.title.trim() },
         "Task added.",
+        key,
       ),
     update: (id: number, details: PrepTaskDetails) =>
       mutate<PrepTask>(

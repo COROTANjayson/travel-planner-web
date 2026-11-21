@@ -12,6 +12,10 @@ import { participantName, type Participant } from "@/lib/memberships";
 
 export type PrepOption = { value: string; label: string };
 
+/** The pill used by the Prep view filters and the Who's on it chips; pair with aria-pressed. */
+export const prepChipClass =
+  "min-h-11 rounded-full border border-transparent bg-muted px-3.5 text-[0.8125rem] font-medium text-muted-foreground hover:bg-[#dbe7e0] hover:text-foreground aria-pressed:border-primary aria-pressed:bg-secondary aria-pressed:text-primary sm:min-h-9";
+
 /** "0" means nobody is assigned, so anyone taking part can claim the task. */
 export const assigneeOptions = (people: Participant[]): PrepOption[] => [
   { value: "0", label: "Anyone can claim it" },

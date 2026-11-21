@@ -114,6 +114,12 @@ const sanitized = ledger.expenseInput(input);
 assert.equal(sanitized.created_by_user_id, undefined);
 assert.equal(sanitized.shares[0].amount_minor, undefined);
 assert.equal(sanitized.description, "Dinner");
+// A task's expense carries its task; leaving it out keeps the saved link.
+assert.equal(sanitized.prep_task_id, undefined);
+assert.equal(
+  ledger.expenseInput({ ...input, prep_task_id: 12 }).prep_task_id,
+  12,
+);
 let permissionFailures = 0;
 const api = ledger.useExpensesApi(7, () => permissionFailures++);
 response = { ...sanitized, id: 4, version: 1 };
@@ -3010,3 +3016,119 @@ for (const [decimals, placeholder] of [
     "The zero hint must not become an entered amount",
   );
 }
+
+// Detached costs stay reachable even when the editor has no share in them.
+const detachedCost = {
+  ...inn,
+  activity_id: undefined,
+  activity_name: "",
+  prep_task_name: "Book flights",
+  shares: [{ user_id: 1, amount_minor: inn.amount_minor }],
+};
+viewData = {
+  ...data,
+  expenses: [
+    detachedCost,
+    {
+      ...inn,
+      id: 102,
+      activity_id: undefined,
+      activity_name: "Removed activity",
+    },
+  ],
+  payments: [],
+  loans: [],
+  settlements: [],
+  debts: [],
+};
+assert.equal(
+  activity.personalTotals(viewData, 1, inn.currency, "unassigned").cost,
+  BigInt(inn.amount_minor) +
+    BigInt(
+      inn.shares.find((share) => share.user_id === 1)?.amount_minor ?? "0",
+    ),
+  "Unassigned totals include costs from removed activities",
+);
+for (const role of ["owner", "member", "viewer"]) {
+  states = [];
+  refs = [];
+  const overviewProps = {
+    ...viewProps,
+    active: true,
+    current: { user_id: 3, role },
+  };
+  tree = render(view.Expenses, overviewProps);
+  const entry = nodes(tree).find(
+    (n) => n.props.children === "Costs without an activity",
+  );
+  assert.ok(
+    entry,
+    "Costs outside your shares still have a management entry point",
+  );
+  const entryTarget = { isConnected: true };
+  entry.props.onClick({ currentTarget: entryTarget });
+  tree = render(view.Expenses, overviewProps);
+  const list = nodes(tree).find((n) => n.type === view.ActivityExpenses);
+  assert.equal(list.props.activityID, "unassigned");
+  assert.equal(list.props.current.role, role);
+  const drawer = nodes(tree).find(
+    (n) => n.props.title === "Costs without an activity",
+  );
+  assert.equal(drawer.props.finalFocus(), entryTarget);
+  entryTarget.isConnected = false;
+  const heading = { focus() {} };
+  nodes(tree).find(
+    (n) => n.props.id === "trip-expenses-heading",
+  ).props.ref.current = heading;
+  assert.equal(drawer.props.finalFocus(), heading);
+
+  states = [];
+  refs = [];
+  const unassignedProps = {
+    ...overviewProps,
+    activityID: "unassigned",
+    activityTitle: "Costs without an activity",
+  };
+  tree = render(view.ActivityExpenses, unassignedProps);
+  assert.equal(
+    nodes(tree).filter((n) => n.props.children === "View payments").length,
+    2,
+  );
+  const edit = nodes(tree).find(
+    (n) => n.props["aria-label"] === "Edit Inn expense",
+  );
+  if (role !== "owner") {
+    assert.equal(
+      edit,
+      undefined,
+      "Members and viewers cannot edit planned costs",
+    );
+  } else {
+    edit.props.onClick();
+    tree = render(view.ActivityExpenses, unassignedProps);
+    const sharedEditor = nodes(tree).find((n) => n.type === CostEditor);
+    assert.ok(
+      sharedEditor,
+      "Detached task costs use the shared editor instead of requiring an activity",
+    );
+    assert.equal(sharedEditor.props.activity.id, undefined);
+    assert.equal(sharedEditor.props.initial.prep_task_name, "Book flights");
+    assert.equal(
+      nodes(tree).some((n) => n.type === formModule.ActivityExpenseForm),
+      false,
+    );
+    sharedEditor.props.onBack();
+    tree = render(view.ActivityExpenses, unassignedProps);
+  }
+  nodes(tree)
+    .find((n) => n.props.children === "View payments")
+    .props.onClick({ currentTarget: {} });
+  tree = render(view.ActivityExpenses, unassignedProps);
+  const workspace = nodes(tree).find((n) => n.type === PaymentWorkspace);
+  assert.equal(workspace.props.cost.id, detachedCost.id);
+  assert.equal(workspace.props.current.role, role);
+  assert.equal(workspace.props.backLabel, "Back to expenses");
+}
+console.log(
+  "Detached costs remain reachable with editor, member and viewer permissions.",
+);

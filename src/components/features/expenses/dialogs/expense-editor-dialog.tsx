@@ -19,7 +19,7 @@ export function ExpenseEditorDialog({
   editing,
   editor,
   setEditor,
-  hasActivity,
+  useCostEditor,
   activityID,
   activityTitle,
   options,
@@ -42,7 +42,7 @@ export function ExpenseEditorDialog({
   editing: ExpenseEditor | null;
   editor: ExpenseEditor | null;
   setEditor: (editor: ExpenseEditor | null) => void;
-  hasActivity: boolean;
+  useCostEditor: boolean;
   activityID: string;
   activityTitle: string;
   options: FormProps["activities"];
@@ -83,7 +83,7 @@ export function ExpenseEditorDialog({
           ? "[&_.expense-form-actions]:pb-8 [&_.expense-form-actions]:bg-transparent"
           : undefined
       }
-      open={!!editing && (editing.type !== "cost" || !hasActivity)}
+      open={!!editing && (editing.type !== "cost" || !useCostEditor)}
       title={
         editing?.type === "cost"
           ? editing.cost
@@ -108,7 +108,7 @@ export function ExpenseEditorDialog({
       }}
     >
       {editing &&
-        (editing.type !== "cost" || !hasActivity) &&
+        (editing.type !== "cost" || !useCostEditor) &&
         data &&
         currencies &&
         current && (
