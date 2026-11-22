@@ -441,10 +441,10 @@ tripQuery.data = [
     destination: "Kyoto, Japan",
   },
 ];
-assert.doesNotMatch(
-  tripListHtml(),
-  /data-featured="true"/,
-  "Upcoming-only lists do not invent an ongoing feature",
+assert.equal(
+  (tripListHtml().match(/data-featured="true"/g) || []).length,
+  1,
+  "With nothing ongoing, the first upcoming trip is featured",
 );
 tripQuery.data = beforeNoOngoing;
 console.log(

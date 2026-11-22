@@ -57,9 +57,10 @@ export default function TripsPage() {
       )
     : [];
   const visible = filtered.slice(offset, offset + tripPageSize);
+  // orderTrips puts ongoing first, then upcoming, so the first non-past trip is the hero.
   const featuredID = filtered.find(
     (trip) =>
-      tripStatus(trip.start_date, trip.end_date, trip.time_zone) === "Ongoing",
+      tripStatus(trip.start_date, trip.end_date, trip.time_zone) !== "Past",
   )?.id;
   const noTrips = trips.data?.length === 0;
 
