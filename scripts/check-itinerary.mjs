@@ -2335,7 +2335,11 @@ openDetails();
 detailActions()
   .find((node) => node.props["aria-label"] === `Delete ${activity.title}`)
   .props.onClick();
-assert.equal(details().props.open, false);
+assert.equal(
+  details().props.open,
+  true,
+  "Details stay open behind the delete confirmation",
+);
 const deleteConfirmation = () =>
   board().find(
     (node) => node.props.open && node.props.children?.props?.finalFocus,

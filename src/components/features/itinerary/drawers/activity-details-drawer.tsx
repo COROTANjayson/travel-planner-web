@@ -174,7 +174,6 @@ export function ActivityDetailsDrawer({
                 aria-label={`Delete ${detailActivity.title}`}
                 onClick={() => {
                   api.reset();
-                  setViewing(null);
                   setDeleting(detailActivity);
                 }}
               >
