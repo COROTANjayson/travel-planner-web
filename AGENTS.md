@@ -15,7 +15,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - [README](README.md): setup, project map, API conventions, and commands.
 - [Figma-first UI workflow](docs/ui-ux.md#figma-first-ui-workflow): before any
   UI change, including CSS-only fixes, open the relevant approved frame or
-  component through the Figma plugin and follow the guide's verification steps.
+  component in the local Figma desktop app using screen controls and follow the
+  guide's verification steps and access guidance.
 - [travel-web-change](.agents/skills/travel-web-change/SKILL.md): reusable workflow
   for interactive screen/form changes and their regression/browser checks.
 - Inspect the affected code and existing checks before editing. This repository

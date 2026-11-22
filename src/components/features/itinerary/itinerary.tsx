@@ -8,6 +8,9 @@ import { Temporal } from "@js-temporal/polyfill";
 import { PlusIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 import { ApiError } from "@/lib/api";
 import { type Activity, useItineraryApi } from "@/lib/itinerary";
+import { usePrepApi } from "@/lib/prep";
+import { toast } from "sonner";
+import { plural } from "@/lib/utils";
 import {
   boundary,
   fullDateLabel,
@@ -60,6 +63,7 @@ export function Itinerary({
   const params = useSearchParams();
   const requestedActivity = Number(params.get("activity")) || null;
   const api = useItineraryApi(trip.id, onFailure);
+  const prepApi = usePrepApi(trip.id, onFailure);
   const [selectedDate, setSelectedDate] = useState(() => {
     if (initialDate) return initialDate;
     const today = Temporal.Now.zonedDateTimeISO(trip.time_zone)
@@ -171,15 +175,12 @@ export function Itinerary({
         Temporal.Instant.compare(conflict.overlap_starts_at, dayEnd) < 0 &&
         Temporal.Instant.compare(conflict.overlap_ends_at, dayStart) > 0,
     ) ?? [];
-  useEffect(() => {
-    const failure = [activities.error, conflicts.error].find(
-      (error) => error instanceof ApiError && error.status === 404,
-    );
-    if (failure) void onFailure(failure);
-  }, [activities.error, conflicts.error, onFailure]);
-  const unavailable = [activities.error, conflicts.error].some(
+  const missing = [activities.error, conflicts.error].find(
     (error) => error instanceof ApiError && error.status === 404,
   );
+  useEffect(() => {
+    if (missing) void onFailure(missing);
+  }, [missing, onFailure]);
   const linkedActivity = useQuery({
     queryKey: ["trip", trip.id, "activity", viewing],
     enabled: viewing !== null && viewing === requestedActivity,
@@ -187,12 +188,13 @@ export function Itinerary({
     retry: false,
   });
   const [lastRequested, setLastRequested] = useState(requestedActivity);
+  const newActivityDirty = useRef(false);
   if (lastRequested !== requestedActivity) {
     setLastRequested(requestedActivity);
     setViewing(requestedActivity);
   }
   const viewedActivity =
-    !unavailable && !activities.isError
+    !missing && !activities.isError
       ? (activities.data?.find((activity) => activity.id === viewing) ??
         (viewing !== null && viewing === requestedActivity
           ? linkedActivity.data
@@ -326,9 +328,39 @@ export function Itinerary({
     </>
   );
 
+  // Add activity's prep tasks are created up for grabs once the activity exists.
+  // Each key extends the activity's request key, so a retry can't add duplicates.
+  async function addPrepTasks(
+    activityID: number,
+    titles: string[],
+    requestKey?: string,
+  ) {
+    try {
+      for (const [index, title] of titles.entries())
+        await prepApi.create(
+          {
+            title,
+            activity_id: activityID,
+            date: null,
+            kind: "one_person",
+            assignee_user_id: null,
+          },
+          requestKey && `${requestKey}-prep-${index}`,
+          index === titles.length - 1
+            ? `${plural(titles.length, "prep task")} added.`
+            : "",
+        );
+    } catch {
+      toast.error(
+        "The activity was saved, but some prep tasks weren't added. Add them from the activity.",
+      );
+    }
+  }
+
   const activityForm = editing && (
     <ActivityForm
       titleRef={titleInput}
+      dirtyRef={editedActivity ? undefined : newActivityDirty}
       section={editedActivity ? editSection : undefined}
       key={newDate ?? editedActivity?.id}
       expensePeople={participants ?? []}
@@ -348,22 +380,20 @@ export function Itinerary({
       pending={api.pending || !canEdit}
       error={api.error}
       onCancel={closeEditor}
-      onSubmit={async (input, requestKey) => {
+      onSubmit={async (input, requestKey, prepTasks = []) => {
         if (!canEdit || api.pending) return;
         try {
-          const changes =
-            editSection === "details"
-              ? {
-                  title: input.title,
-                  category: input.category,
-                  starts_at: input.starts_at,
-                  ends_at: input.ends_at,
-                }
-              : editSection === "place"
-                ? { place_id: input.place_id }
-                : editSection === "notes"
-                  ? { notes: input.notes }
-                  : { checklist: input.checklist };
+          const changes = {
+            details: {
+              title: input.title,
+              category: input.category,
+              starts_at: input.starts_at,
+              ends_at: input.ends_at,
+            },
+            place: { place_id: input.place_id },
+            notes: { notes: input.notes },
+            checklist: { checklist: input.checklist },
+          }[editSection];
           const payload = editedActivity
             ? {
                 ...(detailActivity ?? editedActivity),
@@ -375,8 +405,10 @@ export function Itinerary({
           if (saved) {
             setEditing(null);
             setSelected(localDate(payload.starts_at, trip.time_zone));
-            if (saved !== true) setViewing(saved.id);
-            else if (editedActivity) setViewing(editedActivity.id);
+            if (saved !== true) {
+              setViewing(saved.id);
+              await addPrepTasks(saved.id, prepTasks, requestKey);
+            } else if (editedActivity) setViewing(editedActivity.id);
             if (editedActivity) focusSection();
           }
         } catch {
@@ -458,7 +490,7 @@ export function Itinerary({
                 Day {dayNumber} of {dayCount} ·{" "}
                 {activities.isPending
                   ? "Loading activities…"
-                  : activities.isError || unavailable
+                  : activities.isError || missing
                     ? "Activities unavailable"
                     : `${selectedActivities.length} ${selectedActivities.length === 1 ? "activity" : "activities"} planned`}
               </p>
@@ -476,7 +508,7 @@ export function Itinerary({
                 dayTools={dayTools}
               />
             </div>
-            {canEdit && !unavailable && activities.isSuccess && (
+            {canEdit && !missing && activities.isSuccess && (
               <Button
                 type="button"
                 className="hidden md:inline-flex"
@@ -499,10 +531,11 @@ export function Itinerary({
             titleInput={titleInput}
             finalFocus={() => returnFocus(editTrigger.current)}
             closeEditor={closeEditor}
+            dirty={newActivityDirty}
           >
             {!editedActivity && activityForm}
           </AddActivityDrawer>
-          {!unavailable &&
+          {!missing &&
             (activities.isPending ? (
               <div
                 role="status"
@@ -548,7 +581,7 @@ export function Itinerary({
                 />
               </>
             ))}
-          {canEdit && !unavailable && activities.isSuccess && (
+          {canEdit && !missing && activities.isSuccess && (
             <div className="mobile-add-activity fixed right-[max(1.5rem,env(safe-area-inset-right,0px))] bottom-[var(--app-bottom)] z-30 md:hidden">
               <Button
                 className="min-h-12"
@@ -597,6 +630,7 @@ export function Itinerary({
             <DeleteActivityDialog
               deleting={deleting}
               setDeleting={setDeleting}
+              onDeleted={() => setViewing(null)}
               canEdit={canEdit}
               api={api}
               finalFocus={() => returnFocus(detailTrigger.current)}

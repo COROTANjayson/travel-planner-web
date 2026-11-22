@@ -64,9 +64,7 @@ export function Participants({
                   className="truncate leading-[22px] font-semibold"
                   title={participantName(person)}
                 >
-                  {person.display_name.trim() ||
-                    person.email?.split("@")[0] ||
-                    participantName(person)}
+                  {participantName(person)}
                   {person.user_id === current?.user_id && (
                     <span className="font-normal text-muted-foreground">
                       {" "}

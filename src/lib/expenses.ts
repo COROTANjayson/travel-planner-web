@@ -138,7 +138,7 @@ export type LedgerKind =
   "expenses" | "settlements" | "expense_payments" | "expense_loans";
 export const expensePageSize = 50;
 export const expenseName = (person?: ExpensePerson) =>
-  person?.display_name.trim() || person?.email || "Traveler";
+  person?.display_name.trim() || person?.email?.split("@")[0] || "Traveler";
 /** The ledger's people plus current participants, one entry per user. */
 export const tripPeople = <P extends { user_id: number }>(
   ledgerPeople: ExpensePerson[] = [],

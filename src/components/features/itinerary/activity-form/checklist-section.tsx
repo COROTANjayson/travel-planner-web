@@ -52,7 +52,7 @@ export function ChecklistSection({
               className="flex flex-wrap items-center gap-2 text-sm leading-6"
             >
               <Input
-                className="min-h-11 min-w-0 flex-1 basis-32"
+                className="min-w-0 flex-1 basis-32 md:min-h-12"
                 aria-label={`To-do item ${index + 1}`}
                 autoFocus={!section || (section === "checklist" && index === 0)}
                 required
@@ -71,7 +71,6 @@ export function ChecklistSection({
               <Button
                 type="button"
                 variant="ghost"
-                className="min-h-11"
                 aria-label={`Remove to-do item ${index + 1}`}
                 onClick={() => {
                   setChecklist(

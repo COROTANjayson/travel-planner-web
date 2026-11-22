@@ -342,7 +342,11 @@ const nextLink = {
     React.createElement("a", { href, ...props }, children),
 };
 const { PrepTaskRow } = load("src/components/features/prep/prep-task-row.tsx", {
-  react: { ...React, useState: (value) => [value, () => {}] },
+  react: {
+    ...React,
+    useState: (value) => [value, () => {}],
+    useRef: (value) => ({ current: value }),
+  },
   "next/link": nextLink,
   "@/lib/prep": { ...realPrep, usePrepApi: () => rowApi },
   "@/lib/memberships": {
@@ -552,6 +556,192 @@ rowActions.length = 0;
 assert.deepEqual(actedOn, [5]);
 assert.deepEqual(reported, [409]);
 console.log("Prep rows for each role and task state passed.");
+
+// Inside an activity: your own task needs no "You", unclaimed ones say so, the
+// activity link is dropped, and editors can move a task back to the whole trip.
+{
+  const linked = (task) => ({
+    ...task,
+    activity: { id: 9, title: "Kayak tour", starts_at: "2026-10-02T01:00:00Z" },
+  });
+  const opened = [];
+  let inside = row(linked(onePerson(assigneeOf(1))), 1, {
+    inActivity: true,
+    onOpen: (mode) => opened.push(mode),
+  });
+  assert.doesNotMatch(inside.text, /\bYou\b|Kayak tour/);
+  inside.button("Remove from activity").props.onClick();
+  assert.deepEqual(opened, ["remove"]);
+  inside = row(linked(onePerson()), 1, { inActivity: true });
+  assert.match(inside.text, /Up for grabs/);
+  assert.equal(
+    row(linked(onePerson()), 1).button("Remove from activity"),
+    undefined,
+    "Only rows inside an activity offer Remove from activity",
+  );
+  assert.equal(
+    row(linked(onePerson()), 3, { inActivity: true }).button(
+      "Remove from activity",
+    ),
+    undefined,
+    "Members can't move tasks",
+  );
+}
+
+// Add from Prep and Remove from activity send the activity change; expenses
+// follow on the API side.
+{
+  let slots = [];
+  let slot = 0;
+  const stateReact = {
+    ...React,
+    useState: (initial) => {
+      const index = slot++;
+      if (!(index in slots)) slots[index] = initial;
+      return [
+        slots[index],
+        (next) =>
+          (slots[index] =
+            typeof next === "function" ? next(slots[index]) : next),
+      ];
+    },
+  };
+  const updates = [];
+  let updateFailure;
+  const moveApi = {
+    pending: false,
+    error: null,
+    update: async (id, details, message) => {
+      if (updateFailure) throw updateFailure;
+      updates.push([id, details.activity_id, message]);
+      return true;
+    },
+  };
+  const dialogMocks = {
+    react: stateReact,
+    "@/components/shared/trip-dialog": { TripDialog: wrap("div") },
+    "@/components/shared/trip-states": { TripError: () => null },
+    "@/components/ui/button": {
+      Button: ({ children, ...props }) =>
+        React.createElement("button", props, children),
+    },
+    "@/components/ui/alert-dialog": Object.fromEntries(
+      [
+        "AlertDialog",
+        "AlertDialogCancel",
+        "AlertDialogContent",
+        "AlertDialogDescription",
+        "AlertDialogFooter",
+        "AlertDialogHeader",
+        "AlertDialogTitle",
+      ].map((key) => [key, wrap("div")]),
+    ),
+    "@/lib/activity-time": time,
+    "@/lib/memberships": {
+      participantName: (p) => p.display_name,
+    },
+  };
+  const { AddFromPrepDialog } = load(
+    "src/components/features/itinerary/dialogs/add-from-prep-dialog.tsx",
+    dialogMocks,
+  );
+  const tripWide = [
+    {
+      ...onePerson(assigneeOf(2)),
+      id: 11,
+      title: "Reserve kayaks",
+      date: null,
+    },
+    { ...onePerson(), id: 12, title: "Book flights", date: "2026-10-01" },
+    { ...everyone([1], [2, 3]), id: 13, title: "Check passport", date: null },
+  ];
+  let closed = 0;
+  const addProps = {
+    api: moveApi,
+    trip: { time_zone: "Asia/Manila" },
+    activity: { id: 9, title: "Kayak tour", starts_at: "2026-10-02T01:00:00Z" },
+    tasks: tripWide,
+    current: person(1),
+    expenses: (task) =>
+      task.id === 11 ? { count: 1, amount: "₱3,200.00" } : { count: 0 },
+    finalFocus: noop,
+    onClose: () => closed++,
+  };
+  const render = () => {
+    slot = 0;
+    const tree = AddFromPrepDialog(addProps);
+    return [...nodes(tree), ...nodes(tree.props.footer)];
+  };
+  const text = () =>
+    renderToStaticMarkup(
+      React.createElement(
+        "div",
+        null,
+        render().find((n) => n.type === "ul"),
+      ),
+    ).replace(/<[^>]+>/g, " ");
+  assert.match(text(), /Ben is on it · 1 expense · ₱3,200\.00/);
+  assert.match(text(), /Up for grabs/);
+  assert.match(text(), /Everyone · 1 of 3/);
+  const addButton = () =>
+    render().find((n) => /^(Add|Adding)/.test(String(n.props.children)));
+  assert.equal(addButton().props.disabled, true, "Nothing picked yet");
+  render()
+    .find((n) => n.props.id === "add-from-prep-search")
+    .props.onChange({ target: { value: "BOOK" } });
+  assert.doesNotMatch(text(), /Reserve kayaks/);
+  render()
+    .find((n) => n.props.type === "checkbox")
+    .props.onChange({ target: { checked: true } });
+  render()
+    .find((n) => n.props.id === "add-from-prep-search")
+    .props.onChange({ target: { value: "" } });
+  render()
+    .find((n) => n.props.type === "checkbox")
+    .props.onChange({ target: { checked: true } });
+  assert.equal(addButton().props.children, "Add 2 tasks");
+  await addButton().props.onClick();
+  await new Promise(setImmediate);
+  assert.deepEqual(updates.splice(0), [
+    [11, 9, ""],
+    [12, 9, "2 tasks added to Kayak tour."],
+  ]);
+  assert.equal(closed, 1);
+
+  const { RemoveFromActivityDialog } = load(
+    "src/components/features/itinerary/dialogs/remove-from-activity-dialog.tsx",
+    dialogMocks,
+  );
+  const removeProps = {
+    api: moveApi,
+    task: tripWide[0],
+    activityTitle: "Kayak tour",
+    expenses: 1,
+    finalFocus: noop,
+    onClose: () => closed++,
+  };
+  const removeMarkup = renderToStaticMarkup(
+    React.createElement(RemoveFromActivityDialog, removeProps),
+  );
+  assert.match(removeMarkup, /Remove from Kayak tour\?/);
+  assert.match(removeMarkup, /Its 1 expense won’t be part of this activity/);
+  const remove = nodes(RemoveFromActivityDialog(removeProps)).find(
+    (n) => n.props.children === "Remove",
+  );
+  assert.equal(remove.props.variant, "destructive");
+  updateFailure = new ApiError(409, "Changed");
+  await remove.props.onClick();
+  assert.equal(closed, 1, "A failed move keeps the confirmation open");
+  updateFailure = undefined;
+  await remove.props.onClick();
+  assert.deepEqual(updates.splice(0), [
+    [11, null, "Task moved to the whole trip."],
+  ]);
+  assert.equal(closed, 2);
+}
+console.log(
+  "Activity Prep rows, Add from Prep and Remove from activity passed.",
+);
 
 // Section and dialogs use a small state harness so failures can be re-rendered.
 let state = [];

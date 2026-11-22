@@ -20,6 +20,14 @@ export const activityCategoryIcons: Record<string, Icon> = {
   Activity: MountainsIcon,
 };
 
+/** Badge and selected-chip colours per category (Figma category/*). */
+export const activityCategoryColors: Record<string, string> = {
+  Rest: "bg-[#f0ebfa] text-[#65438b]",
+  Eating: "bg-[#fff0e2] text-[#945020]",
+  Travel: "bg-[#e8f0ff] text-[#315da3]",
+  Activity: "bg-[#e6f4ec] text-[#316747]",
+};
+
 export const activityCategories = [
   "Rest",
   "Eating",

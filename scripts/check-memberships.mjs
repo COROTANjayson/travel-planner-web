@@ -58,7 +58,7 @@ const invitation = {
 };
 assert.equal(
   membership.participantName({ ...owner, display_name: " " }),
-  owner.email,
+  "alex",
 );
 assert.equal(
   membership.participantName({ ...owner, display_name: " ", email: null }),

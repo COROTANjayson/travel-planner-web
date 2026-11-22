@@ -150,7 +150,8 @@ export function TripDialog({
           "min-h-0 overflow-y-auto overscroll-contain p-6 has-[>.activity-form]:pb-0 has-[>.ledger-form]:pb-0",
           !footer && "rounded-b-[inherit]",
           itineraryStyle && "pt-4 md:pt-5",
-          mobilePresentation === "tall-sheet" && "max-md:flex-1",
+          // Full-height phone layouts: the body fills, so the footer sits at the bottom.
+          mobilePresentation !== "sheet" && "max-md:flex-1",
           styles?.body,
           bodyClassName,
         )}

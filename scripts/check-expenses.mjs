@@ -2561,6 +2561,15 @@ function finance(screen, overrides = {}) {
   });
 }
 tree = finance("overview");
+// The Figma Expenses row: count, total and your share in one tappable card.
+assert.match(
+  renderToStaticMarkup(tree).replace(/<[^>]+>/g, " "),
+  /Expenses\s+\d+ expenses?(?: · \d+ from Prep)?\s+.+ total\s+Your share /,
+);
+assert.doesNotMatch(
+  renderToStaticMarkup(tree),
+  /Estimated total|View expenses/,
+);
 assert.doesNotMatch(
   renderToStaticMarkup(tree),
   /Cash for Person|View payments|Mark as paid|Record money lent|Add expense/,

@@ -127,12 +127,11 @@ export function ActivityExpenseDrafts({
         <Button
           type="button"
           variant="secondary"
-          className="min-h-11 rounded-full"
           aria-label="Add expense"
           disabled={adding}
           onClick={startAdding}
         >
-          <PlusIcon aria-hidden="true" className="size-3.5" />
+          <PlusIcon aria-hidden="true" />
           Expense
         </Button>
       ) : (

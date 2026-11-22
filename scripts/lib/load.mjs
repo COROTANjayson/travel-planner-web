@@ -47,6 +47,8 @@ export function createLoader({
           compilerOptions: {
             jsx: ts.JsxEmit.ReactJSX,
             module: ts.ModuleKind.CommonJS,
+            // ES5 (the default) silently skips for-of over iterators like .entries().
+            target: ts.ScriptTarget.ES2022,
             ...compilerOptions,
           },
         },

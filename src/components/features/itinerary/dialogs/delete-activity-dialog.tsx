@@ -17,11 +17,13 @@ import type { Activity, useItineraryApi } from "@/lib/itinerary";
 export function DeleteActivityDialog({
   deleting,
   setDeleting,
+  onDeleted,
   canEdit,
   api,
   finalFocus,
 }: {
   deleting: Activity;
+  onDeleted: () => void;
   setDeleting: (activity: Activity | null) => void;
   canEdit: boolean;
   api: Pick<
@@ -62,7 +64,10 @@ export function DeleteActivityDialog({
             onClick={async () => {
               if (!canEdit || api.pending) return;
               try {
-                if (await api.remove(deleting.id)) setDeleting(null);
+                if (await api.remove(deleting.id)) {
+                  setDeleting(null);
+                  onDeleted();
+                }
               } catch {
                 /* Keep the confirmation open and show the error. */
               }

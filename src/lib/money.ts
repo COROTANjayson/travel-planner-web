@@ -76,3 +76,33 @@ export const moneyIn =
       String(amount),
       currencies.find((c) => c.code === code) ?? { code, decimals: 2 },
     );
+
+/** Amount field text for a saved cost; per-person costs show one share. */
+export function costAmountInput(
+  cost: { amount_minor: string; shares: unknown[] },
+  perPerson: boolean,
+  decimals: number,
+) {
+  const minor = BigInt(cost.amount_minor);
+  return moneyInput(
+    (perPerson ? minor / BigInt(cost.shares.length) : minor).toString(),
+    decimals,
+  );
+}
+
+/** Whole-cost total from the typed amount; per-person amounts scale by headcount. */
+export function costTotal(minor: string, perPerson: boolean, people: number) {
+  const total = perPerson ? BigInt(minor) * BigInt(people) : BigInt(minor);
+  if (total > maxMinor) throw new Error("This total is too large.");
+  return total.toString();
+}
+
+/** True when the planned cover text is not a positive amount within the total. */
+export function plannedCoverInvalid(
+  text: string,
+  total: string,
+  decimals: number,
+) {
+  const planned = BigInt(parseMoney(text, decimals));
+  return planned <= 0n || planned > BigInt(total);
+}

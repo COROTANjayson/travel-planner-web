@@ -1,5 +1,7 @@
 import type { ActivityLedger, Expense, Share } from "./expenses";
 
+const pos = (v: bigint) => (v > 0n ? v : 0n);
+
 export function memberPaymentState(
   cost: Expense,
   ledger: ActivityLedger,
@@ -18,7 +20,7 @@ export function memberPaymentState(
       d.from_user_id === userID && payments.some((p) => p.id === d.payment_id),
   );
   const reimbursement = debts.reduce(
-    (n, d) => n + (BigInt(d.amount_minor) > 0n ? BigInt(d.amount_minor) : 0n),
+    (n, d) => n + pos(BigInt(d.amount_minor)),
     0n,
   );
   const receivable = ledger.debts
@@ -26,20 +28,13 @@ export function memberPaymentState(
       (d) =>
         d.to_user_id === userID && payments.some((p) => p.id === d.payment_id),
     )
-    .reduce(
-      (n, d) => n + (BigInt(d.amount_minor) > 0n ? BigInt(d.amount_minor) : 0n),
-      0n,
-    );
-  const business = remainingBusiness > 0n ? remainingBusiness : 0n;
+    .reduce((n, d) => n + pos(BigInt(d.amount_minor)), 0n);
+  const business = pos(remainingBusiness);
   const remaining = business + reimbursement;
-  const paid = share > remaining ? share - remaining : 0n;
+  const paid = pos(share - remaining);
   const credit =
-    (remainingBusiness < 0n ? -remainingBusiness : 0n) +
-    debts.reduce(
-      (n, d) =>
-        n + (BigInt(d.amount_minor) < 0n ? -BigInt(d.amount_minor) : 0n),
-      0n,
-    );
+    pos(-remainingBusiness) +
+    debts.reduce((n, d) => n + pos(-BigInt(d.amount_minor)), 0n);
   return {
     share,
     business,
@@ -84,7 +79,7 @@ export function allocatePayment(
   const values = shares
     .map((s) => ({
       user_id: s.user_id,
-      value: BigInt(s.amount_minor) > 0n ? BigInt(s.amount_minor) : 0n,
+      value: pos(BigInt(s.amount_minor)),
     }))
     .sort((a, b) => a.user_id - b.user_id);
   let total = values.reduce((n, s) => n + s.value, 0n);

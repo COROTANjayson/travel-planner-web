@@ -1,10 +1,15 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { fieldRequired } from "@/components/shared/field-required";
-import { TagIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { activityCategories, activityCategoryIcons } from "@/lib/itinerary";
+import {
+  activityCategories,
+  activityCategoryColors,
+  activityCategoryIcons,
+} from "@/lib/itinerary";
 
 export function CategoryField({
   prefix,
@@ -21,32 +26,55 @@ export function CategoryField({
 }) {
   return (
     <div className="space-y-2">
-      <fieldset className="activity-category-chips [display:flex] [flex-wrap:wrap] [gap:0.5rem] [min-width:0]">
-        <legend className="mb-2 text-sm leading-none font-medium">
-          Category
+      <fieldset className="activity-category-chips flex min-w-0 flex-wrap gap-x-2 gap-y-2 max-md:gap-x-1.5">
+        <legend className="mb-2 text-sm leading-5 font-medium">
+          What kind of plan?
         </legend>
         {[...activityCategories, "Custom"].map((category) => {
           const value = category === "Custom" ? "custom" : category;
+          const selected = categoryChoice === value;
           const Icon = Object.hasOwn(activityCategoryIcons, category)
             ? activityCategoryIcons[category]
-            : TagIcon;
+            : PlusIcon;
           return (
             <label
               key={category}
-              className="activity-category activity-category-chip inline-flex min-h-11 max-w-full flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-muted px-3 py-1 text-xs leading-5 font-medium text-muted-foreground [&[data-icon-only]]:[width:2.75rem] [&[data-icon-only]]:[height:2.75rem] [&[data-icon-only]]:[flex-shrink:0] [&[data-icon-only]]:[justify-content:center] [&[data-icon-only]]:[border-radius:0.75rem] [&[data-icon-only]]:[padding:0] [&[data-icon-only]_svg]:[width:1.25rem] [&[data-icon-only]_svg]:[height:1.25rem] [&[data-category='Rest']]:[background:#f0ebfa] [&[data-category='Rest']]:[color:#65438b] [&[data-category='Eating']]:[background:#fff0e2] [&[data-category='Eating']]:[color:#945020] [&[data-category='Travel']]:[background:#e8f0ff] [&[data-category='Travel']]:[color:#315da3] [&[data-category='Activity']]:[background:#e6f4ec] [&[data-category='Activity']]:[color:#316747] [&:not(:has(:checked))]:[background:var(--card)] [&:not(:has(:checked))]:[color:var(--foreground)] [&:not(:has(:checked))]:[box-shadow:inset_0_0_0_1px_var(--input)] [&:has(:checked)]:[box-shadow:inset_0_0_0_2px_currentColor] [&:has(:checked)]:[font-weight:600] [&:has(:focus-visible)]:[outline:2px_solid_var(--ring)] [&:has(:focus-visible)]:[outline-offset:2px] [&:has(:disabled)]:[cursor:default] [&:has(:disabled)]:[opacity:0.5]"
               data-category={category}
+              className={cn(
+                "activity-category activity-category-chip inline-flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-full border px-3.5 whitespace-nowrap text-foreground has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring has-disabled:cursor-default has-disabled:opacity-50 max-md:h-10 max-md:gap-1 max-md:px-2.5",
+                selected
+                  ? cn(
+                      // Selected chips take their itinerary badge colours.
+                      "border-current text-xs leading-5 font-semibold",
+                      activityCategoryColors[category] ??
+                        "bg-secondary text-secondary-foreground",
+                    )
+                  : cn(
+                      "text-sm leading-5 max-md:text-xs max-md:leading-4 max-md:font-medium",
+                      category === "Custom"
+                        ? "border-dashed border-input"
+                        : "border-transparent bg-muted",
+                    ),
+              )}
             >
               <input
                 type="radio"
                 className="sr-only"
                 name={`${prefix}-category`}
                 value={value}
-                checked={categoryChoice === value}
+                checked={selected}
                 onChange={() => {
                   setCategoryChoice(value);
                 }}
               />
-              <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+              <Icon
+                aria-hidden="true"
+                weight={selected && category !== "Custom" ? "fill" : "regular"}
+                className={cn(
+                  "size-4 shrink-0 max-md:size-3.5",
+                  !selected && "text-muted-foreground",
+                )}
+              />
               {category}
             </label>
           );
@@ -63,6 +91,7 @@ export function CategoryField({
           <Input
             id={`${prefix}-custom-category`}
             required
+            className="md:min-h-12"
             value={customCategory}
             placeholder="e.g. Shopping"
             onChange={(event) => setCustomCategory(event.target.value)}

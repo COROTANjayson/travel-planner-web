@@ -10,6 +10,7 @@ import { MobileBottomNav } from "@/components/features/account/mobile-bottom-nav
 import { SignedOutActions } from "@/components/features/account/signed-out-actions";
 import { WorkspaceSidebar } from "@/components/features/account/workspace-sidebar";
 import { type ApiUser, useApi } from "@/lib/api";
+import { participantName } from "@/lib/memberships";
 
 export function AuthPanel({
   mobile = false,
@@ -68,7 +69,7 @@ export function AuthPanel({
     );
   }
 
-  const name = user.data?.display_name.trim() || user.data?.email || "Traveler";
+  const name = user.data ? participantName(user.data) : "Traveler";
 
   const accountContent = (
     <AccountContent

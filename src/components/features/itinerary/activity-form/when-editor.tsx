@@ -2,7 +2,6 @@
 
 import { cn } from "@/lib/utils";
 import { fieldRequired } from "@/components/shared/field-required";
-import { ClockIcon } from "@phosphor-icons/react";
 import type { Duration } from "@/components/features/itinerary/activity-form/activity-form";
 import {
   DateTimeField,
@@ -18,6 +17,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+const durationLabels: Record<Duration, string> = {
+  "30": "30 minutes",
+  "60": "1 hour",
+  "120": "2 hours",
+  custom: "Custom duration",
+};
 
 export function WhenEditor({
   prefix,
@@ -65,21 +71,20 @@ export function WhenEditor({
       <p
         id={`${prefix}-when`}
         className={
-          hideDate
-            ? "sr-only"
-            : "mb-2 block text-sm leading-[22px] font-normal text-muted-foreground"
+          hideDate ? "sr-only" : "mb-2 block text-sm leading-5 font-medium"
         }
       >
         {hideDate ? fullDateLabel(initialDate!) : "When"}
       </p>
+      {/* Start time and Duration share a row on desktop (Figma "When"). */}
       <div
         className={cn(
           "space-y-5",
-          planning &&
-            "grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] items-start gap-x-4 gap-y-0",
+          planning && "grid items-start gap-4 space-y-0 md:grid-cols-2",
         )}
       >
-        <div className="min-w-0 space-y-2">
+        {/* The edit form's date trigger matches the 48px Figma input. */}
+        <div className="min-w-0 space-y-2 [&_button[id$='-date']]:min-h-12 [&_button[id$='-date']]:rounded-lg">
           <DateTimeField
             id={`${prefix}-start`}
             label="Start"
@@ -87,6 +92,7 @@ export function WhenEditor({
             draft={startTime}
             split
             required
+            timeWheel
             hideDate={hideDate}
             minDate={tripStart}
             maxDate={tripEnd}
@@ -97,25 +103,19 @@ export function WhenEditor({
               setValidationError(undefined);
             }}
           />
-          <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
-            <ClockIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            <span className="min-w-0 wrap-break-word">{whenSummary}</span>
+          <p className="text-[13px] leading-5 wrap-break-word text-muted-foreground">
+            {whenSummary}
           </p>
         </div>
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           <Label htmlFor={`${prefix}-duration`} className={fieldRequired}>
             Duration
           </Label>
           <Select
             value={duration}
             onValueChange={(value) => {
-              if (
-                value === "30" ||
-                value === "60" ||
-                value === "120" ||
-                value === "custom"
-              ) {
-                setDuration(value);
+              if (value && value in durationLabels) {
+                setDuration(value as Duration);
                 setTimeChanged(true);
                 setValidationError(undefined);
               }
@@ -123,28 +123,21 @@ export function WhenEditor({
           >
             <SelectTrigger
               id={`${prefix}-duration`}
-              className="min-h-11 w-full"
+              className="w-full md:data-[size=default]:min-h-12"
             >
-              <SelectValue>
-                {duration === "30"
-                  ? "30 minutes"
-                  : duration === "60"
-                    ? "1 hour"
-                    : duration === "120"
-                      ? "2 hours"
-                      : "Custom duration"}
-              </SelectValue>
+              <SelectValue>{durationLabels[duration]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="30">30 minutes</SelectItem>
-              <SelectItem value="60">1 hour</SelectItem>
-              <SelectItem value="120">2 hours</SelectItem>
-              <SelectItem value="custom">Custom duration</SelectItem>
+              {Object.entries(durationLabels).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
         {duration === "custom" && (
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <Label htmlFor={`${prefix}-custom-hours`} className={fieldRequired}>
               Duration (hours)
             </Label>
@@ -155,6 +148,7 @@ export function WhenEditor({
               step="any"
               inputMode="decimal"
               required
+              className="md:min-h-12"
               value={customHours}
               placeholder="e.g. 1.5"
               onChange={(event) => {

@@ -2,7 +2,7 @@
 
 import { useRef, useState, type ComponentProps } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { PlusIcon } from "@phosphor-icons/react";
+import { ListChecksIcon, PlusIcon } from "@phosphor-icons/react";
 import {
   PrepSelect,
   prepChipClass,
@@ -57,6 +57,8 @@ export function PrepTaskDialog({
   api,
   trip,
   task,
+  activity: fixedActivity,
+  overDrawer = false,
   people,
   current,
   finalFocus,
@@ -68,6 +70,10 @@ export function PrepTaskDialog({
   >;
   trip: Pick<Trip, "id" | "time_zone" | "start_date" | "end_date">;
   task?: PrepTask;
+  /** Adding from an activity: the task belongs to it, so day and activity aren't asked. */
+  activity?: PrepActivity;
+  /** Opened from activity details: dim the drawer behind it. */
+  overDrawer?: boolean;
   /** People taking part; only they can be picked. */
   people: Participant[];
   current?: Participant;
@@ -88,7 +94,9 @@ export function PrepTaskDialog({
           : "someone",
   );
   const [assignee, setAssignee] = useState(saved === me ? 0 : saved);
-  const [activity, setActivity] = useState(task?.activity?.id ?? 0);
+  const [activity, setActivity] = useState(
+    task?.activity?.id ?? fixedActivity?.id ?? 0,
+  );
   const [date, setDate] = useState(task?.date ?? "none");
   const [showDay, setShowDay] = useState(!!task);
   const [showActivity, setShowActivity] = useState(!!task?.activity);
@@ -190,6 +198,7 @@ export function PrepTaskDialog({
       }}
       title={task ? "Edit task" : "Add a task"}
       mobilePresentation="tall-sheet"
+      backdropClassName={overDrawer ? "bg-black/60" : undefined}
       busy={api.pending}
       disablePointerDismissal
       initialFocus={titleInput}
@@ -240,6 +249,18 @@ export function PrepTaskDialog({
               aria-invalid={!!invalid && !!prepTitleError(title)}
             />
           </div>
+          {fixedActivity && (
+            <p className="flex items-center gap-2.5 rounded-lg bg-secondary p-3 text-[13px] leading-[21px] font-semibold break-words">
+              <ListChecksIcon
+                aria-hidden="true"
+                className="size-[18px] shrink-0 text-primary"
+              />
+              <span className="min-w-0">
+                For: {fixedActivity.title} ·{" "}
+                {dateLabel(localDate(fixedActivity.starts_at, trip.time_zone))}
+              </span>
+            </p>
+          )}
           <fieldset className="min-w-0 space-y-2">
             <legend className="mb-2 text-sm font-medium">
               Who&apos;s on it?
@@ -344,7 +365,7 @@ export function PrepTaskDialog({
               )}
             </div>
           )}
-          {(!showDay || !showActivity) && (
+          {!fixedActivity && (!showDay || !showActivity) && (
             <div
               className="flex flex-wrap items-center gap-2"
               role="group"

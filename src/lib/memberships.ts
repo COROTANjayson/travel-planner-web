@@ -41,7 +41,7 @@ export const acceptanceError =
   "This invitation is no longer available. Refresh your invitations and try again.";
 type NamedPerson = Pick<Participant, "display_name" | "email">;
 export const participantName = (person: NamedPerson) =>
-  person.display_name.trim() || person.email || "Traveler";
+  person.display_name.trim() || person.email?.split("@")[0] || "Traveler";
 export const participantInitials = (person: NamedPerson) => {
   const words = participantName(person).split(/\s+/);
   const first = Array.from(words[0])[0] ?? "";

@@ -796,6 +796,7 @@ const formModule = load(
     },
     react: {
       useId: () => "activity",
+      useEffect: () => {},
       useRef: (value) => {
         if (!activityFormState) return { current: value };
         const index = activityHookIndex++;
@@ -1082,6 +1083,16 @@ const newFormHtml = renderToStaticMarkup(
 );
 assert.match(newFormHtml, /value="2026-10-02T"/);
 assert.match(newFormHtml, /1 hour/);
+{
+  const { shift } = load("src/components/shared/time-wheel.tsx");
+  assert.equal(shift(9, 0, "hour", 1), "10:00");
+  assert.equal(shift(11, 30, "hour", 1), "00:30", "Hours wrap within AM");
+  assert.equal(shift(23, 0, "hour", 1), "12:00", "Hours wrap within PM");
+  assert.equal(shift(9, 55, "minute", 1), "09:00", "Minutes do not carry");
+  assert.equal(shift(9, 7, "minute", -1), "09:02");
+  assert.equal(shift(9, 0, "period", 1), "21:00");
+  assert.equal(shift(21, 0, "period", 1), "09:00");
+}
 const optionalProps = {
   tripID: 7,
   initialDate: "2026-10-02",
@@ -1107,7 +1118,10 @@ assert.deepEqual(
 );
 assert.deepEqual(
   newActivityForm
-    .filter((node) => node.type === "input" && node.props.type === "radio")
+    .filter(
+      (node) =>
+        node.type === "input" && node.props.name === "activity-category",
+    )
     .map((node) => [node.props.value, node.props.checked]),
   [
     ["Rest", false],
@@ -1132,7 +1146,7 @@ assert.deepEqual(
   newActivityForm
     .filter((node) => node.props.variant === "secondary")
     .map((node) => node.props["aria-label"]),
-  ["Add place", "Add notes", "Add to do"],
+  ["Add place", "Add notes", "Add prep task"],
   "Optional sections start as Add more pills",
 );
 assert.match(collapsedHtml, /Add more/);
@@ -1364,11 +1378,10 @@ assert.ok(
       collapsedHtml.search(/Duration/),
   "A new activity shows its end time under Start time, before Duration",
 );
-assert.ok(
-  !newActivityForm
-    .find((node) => node.props.children === "Cancel")
-    .props.className.includes("sr-only"),
-  "Cancel is visible beside Save activity",
+assert.equal(
+  newActivityForm.some((node) => node.props.children === "Cancel"),
+  false,
+  "Add activity has one action; Back to itinerary is the way out",
 );
 assert.doesNotMatch(newFormHtml, />60</);
 assert.match(newFormHtml, /Save activity/);
@@ -1510,13 +1523,21 @@ const checklistField = (label) =>
   nodes(checklistForm()).find((node) => node.props["aria-label"] === label);
 activityFormState = [];
 nodes(checklistForm())
-  .find((node) => node.props.type === "radio" && node.props.value === "custom")
+  .find(
+    (node) =>
+      node.props.name === "activity-category" && node.props.value === "custom",
+  )
   .props.onChange();
 assert.match(renderToStaticMarkup(checklistForm()), /Custom category/);
 nodes(checklistForm())
   .find((node) => node.props.id === "activity-custom-category")
   .props.onChange({ target: { value: " Shopping " } });
-checklistButton("To do").props.onClick();
+// Add activity has no To do pill (Figma); the checklist section form adds items.
+nodes(checklistForm({ section: "checklist" }))
+  .find((node) =>
+    React.Children.toArray(node.props.children).includes("Add to-do item"),
+  )
+  .props.onClick();
 checklistField("To-do item 1").props.onChange({
   target: { value: " Buy tickets " },
 });
@@ -1672,6 +1693,16 @@ const uiApi = {
     return true;
   },
 };
+const prepCreates = [];
+let prepCreateFails = false;
+const prepUiApi = {
+  async create(input, key, message) {
+    if (prepCreateFails) throw new Error("Prep failed");
+    prepCreates.push({ input, key, message });
+    return true;
+  },
+};
+const prepToasts = [];
 const boardQueries = [];
 let itineraryNow = "2026-10-23T12:00:00Z";
 const temporal = require("@js-temporal/polyfill").Temporal;
@@ -1683,6 +1714,10 @@ const components = load("src/components/features/itinerary/itinerary.tsx", {
   "@/lib/money": load("src/lib/money.ts"),
   "@/components/features/expenses/activity-expenses": {
     ActivityExpenses: wrap("section"),
+  },
+  // Covered in check-prep.mjs.
+  "@/components/features/itinerary/activity-prep": {
+    ActivityPrep: wrap("section"),
   },
   "next/link": { __esModule: true, default: wrap("a") },
   ...primitiveMocks,
@@ -1724,6 +1759,8 @@ const components = load("src/components/features/itinerary/itinerary.tsx", {
     ].map((key) => [key, wrap("div")]),
   ),
   "@/lib/itinerary": { ...itinerary, useItineraryApi: () => uiApi },
+  "@/lib/prep": { ...load("src/lib/prep.ts"), usePrepApi: () => prepUiApi },
+  sonner: { toast: { error: (message) => prepToasts.push(message) } },
   "next/dynamic": {
     __esModule: true,
     default: () => () => React.createElement("div", null, "Map"),
@@ -2027,6 +2064,8 @@ function board(tripValue = trip, canEdit = true) {
 }
 const dialog = () =>
   board().find((node) => node.props.title === "Add activity");
+// The drawer holds the form, then its discard confirmation.
+const addForm = () => [dialog().props.children].flat()[0];
 const inlineForm = (canEdit = true) =>
   [
     ...nodes(details(canEdit).props.children),
@@ -2383,18 +2422,15 @@ assert.deepEqual(
 boardConflicts = [];
 addButton().props.onClick({ currentTarget: trigger });
 assert.equal(dialog().props.open, true);
-assert.equal(dialog().props.children.props.initialDate, "2026-10-01");
+assert.equal(addForm().props.initialDate, "2026-10-01");
 assert.equal(
   dialog().props.headerContent.props.children,
   "Thursday, October 1",
   "Add activity is headed by its fixed day",
 );
-assert.equal(
-  dialog().props.initialFocus,
-  dialog().props.children.props.titleRef,
-);
+assert.equal(dialog().props.initialFocus, addForm().props.titleRef);
 assert.equal(dialog().props.finalFocus(), trigger);
-dialog().props.children.props.onCancel();
+addForm().props.onCancel();
 assert.equal(dialog().props.open, false);
 openDetails();
 detailActions()
@@ -2549,13 +2585,47 @@ boardActivities = [
   { ...activity, id: 3, ends_at: "2026-10-01T02:00:00Z" },
 ];
 addButton().props.onClick({ currentTarget: trigger });
-const addProps = dialog().props.children.props;
+const addProps = addForm().props;
 assert.equal(
   addProps.initialStartsAt,
   "2026-10-01T13:50:00Z",
   "Use latest scheduled end regardless of list order",
 );
 assert.equal(dialog().props.description, undefined);
+{
+  // Add activity's prep tasks are created up for grabs after the activity saves.
+  const save = uiApi.save;
+  uiApi.save = async () => ({ ...activity, id: 41 });
+  await addProps.onSubmit(activity, "req", ["Pack dry bags", "Bring cash"]);
+  assert.deepEqual(
+    prepCreates.map(({ input, key, message }) => [
+      input.title,
+      input.activity_id,
+      input.kind,
+      input.assignee_user_id,
+      key,
+      message,
+    ]),
+    [
+      ["Pack dry bags", 41, "one_person", null, "req-prep-0", ""],
+      [
+        "Bring cash",
+        41,
+        "one_person",
+        null,
+        "req-prep-1",
+        "2 prep tasks added.",
+      ],
+    ],
+  );
+  prepCreateFails = true;
+  addButton().props.onClick({ currentTarget: trigger });
+  await addForm().props.onSubmit(activity, "req2", ["Pack dry bags"]);
+  assert.match(prepToasts[0], /activity was saved, but some prep tasks/);
+  prepCreateFails = false;
+  uiApi.save = save;
+  addButton().props.onClick({ currentTarget: trigger });
+}
 const prefilled = formModule.ActivityForm(addProps);
 const startField = nodes(prefilled).find(
   (node) => node.props.label === "Start",
@@ -2567,15 +2637,15 @@ assert.equal(
   false,
   "Editing still allows moving to another date",
 );
-dialog().props.children.props.onCancel();
+addForm().props.onCancel();
 boardActivities = [overnight];
 addButton().props.onClick({ currentTarget: trigger });
 assert.equal(
-  dialog().props.children.props.initialStartsAt,
+  addForm().props.initialStartsAt,
   undefined,
   "Do not silently move an addition to the next day",
 );
-dialog().props.children.props.onCancel();
+addForm().props.onCancel();
 console.log(
   "Selected-day additions hide the date picker and start at the latest same-day end.",
 );

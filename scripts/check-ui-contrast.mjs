@@ -3,10 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 const css = fs.readFileSync("src/app/globals.css", "utf8");
-const categoryBadge = fs.readFileSync(
-  "src/components/features/itinerary/category-badge.tsx",
-  "utf8",
-);
+const categoryColors = fs.readFileSync("src/lib/itinerary.ts", "utf8");
 const lightTheme = css.match(/:root\s*\{([^}]+)\}/)[1];
 const token = (name) => {
   const value = lightTheme.match(
@@ -100,8 +97,8 @@ check("#526258", "#e9ede8");
 // Ongoing status pill (trip-card.tsx, trip-summary.tsx).
 check("#ffffff", "#1c6465");
 const categoryBadges = [
-  ...categoryBadge.matchAll(
-    /\[&\[data-category='([^']+)'\]\]:bg-\[(#[0-9a-f]{6})\]\s+\[&\[data-category='\1'\]\]:text-\[(#[0-9a-f]{6})\]/gi,
+  ...categoryColors.matchAll(
+    /(\w+): "bg-\[(#[0-9a-f]{6})\] text-\[(#[0-9a-f]{6})\]"/gi,
   ),
 ];
 assert.deepEqual(

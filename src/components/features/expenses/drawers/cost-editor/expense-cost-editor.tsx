@@ -6,11 +6,14 @@ import { Temporal } from "@js-temporal/polyfill";
 import { ListChecksIcon, UsersIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
+  costAmountInput,
+  costTotal,
   expenseMoney,
   equalShares,
+  maxMinor,
   moneyInput,
   parseMoney,
-  maxMinor,
+  plannedCoverInvalid,
 } from "@/lib/money";
 import {
   expenseName,
@@ -83,13 +86,7 @@ export function ExpenseCostEditor({
   const [basis, setBasis] = useState(initial?.amount_basis ?? "group");
   const [amount, setAmount] = useState(
     initial
-      ? moneyInput(
-          (basis === "per_person"
-            ? BigInt(initial.amount_minor) / BigInt(initial.shares.length)
-            : BigInt(initial.amount_minor)
-          ).toString(),
-          meta.decimals,
-        )
+      ? costAmountInput(initial, basis === "per_person", meta.decimals)
       : "",
   );
   const [selected, setSelected] = useState(
@@ -185,10 +182,7 @@ export function ExpenseCostEditor({
     total = parseMoney(amount, meta.decimals);
     if (BigInt(total) <= 0n) throw new Error("Enter a positive price.");
     if (!selected.length) throw new Error("Include at least one member.");
-    if (basis === "per_person") {
-      total = (BigInt(total) * BigInt(selected.length)).toString();
-      if (BigInt(total) > maxMinor) throw new Error("This total is too large.");
-    }
+    total = costTotal(total, basis === "per_person", selected.length);
     if (mode === "equal") shares = equalShares(total, selected);
     else {
       checkCustomShares();
@@ -266,11 +260,7 @@ export function ExpenseCostEditor({
         return;
       }
       if (step === "coverer") {
-        if (
-          coverer &&
-          (BigInt(parseMoney(coverAmount, meta.decimals)) <= 0n ||
-            BigInt(parseMoney(coverAmount, meta.decimals)) > BigInt(total))
-        )
+        if (coverer && plannedCoverInvalid(coverAmount, total, meta.decimals))
           throw new Error(
             "The planned reservation must be within the expense total.",
           );
@@ -279,11 +269,7 @@ export function ExpenseCostEditor({
         return;
       }
       if (problem) throw new Error(problem);
-      if (
-        coverer &&
-        (BigInt(parseMoney(coverAmount, meta.decimals)) <= 0n ||
-          BigInt(parseMoney(coverAmount, meta.decimals)) > BigInt(total))
-      )
+      if (coverer && plannedCoverInvalid(coverAmount, total, meta.decimals))
         throw new Error("Check the planned reservation amount.");
       input = {
         activity_id: activity.id,

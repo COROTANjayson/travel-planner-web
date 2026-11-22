@@ -22,11 +22,12 @@ export const tripDialogVariants: Record<
     reader: "[scrollbar-gutter:stable]",
     footer: referenceFooter,
   },
+  // Figma "Desktop / Add activity": ghost Back row, 22px day title, 20px gaps (16px mobile).
   planning: {
-    nav,
+    nav: "border-b-0 px-3 py-2 [&_svg]:size-4",
     header:
-      "pt-[30px] pb-[18px] [&_h2+button]:mt-2.5 [&_h2]:mx-0 [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2]:max-w-[20ch] [&_h2]:text-[30px] [&_h2]:leading-10 [&_h2]:font-bold [&_h2]:tracking-normal [&_h2]:text-balance pt-4 [&_h2]:mt-0",
-    body: "flex flex-1 flex-col overflow-visible px-6 pt-0 pb-0 has-[>.activity-form]:pb-0 has-[>.ledger-form]:pb-0",
+      "pt-2 pb-0 [&>div]:space-y-0 [&_h2]:text-[22px] [&_h2]:leading-7 [&_h2]:font-semibold [&_h2]:tracking-[-0.01em] max-md:[&_h2]:text-xl max-md:[&_h2]:tracking-normal",
+    body: "flex flex-1 flex-col overflow-visible px-6 pt-5 pb-0 max-md:pt-4 has-[>.activity-form]:pb-0 has-[>.ledger-form]:pb-0",
     reader: "flex flex-col [scrollbar-gutter:stable]",
     footer: referenceFooter,
   },

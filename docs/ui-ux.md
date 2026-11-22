@@ -9,7 +9,12 @@ guide are relative to the repository root.
 
 ## Figma-first UI workflow
 
-1. Before editing any UI, including CSS-only fixes, use the Figma plugin to
+The user does not have a Figma MCP plugin subscription. Use the local Figma
+desktop app and computer-use screen controls to inspect approved designs,
+measurements, and component properties. This workflow does not require Figma
+MCP access; unavailable MCP access alone is not a blocker.
+
+1. Before editing any UI, including CSS-only fixes, use the local Figma app to
    open the relevant approved frames and components in the
    [Travel Planner Figma file](https://www.figma.com/design/fSnvj7wJlyAcAUGdWsGxFX/Travel-Planner-%E2%80%94-Coastal-Folio).
    Confirm which frames are approved. The file also contains generated
@@ -20,8 +25,9 @@ guide are relative to the repository root.
    and layout properties to guide the implementation.
 3. If a required screen, component, or state is missing, tell the user exactly
    what needs to be added and wait for their Figma update before implementing
-   that UI. If plugin access is blocked or the approved frame is unclear,
-   report the blocker and wait for verified design context.
+   that UI. If the local app cannot provide verified design context, try screen
+   controls in the Figma web UI. If neither route is accessible or the approved
+   frame is unclear, report the blocker and wait for verified design context.
 4. Before reporting completion, compare the rendered app and approved Figma
    frames at matching viewport widths. Measure the affected dimensions and
    spacing in both, and resolve discrepancies across the affected layouts and
@@ -198,7 +204,8 @@ design.
   scrolling reader. Creator and permitted Delete stay visible in a bottom footer,
   outside the scrolling content. Follow the supplied November 2 flow:
   both desktop and mobile stack a short Expenses summary, Notes, and To do.
-  The summary shows expense total and your share, with one View expenses action.
+  The summary is the tappable Expenses row (count, "N from Prep", total, your
+  share, chevron).
   One Expenses screen uses underlined All expenses and My expenses tabs to switch views inside the activity window. Keep the desktop drawer attached to the right,
   bounded at 680px from 768px; mobile remains full-screen. Add activity uses the
   same drawer width.
@@ -216,18 +223,53 @@ design.
 - Show an icon and text category badge on each activity card. Owners/editors use
   Add activity and select Rest, Eating, Travel, Activity, or Custom in the form.
   Custom labels are per activity; no category management screen.
-- (Next design for duration, saving and closing: see
-  [Form simplification](#form-simplification-approved-design-not-yet-built).)
-  Add activity is headed by its fixed day (Add activity stays the dialog's
-  accessible name) and starts with Activity name, outlined category chips that fill the
-  row, with only the selected chip taking its card badge color (default Activity), and
-  the fields for When. An Add more row of soft pills offers
-  Place, Notes, To do and Expense. Tapping one opens that section as in activity
-  details, and its pill goes; the Expenses card stays last. Cancel then Save activity
-  sit in a pinned footer. Required fields show a red asterisk; there is no explanatory
-  subtitle. When is never collapsible: one line under Start time gives the end time and trip zone,
-  and Start time and Duration share a row where they fit.
-  The title pencil's form uses the same chips and fields, with a date input.
+- Add activity follows the Figma "Add activity" frames: the 680px right drawer
+  on desktop (square corners, ghost Back to itinerary row) and a tall sheet on
+  mobile. It is headed by its fixed day (Add activity stays the dialog's
+  accessible name) and starts with Activity name, then "What kind of plan?"
+  pill category chips (muted when unselected; the selected chip takes its card
+  badge color, border and filled icon; Custom is a dashed "+ Custom"; default
+  Activity), and the fields for When. An Add more row of secondary pills offers
+  Place, Notes, Prep task and Expense. Tapping one opens that section as in
+  activity details, and its pill goes; the Expenses card stays last. Prep task
+  opens "Prep tasks" above Add more: title-only inputs, a small "Add another"
+  link and "Saved as up for grabs. Assign people from the activity later."
+  Non-blank titles become unassigned one-person tasks on the new activity after
+  it saves; if any fail, a toast says the activity was saved without them.
+  To-do items are added from the saved activity's To do section.
+- Activity details shows Prep above Expenses (Figma "Activity details"): a
+  small muted "Prep" label with an "Add task" link for owners and editors, a
+  96px progress bar with "N of M done", and the activity's open tasks as Prep
+  rows (your own tasks show no "You"; done tasks fold into one "N done" row).
+  With no tasks it says "Nothing to prepare yet." Add task opens a menu
+  (popover on desktop, bottom sheet on phones): New task opens Add a task with
+  a fixed "For: activity · day" row and no Trip day or Activity pills; From Prep
+  opens "Add from Prep", a searchable checklist of unfinished trip-wide tasks
+  whose expenses move with them ("Add N tasks"). A row's options add "Remove
+  from activity", confirmed with a red Remove: the task goes back to the whole
+  trip and its expenses leave the activity.
+- Activity Place uses the Figma destination pattern. A chosen place is a
+  "Destination row" (map pin, name, address, a small Change link and a 44px X
+  to remove it). Searching shows one 48px field with a search icon and a small
+  Search button inside it; Enter also searches. Searches never run while typing
+  (OpenStreetMap's public search does not allow autocomplete). Results use the
+  "Dropdown list" style. While changing, "Keep <place>" restores the chosen
+  place. Labels use the
+  default dark label style. Required fields show a red asterisk; there is no
+  explanatory subtitle. When is never collapsible: Start time (clock icon, with
+  the inline time wheel under it while focused) and Duration share a row on
+  desktop, and one line under Start time gives the end time and trip zone.
+  Duration is a select (30 minutes, 1 hour, 2 hours, Custom duration); Custom
+  shows Duration (hours). The title pencil's form uses the same chips and
+  fields, with a date input.
+- The pinned footer holds one action, Save activity (full width on mobile);
+  Back to itinerary is the way out.
+- Back, Escape and outside dismissal of Add activity ask "Discard this
+  activity?" ("What you typed will not be saved.") only when something was
+  typed or chosen; Keep editing returns to the form with its values.
+- Empty day: for owners and editors, the "Nothing planned yet" card holds an
+  outlined Add activity button. Add activity above the timeline stays the only
+  filled action. Viewers see no button.
   Existing activities use section pencils.
   Notes holds the activity description and other free-form reminders.
 - To-dos are simple text items: add, rename, or remove them in the existing
@@ -282,7 +324,8 @@ design.
 
 - Reuse `src/components/ui` before adding primitives. Compose feature UI outside
   that folder. Use semantic theme classes, component variants, `cn()`, and
-  Lucide icons; icon-only controls need accessible names.
+  Lucide icons; icon-only controls need accessible names. Every button variant
+  is pill-shaped, so a Cancel beside a primary action has the same corners.
 - Start mobile-first; avoid fixed text heights and page-level horizontal
   overflow. Long names and enlarged text must wrap. Ordinary content reflows
   at 320 CSS pixels; surrounding map controls must also fit.
@@ -333,23 +376,6 @@ endpoints, and no new libraries (Base UI `Combobox` is already installed).
   the default dark label style, not muted text. Required fields show the red
   asterisk. Each error sits under its own field, and the first invalid field
   takes focus. Actions are right-aligned, Cancel then the primary action.
-- Buttons: every button variant is pill-shaped, so a Cancel beside a primary
-  action has the same corners. Today only the primary variant is a pill; the
-  outline, secondary, ghost and destructive variants use 16px corners.
-- Empty day: for owners and editors, the "Nothing planned yet" card holds an
-  outlined Add activity button. Add activity above the timeline stays the only
-  filled action. Viewers see no button.
-- Add activity, duration: replace the dropdown with single-select chips: 30 min,
-  1 hr, 2 hr, 3 hr and Custom. Custom shows an End time field in place of
-  decimal hours. The line under Start time still gives the end time and trip
-  zone. Category and duration chips share one chip style.
-- Add activity, saving: a quiet Save and add another sits between Cancel and
-  Save activity. It saves, keeps the drawer open on the same day, and starts
-  the next activity where the saved one ended. On mobile, Save activity takes
-  the full width above the other two.
-- Add activity, closing: Back, Escape and outside dismissal ask "Discard this
-  activity?" only when something was typed. Keep editing returns to the form
-  with its values.
 - Add expense, cost step: show Expense name, the amount panel, then two rows that
   open the existing steps: Split ("Evenly among 4 people", opening members and
   custom split) and Who's paying ("Decide later", opening the planned coverer).
@@ -519,7 +545,7 @@ there and delete it from here. The Figma Screens page shows these designs.
   Loans never increase activity spending, expense shares, or personal Paid totals.
 - Use contextual Back actions: payment screens return to their originating expense
   or personal view; Borrow list returns to All expenses; both expense views
-  return to the overview's View expenses action. Restore focus and reader position on
+  return to the overview's Expenses row. Restore focus and reader position on
   return. Reopening or changing activity resets to the overview. Hide Notes, To do,
   and activity editing controls in financial steps. Preserve the selected day.
 - Members, owners and editors record money they personally lent to one other active

@@ -19,15 +19,18 @@ import { TripError } from "@/components/shared/trip-states";
 import { ExpenseSelect } from "@/components/features/expenses/expense-forms";
 import { allocatePayment, uncovered } from "@/lib/activity-expenses";
 import {
+  costAmountInput,
+  costTotal,
   equalShares,
   formatMoney,
-  maxMinor,
   moneyInput,
   parseMoney,
+  plannedCoverInvalid,
 } from "@/lib/money";
 import {
   expenseName,
   type ActivityLedger,
+  type BusinessPayment,
   type Currency,
   type Debt,
   type Expense,
@@ -43,7 +46,7 @@ export type ExpenseEditor = {
   debt?: Debt;
   receipt?: Settlement;
   memberID?: number;
-  payment?: import("@/lib/expenses").BusinessPayment;
+  payment?: BusinessPayment;
 };
 export function ActivityExpenseForm({
   editor,
@@ -138,13 +141,7 @@ export function ActivityExpenseForm({
   const [correctionReason, setCorrectionReason] = useState("");
   const [amount, setAmount] = useState(
     record && isCost
-      ? moneyInput(
-          (basis === "per_person"
-            ? BigInt(record.amount_minor) / BigInt(record.shares.length)
-            : BigInt(record.amount_minor)
-          ).toString(),
-          meta.decimals,
-        )
+      ? costAmountInput(record, basis === "per_person", meta.decimals)
       : editor.receipt || debt
         ? moneyInput((editor.receipt ?? debt)!.amount_minor, meta.decimals)
         : editor.type === "payment" && record
@@ -212,11 +209,7 @@ export function ActivityExpenseForm({
     if (BigInt(total) <= 0n) throw new Error("Enter a positive amount.");
     if (isCost) {
       if (!selected.length) throw new Error("Choose at least one traveler.");
-      if (basis === "per_person") {
-        total = (BigInt(total) * BigInt(selected.length)).toString();
-        if (BigInt(total) > maxMinor)
-          throw new Error("This total is too large.");
-      }
+      total = costTotal(total, basis === "per_person", selected.length);
       preview =
         mode === "equal"
           ? equalShares(total, selected)
@@ -315,8 +308,7 @@ export function ActivityExpenseForm({
           if (
             isCost &&
             plannedCoverer &&
-            (BigInt(parseMoney(plannedAmount, meta.decimals)) <= 0n ||
-              BigInt(parseMoney(plannedAmount, meta.decimals)) > BigInt(total))
+            plannedCoverInvalid(plannedAmount, total, meta.decimals)
           )
             throw new Error(
               "Planned coverage must be positive and within this cost.",

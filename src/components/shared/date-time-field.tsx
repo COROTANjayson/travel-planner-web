@@ -7,6 +7,8 @@ import { inspectLocalTime, type Occurrence } from "@/lib/activity-time";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DateTimePickerSheet } from "@/components/shared/date-time-picker-sheet";
+import { TimeWheel } from "@/components/shared/time-wheel";
+import { ClockIcon } from "@phosphor-icons/react";
 import {
   Select,
   SelectContent,
@@ -29,6 +31,7 @@ export function DateTimeField({
   split = false,
   hideDate = false,
   required = false,
+  timeWheel = false,
 }: {
   id: string;
   label: string;
@@ -41,6 +44,8 @@ export function DateTimeField({
   split?: boolean;
   hideDate?: boolean;
   required?: boolean;
+  /** Clock icon in the time input and the inline time wheel under it. */
+  timeWheel?: boolean;
 }) {
   const labelClass = required ? fieldRequired : undefined;
   const [open, setOpen] = useState(false);
@@ -48,6 +53,9 @@ export function DateTimeField({
   const [year, month, day] = date.split("-").map(Number);
   const selected = date ? new TZDate(year, month - 1, day, zone) : undefined;
   const time = draft.value.slice(11, 16);
+  const [wheelOpen, setWheelOpen] = useState(false);
+  const setTime = (next: string) =>
+    onChange({ value: `${date}T${next}`, occurrence: "" });
   const inspected: ReturnType<typeof inspectLocalTime> =
     draft.value.length >= 16
       ? inspectLocalTime(draft.value, zone)
@@ -89,20 +97,48 @@ export function DateTimeField({
           <Label htmlFor={`${id}-time`} className={labelClass}>
             {label} time
           </Label>
-          <Input
-            id={`${id}-time`}
-            type="time"
-            className="min-h-11"
-            required={required}
-            disabled={disabled || !date}
-            value={time}
-            onChange={(event) =>
-              onChange({
-                value: `${date}T${event.target.value}`,
-                occurrence: "",
-              })
-            }
-          />
+          <div
+            className="space-y-2"
+            onFocus={() => timeWheel && setWheelOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape" || !wheelOpen) return;
+              event.stopPropagation();
+              setWheelOpen(false);
+            }}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget))
+                setWheelOpen(false);
+            }}
+          >
+            <div className="relative">
+              {timeWheel && (
+                <ClockIcon
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                />
+              )}
+              <Input
+                id={`${id}-time`}
+                type="time"
+                className={
+                  timeWheel
+                    ? "pl-9 md:min-h-12 [&::-webkit-calendar-picker-indicator]:hidden"
+                    : "min-h-11"
+                }
+                required={required}
+                disabled={disabled || !date}
+                value={time}
+                onChange={(event) => setTime(event.target.value)}
+              />
+            </div>
+            {wheelOpen && !disabled && date && (
+              <TimeWheel
+                value={time}
+                onChange={setTime}
+                onDone={() => setWheelOpen(false)}
+              />
+            )}
+          </div>
           {inspected.error && (
             <p role="alert" className="text-sm text-destructive">
               {inspected.error}

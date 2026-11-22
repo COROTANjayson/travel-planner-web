@@ -6,6 +6,7 @@ import {
   ActivityExpenses,
   type ActivityExpenseView,
 } from "@/components/features/expenses/activity-expenses";
+import { ActivityPrep } from "@/components/features/itinerary/activity-prep";
 import { CategoryBadge } from "@/components/features/itinerary/category-badge";
 import {
   ActivityDetailSections,
@@ -173,8 +174,8 @@ export function ActivityDetailsDrawer({
                 aria-label={`Delete ${detailActivity.title}`}
                 onClick={() => {
                   api.reset();
-                  setDeleting(detailActivity);
                   setViewing(null);
+                  setDeleting(detailActivity);
                 }}
               >
                 <TrashIcon aria-hidden="true" />
@@ -194,6 +195,17 @@ export function ActivityDetailsDrawer({
             <p role="alert" className="text-sm text-destructive">
               Your edit permission has changed. Cancel to return to reading.
             </p>
+          )}
+          {expenseView === "overview" && (
+            <ActivityPrep
+              key={`prep-${detailActivity.id}`}
+              trip={trip}
+              activity={detailActivity}
+              participants={participants}
+              current={current}
+              canEdit={canEdit}
+              onFailure={onFailure}
+            />
           )}
           <ActivityExpenses
             key={detailActivity.id}

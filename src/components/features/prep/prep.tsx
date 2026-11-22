@@ -114,6 +114,8 @@ export function Prep({
       : addTrigger.current;
   const onOpen = (task: PrepTask, mode: PrepRowOpen) => {
     if (mode === "details") return setDetails(task.id);
+    // Remove from activity only appears on rows inside an activity.
+    if (mode === "remove") return;
     setDetails(null);
     open({ mode, task });
   };

@@ -205,20 +205,28 @@ export function usePrepApi(
       return tasks;
     },
     /** `key` stays the same for retries of one submission, so a retry can't add a second task. */
-    create: (input: PrepTaskInput, key?: string) =>
+    create: (
+      input: PrepTaskInput,
+      key?: string,
+      successMessage = "Task added.",
+    ) =>
       mutate<PrepTask>(
         base,
         "POST",
         { ...input, title: input.title.trim() },
-        "Task added.",
+        successMessage,
         key,
       ),
-    update: (id: number, details: PrepTaskDetails) =>
+    update: (
+      id: number,
+      details: PrepTaskDetails,
+      successMessage = "Task updated.",
+    ) =>
       mutate<PrepTask>(
         task(id),
         "PUT",
         { ...details, title: details.title.trim() },
-        "Task updated.",
+        successMessage,
       ),
     remove: (id: number) => mutate(task(id), "DELETE"),
     assign: (id: number, userID: number | null) =>

@@ -2,7 +2,15 @@
 
 import { cn } from "@/lib/utils";
 import { FormField } from "@/components/shared/form-field";
-import { useId, useRef, useState, type Ref, type FormEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type Ref,
+  type RefObject,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Temporal } from "@js-temporal/polyfill";
 import { PlusIcon } from "@phosphor-icons/react";
@@ -13,6 +21,7 @@ import {
   type ChecklistItem,
 } from "@/lib/itinerary";
 import { type Place, type PlaceCandidate } from "@/lib/places";
+import { prepTitleError } from "@/lib/prep";
 import {
   endAfterMinutes,
   instantToLocal,
@@ -31,6 +40,7 @@ import { ChecklistSection } from "@/components/features/itinerary/activity-form/
 import { NotesSection } from "@/components/features/itinerary/activity-form/notes-section";
 import { OverlapNotice } from "@/components/features/itinerary/activity-form/overlap-notice";
 import { PlaceSection } from "@/components/features/itinerary/activity-form/place-section";
+import { PrepTasksSection } from "@/components/features/itinerary/activity-form/prep-tasks-section";
 import { WhenEditor } from "@/components/features/itinerary/activity-form/when-editor";
 
 const durations = { "30": 30, "60": 60, "120": 120 } as const;
@@ -44,6 +54,7 @@ function formatEndTime(instant: string, zone: string, startDate: string) {
 
 export function ActivityForm({
   titleRef,
+  dirtyRef,
   section,
   expensePeople = [],
   expenseUserID,
@@ -72,11 +83,18 @@ export function ActivityForm({
   initialDate?: string;
   initialStartsAt?: string;
   titleRef?: Ref<HTMLInputElement>;
+  /** Set to true while a new activity holds anything typed. */
+  dirtyRef?: RefObject<boolean>;
   tripStart: string;
   tripEnd: string;
   tripStartsAt: string | null;
   tripEndsAt: string | null;
-  onSubmit: (input: ActivityInput, requestKey?: string) => void;
+  /** `prepTasks`: titles of up-for-grabs prep tasks to add once a new activity saves. */
+  onSubmit: (
+    input: ActivityInput,
+    requestKey?: string,
+    prepTasks?: string[],
+  ) => void;
   onCancel: () => void;
   pending: boolean;
   error: unknown;
@@ -103,6 +121,8 @@ export function ActivityForm({
   const [checklist, setChecklist] = useState(() =>
     (initialValue?.checklist ?? []).map((item, key) => ({ ...item, key })),
   );
+  // New activities only: title-only prep tasks, created after the activity saves.
+  const [prepTasks, setPrepTasks] = useState<string[]>([]);
   const [startTime, setStartTime] = useState(() =>
     initialValue
       ? instantToLocal(initialValue.starts_at, tripZone)
@@ -189,6 +209,22 @@ export function ActivityForm({
     retry: false,
   });
 
+  const dirty =
+    !initialValue &&
+    !!(
+      title.trim() ||
+      notes.trim() ||
+      place ||
+      checklist.length ||
+      prepTasks.some((task) => task.trim()) ||
+      expenseChanges.length ||
+      customCategory.trim() ||
+      timeChanged
+    );
+  useEffect(() => {
+    if (dirtyRef) dirtyRef.current = dirty;
+  }, [dirty, dirtyRef]);
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending || placePending) return;
@@ -212,6 +248,9 @@ export function ActivityForm({
         )
       )
         throw new Error("Give every to-do item a short description.");
+      const prepTitles = prepTasks.map((task) => task.trim()).filter(Boolean);
+      const prepError = prepTitles.map(prepTitleError).find(Boolean);
+      if (prepError) throw new Error(`Prep task: ${prepError}`);
       const input: ActivityInput = {
         title,
         ...(expenseChanges.length
@@ -249,7 +288,7 @@ export function ActivityForm({
         throw new Error("Activity dates must fit within the trip dates.");
       setValidationError(undefined);
       if (!requestKey.current) requestKey.current = crypto.randomUUID();
-      onSubmit(input, requestKey.current);
+      onSubmit(input, requestKey.current, prepTitles);
     } catch (cause) {
       setValidationError(
         cause instanceof Error ? cause.message : "Check the activity times.",
@@ -314,21 +353,19 @@ export function ActivityForm({
     <Button
       type="button"
       variant="secondary"
-      className="min-h-11 rounded-full"
       aria-label={`Add ${label.toLowerCase()}`}
       onClick={onClick}
     >
-      <PlusIcon aria-hidden="true" className="size-3.5" />
+      <PlusIcon aria-hidden="true" />
       {label}
     </Button>
   );
-  const addChecklistItem = (pill: boolean) => (
+  const addChecklistItem = (
     <Button
       ref={checklistAddButton}
       type="button"
-      variant={pill ? "secondary" : "link"}
-      className={pill ? "min-h-11 rounded-full" : "min-h-11 px-0"}
-      aria-label={pill ? "Add to do" : undefined}
+      variant="link"
+      className="min-h-11 px-0"
       disabled={checklist.length >= 50}
       onClick={() => {
         setChecklist([
@@ -338,7 +375,7 @@ export function ActivityForm({
       }}
     >
       <PlusIcon aria-hidden="true" className="size-3.5" />
-      {pill ? "To do" : "Add to-do item"}
+      Add to-do item
     </Button>
   );
   const categoryField = (
@@ -362,14 +399,16 @@ export function ActivityForm({
       className={
         section
           ? "activity-section-form"
-          : "activity-form activity-planning-form flex flex-1 flex-col [&_label]:text-sm [&_label]:leading-[22px] [&_label]:font-normal [&_label]:text-muted-foreground"
+          : "activity-form activity-planning-form flex flex-1 flex-col [&_[data-slot=label]]:leading-5"
       }
     >
       <fieldset
         disabled={pending || placePending}
         className={cn(
           "min-w-0 space-y-5",
-          section ? "[&>:first-child_input]:[font-size:1rem]" : "flex-1 pb-6",
+          section
+            ? "[&>:first-child_input]:[font-size:1rem]"
+            : "flex-1 pb-6 max-md:space-y-4",
         )}
       >
         {(!section || section === "details") && (
@@ -381,7 +420,7 @@ export function ActivityForm({
               placeholder="e.g. Dinner at the waterfront"
               id={`${prefix}-title`}
               label="Activity name"
-              className="min-h-11"
+              className="md:min-h-12"
               required
               value={title}
               onChange={(event) => setTitle(event.target.value)}
@@ -450,10 +489,17 @@ export function ActivityForm({
                 checklist={checklist}
                 setChecklist={setChecklist}
                 checklistAddButtonRef={checklistAddButton}
-                addButton={addChecklistItem(false)}
+                addButton={addChecklistItem}
               />
             )}
           </div>
+        )}
+        {!section && prepTasks.length > 0 && (
+          <PrepTasksSection
+            prefix={prefix}
+            tasks={prepTasks}
+            setTasks={setPrepTasks}
+          />
         )}
         {!section && (
           <div
@@ -463,18 +509,19 @@ export function ActivityForm({
           >
             {(!placeOpen ||
               !notesOpen ||
-              !checklist.length ||
+              !prepTasks.length ||
               !expenseChanges.length) && (
               <p
                 aria-hidden="true"
-                className="basis-full text-sm leading-[22px] text-muted-foreground"
+                className="basis-full text-sm leading-5 text-muted-foreground"
               >
                 Add more
               </p>
             )}
             {!placeOpen && addPill("Place", () => setPlaceOpen(true))}
             {!notesOpen && addPill("Notes", () => setNotesOpen(true))}
-            {!checklist.length && addChecklistItem(true)}
+            {!prepTasks.length &&
+              addPill("Prep task", () => setPrepTasks([""]))}
             <ActivityExpenseDrafts
               tripID={tripID}
               activityID={initialValue?.id}
@@ -495,19 +542,21 @@ export function ActivityForm({
         </Alert>
       )}
       {!!error && <TripError error={error} />}
-      <div className="form-actions sticky bottom-0 z-10 flex flex-wrap gap-3 border-t border-border bg-[var(--form-surface,var(--background))] py-4 [.activity-form_>_&]:[justify-content:flex-end] [.activity-form_>_&]:[margin-inline:-1.5rem] [.activity-form_>_&]:[padding-inline:1.5rem] [.activity-form_>_&_>_:first-child]:[flex:0_1_auto] max-md:[&_>_*]:[min-width:0] max-md:[&_>_*]:[white-space:normal] max-md:[&_>_:first-child]:[flex:1_1_10rem] [.activity-planning-form_>_&]:[padding-bottom:max(1rem,_env(safe-area-inset-bottom))] [.activity-planning-form_>_&]:[background:var(--background)] [.activity-section-form_>_&]:[position:static] [.activity-section-form_>_&]:[justify-content:flex-end] [.activity-section-form_>_&]:[margin-top:16px] [.activity-section-form_>_&]:[padding:0] [.activity-section-form_>_&]:[border-top:0] [.activity-section-form_>_&]:[background:transparent] [.activity-section-form_>_&_>_[data-slot='button']]:[flex:0_0_6rem] [.activity-section-form_>_&_>_[data-slot='button']]:[width:6rem] [.activity-section-form_>_&_>_[data-slot='button']]:[min-height:44px] [.activity-section-form_>_&_>_[data-slot='button']]:[border-radius:0.75rem]">
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11"
-          disabled={pending}
-          onClick={onCancel}
-        >
-          Cancel
-        </Button>
+      <div className="form-actions sticky bottom-0 z-10 flex flex-wrap gap-3 border-t border-border bg-[var(--form-surface,var(--background))] py-4 [.activity-form_>_&]:[justify-content:flex-end] [.activity-form_>_&]:[margin-inline:-1.5rem] [.activity-form_>_&]:[padding-inline:1.5rem] [.activity-form_>_&_>_:first-child]:[flex:0_1_auto] max-md:[&_>_*]:[min-width:0] max-md:[&_>_*]:[white-space:normal] max-md:[&_>_:first-child]:[flex:1_1_10rem] [.activity-planning-form_>_&]:[padding-bottom:max(1rem,_env(safe-area-inset-bottom))] [.activity-planning-form_>_&]:[background:var(--background)] [.activity-section-form_>_&]:[position:static] [.activity-section-form_>_&]:[justify-content:flex-end] [.activity-section-form_>_&]:[margin-top:16px] [.activity-section-form_>_&]:[padding:0] [.activity-section-form_>_&]:[border-top:0] [.activity-section-form_>_&]:[background:transparent]">
+        {/* Add activity has one action; Back to itinerary is the way out. */}
+        {section && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pending}
+            onClick={onCancel}
+          >
+            Cancel
+          </Button>
+        )}
         <Button
           type="submit"
-          className="min-h-11"
+          className={section ? undefined : "max-md:w-full"}
           disabled={pending || placePending}
         >
           {pending ? "Saving…" : section ? "Save" : "Save activity"}

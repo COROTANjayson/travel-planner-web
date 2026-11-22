@@ -4,13 +4,14 @@ import { useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BorrowListLink } from "@/components/features/expenses/borrow-list-link";
 import { ExpenseTotals } from "@/components/features/expenses/expense-totals";
+import { ExpensesRow } from "@/components/features/expenses/expenses-row";
 import { ExpenseViewTabs } from "@/components/features/expenses/expense-view-tabs";
 import { OtherBalances } from "@/components/features/expenses/other-balances";
 import { CostArticle } from "@/components/features/expenses/cost-article";
 import { LoanArticle } from "@/components/features/expenses/loan-article";
 import { ReceiptRows } from "@/components/features/expenses/receipt-rows";
 import { ApiError } from "@/lib/api";
-import { matchesActivity } from "@/lib/activity-expenses";
+import { matchesActivity, personalTotals } from "@/lib/activity-expenses";
 import {
   expenseName,
   tripPeople,
@@ -29,7 +30,7 @@ import { cn } from "@/lib/utils";
 import { ExpenseCostEditor } from "@/components/features/expenses/drawers/cost-editor/expense-cost-editor";
 import { ExpensePaymentWorkspace } from "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace";
 import { PersonalPayments } from "@/components/features/expenses/personal-payments/personal-payments";
-import { ArrowRightIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { TripError } from "@/components/shared/trip-states";
 import type { ExpenseEditor } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
 import { ExpenseEditorDialog } from "@/components/features/expenses/dialogs/expense-editor-dialog";
@@ -236,8 +237,7 @@ export function ActivityExpenses(
         flow
           ? cn(
               "activity-finance group/finance space-y-4",
-              props.view === "overview" &&
-                "rounded-[16px] border border-border p-5",
+              props.view === "overview" && "space-y-0",
             )
           : props.compact
             ? "activity-cost-section"
@@ -253,14 +253,14 @@ export function ActivityExpenses(
           onViewChange={props.onViewChange}
         />
       )}
-      {!props.managementOnly && (!flow || props.view === "overview") && (
+      {!props.managementOnly && !flow && (
         <div
           className={cn(
             "mb-2.5 flex flex-wrap items-center justify-between gap-3 **:data-[slot=button]:min-h-12 **:data-[slot=button]:px-4 **:data-[slot=button]:text-sm **:data-[slot=button]:font-bold",
             !flow && "border-t border-border pt-3.5",
           )}
         >
-          {(!flow || props.view === "overview") && (
+          {!flow && (
             <h3
               ref={heading}
               tabIndex={-1}
@@ -316,22 +316,19 @@ export function ActivityExpenses(
         {localError && <TripError error={localError} />}
         {data && currencies.data && (
           <>
-            {!props.managementOnly &&
-              (!flow ||
-                props.view === "overview" ||
-                props.view === "details") && (
-                <ExpenseTotals
-                  codes={
-                    flow ? [...new Set(costs.map((c) => c.currency))] : codes
-                  }
-                  costs={costs}
-                  data={data}
-                  current={current}
-                  activityID={activityID}
-                  money={money}
-                  view={flow ? props.view : undefined}
-                />
-              )}
+            {!props.managementOnly && (!flow || props.view === "details") && (
+              <ExpenseTotals
+                codes={
+                  flow ? [...new Set(costs.map((c) => c.currency))] : codes
+                }
+                costs={costs}
+                data={data}
+                current={current}
+                activityID={activityID}
+                money={money}
+                view={flow ? props.view : undefined}
+              />
+            )}
             {flow && props.view === "details" && !props.managementOnly && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pt-1 pb-3 group-data-[finance-view=loans]/finance:gap-2 group-data-[finance-view=loans]/finance:pt-0 group-data-[finance-view=details]/finance:mb-0 group-data-[finance-view=loans]/finance:mb-0">
                 <h3 className="text-[18px] font-bold group-data-[finance-view=loans]/finance:text-base">
@@ -362,28 +359,24 @@ export function ActivityExpenses(
                 )}
               </div>
             )}
-            {(showCosts || props.view === "overview") &&
-              !costs.length &&
-              (!loans.length || flow) && (
-                <p className="text-muted-foreground">
-                  No expenses yet.
-                  {isEditor
-                    ? " Add entrance fees, rooms, or other activity costs."
-                    : ""}
-                </p>
-              )}
+            {showCosts && !costs.length && (!loans.length || flow) && (
+              <p className="text-muted-foreground">
+                No expenses yet.
+                {isEditor
+                  ? " Add entrance fees, rooms, or other activity costs."
+                  : ""}
+              </p>
+            )}
             {flow && props.view === "overview" && (
-              <div className="flex flex-wrap gap-2 group-data-[finance-view=overview]/finance:-my-2 **:data-[slot=button]:h-auto **:data-[slot=button]:min-h-11 **:data-[slot=button]:whitespace-normal">
-                <Button
-                  variant="link"
-                  className="px-0"
-                  data-finance-link="details"
-                  onClick={() => props.onViewChange?.("details")}
-                >
-                  View expenses
-                  <ArrowRightIcon aria-hidden="true" className="size-3.5" />
-                </Button>
-              </div>
+              <ExpensesRow
+                costs={costs}
+                share={(code) =>
+                  personalTotals(data, current?.user_id ?? 0, code, activityID)
+                    .cost
+                }
+                money={money}
+                onOpen={() => props.onViewChange?.("details")}
+              />
             )}
             {!props.managementOnly && (!flow || props.view === "personal") && (
               <PersonalPayments

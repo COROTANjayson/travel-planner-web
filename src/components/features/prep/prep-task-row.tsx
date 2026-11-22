@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
+  ArrowBendUpLeftIcon,
   CheckCircleIcon,
   CheckIcon,
   EyeIcon,
@@ -20,7 +21,7 @@ import {
 } from "@/lib/memberships";
 import { isTaskDone, takesPart, usePrepApi, type PrepTask } from "@/lib/prep";
 
-export type PrepRowOpen = "details" | "edit" | "delete";
+export type PrepRowOpen = "details" | "edit" | "delete" | "remove";
 
 /** Reopen (when finished), Edit and Delete: shared by the row and details menus. */
 export const taskMenuItems = (
@@ -61,6 +62,7 @@ export function PrepTaskRow({
   current,
   canEdit,
   byActivity = false,
+  inActivity = false,
   amounts,
   onFailure,
   onAction,
@@ -72,6 +74,9 @@ export function PrepTaskRow({
   canEdit: boolean;
   /** The By activity view: the group heading names the activity, so the row says who. */
   byActivity?: boolean;
+  /** Inside an activity: like By activity, but your own tasks need no "You"
+   * (the checkbox and Drop say it), and the menu can remove it from the activity. */
+  inActivity?: boolean;
   /** Linked expense totals, already formatted per currency. */
   amounts?: string;
   onFailure: (error: Error) => void | Promise<void>;
@@ -117,6 +122,7 @@ export function PrepTaskRow({
   // Your own and unclaimed tasks need no "who" outside By activity: their
   // section already says it. Everyone tasks show only the count; the details
   // list who's done.
+  const grouped = byActivity || inActivity;
   const who = done
     ? everyone
       ? "Everyone's done"
@@ -129,10 +135,10 @@ export function PrepTaskRow({
           : ""
         : task.assignee
           ? `${assignee} is on it`
-          : byActivity
+          : grouped
             ? "Up for grabs"
             : "";
-  const activity = !byActivity && task.activity;
+  const activity = !grouped && task.activity;
   const parts = [
     who,
     task.date ? dateLabel(task.date) : "",
@@ -249,6 +255,17 @@ export function PrepTaskRow({
               task,
               onOpen,
               () => void act(() => api.reopen(task.id)),
+            ).flatMap((item) =>
+              inActivity && item.label === "Delete"
+                ? [
+                    {
+                      label: "Remove from activity",
+                      icon: <ArrowBendUpLeftIcon aria-hidden="true" />,
+                      onClick: () => onOpen("remove"),
+                    },
+                    item,
+                  ]
+                : [item],
             ),
           ]}
         />

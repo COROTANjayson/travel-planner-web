@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { MagnifyingGlassIcon, MapPinIcon, XIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { TripError } from "@/components/shared/trip-states";
 import { Button } from "@/components/ui/button";
@@ -7,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Place, PlaceCandidate } from "@/lib/places";
 
+// Chosen place and results follow the Figma "Destination row", "Dropdown
+// list" and "Search result" components.
 export function PlaceSection({
   prefix,
   section,
@@ -32,6 +36,8 @@ export function PlaceSection({
   placePending: boolean;
   placeError: unknown;
 }) {
+  const [changing, setChanging] = useState(false);
+  const searching = !place || changing;
   return (
     <section
       className={cn(section ? "space-y-2" : "border-t border-border py-2")}
@@ -41,101 +47,146 @@ export function PlaceSection({
           Place
         </h3>
       </div>
-      <div className={cn("space-y-3", section ? "pt-4" : "pt-1 pb-4")}>
-        <Label htmlFor={`${prefix}-place-search`} className="sr-only">
-          Search for a place (optional)
-        </Label>
-        {place && (
-          <div className="rounded-xl border bg-secondary/40 p-4 text-sm">
-            <p className="font-medium leading-6 lg:max-w-[70ch]">
-              {place.name}
-            </p>
-            <p className="break-words leading-6 text-muted-foreground lg:max-w-[70ch]">
-              {place.address}
-            </p>
+      <div className={cn("space-y-2", section ? "pt-4" : "pt-1 pb-4")}>
+        {!searching ? (
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary py-2 pr-2 pl-4">
+            <MapPinIcon
+              aria-hidden="true"
+              className="size-[18px] shrink-0 text-primary"
+            />
+            <div className="min-w-0 flex-1 py-1">
+              <p className="text-base leading-6 font-medium wrap-break-word">
+                {place.name}
+              </p>
+              <p className="text-[13px] leading-5 wrap-break-word text-muted-foreground">
+                {place.address}
+              </p>
+            </div>
             <Button
               type="button"
-              variant="outline"
-              className="mt-2 min-h-11"
-              onClick={() => {
-                setPlace(null);
-              }}
+              variant="link"
+              size="sm"
+              onClick={() => setChanging(true)}
             >
-              Clear place
+              Change
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Remove place"
+              className="size-11 min-h-11 text-muted-foreground"
+              onClick={() => setPlace(null)}
+            >
+              <XIcon aria-hidden="true" />
             </Button>
           </div>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <Input
-            id={`${prefix}-place-search`}
-            autoFocus={!section || section === "place"}
-            className="min-h-11 min-w-0 flex-1"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.nativeEvent.isComposing) {
-                event.preventDefault();
-                void search();
-              }
-            }}
-            placeholder="Search for a place"
-            enterKeyHint="search"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            onClick={() => void search()}
-          >
-            {placePending ? "Loading…" : "Search"}
-          </Button>
-        </div>
-        {results && (
-          <div aria-live="polite">
-            {results.length === 0 ? (
-              <p className="text-sm leading-6 text-muted-foreground lg:max-w-[70ch]">
-                No places found.
-              </p>
-            ) : (
-              <ul className="space-y-2 lg:max-w-[70ch]">
-                {results.map((candidate) => (
-                  <li
-                    key={candidate.provider_place_id}
-                    className="text-sm leading-6"
+        ) : (
+          <>
+            <Label htmlFor={`${prefix}-place-search`} className="sr-only">
+              Search for a place (optional)
+            </Label>
+            <div className="relative">
+              <MagnifyingGlassIcon
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                id={`${prefix}-place-search`}
+                autoFocus={!section || section === "place" || changing}
+                className="pr-24 pl-9 md:min-h-12"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                    event.preventDefault();
+                    void search();
+                  }
+                }}
+                placeholder="Search for a place"
+                enterKeyHint="search"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="absolute top-1/2 right-2 -translate-y-1/2"
+                onClick={() => void search()}
+              >
+                {placePending ? "Loading…" : "Search"}
+              </Button>
+            </div>
+            {results && (
+              <div aria-live="polite">
+                {results.length === 0 ? (
+                  <p className="text-[13px] leading-5 text-muted-foreground">
+                    No places found. Try a different name.
+                  </p>
+                ) : (
+                  <ul
+                    aria-label="Place results"
+                    className="rounded-lg border border-border bg-popover p-1 shadow-[0_8px_24px_rgb(18_60_64/0.12)]"
                   >
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-auto min-h-11 w-full justify-start whitespace-normal text-left"
-                      onClick={() => void choose(candidate)}
-                    >
-                      <span>
-                        <strong>{candidate.name}</strong>
-                        <br />
-                        <span className="text-muted-foreground">
-                          {candidate.address}
-                        </span>
-                      </span>
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+                    {results.map((candidate) => (
+                      <li key={candidate.provider_place_id}>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left outline-none hover:bg-accent focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={() => {
+                            setChanging(false);
+                            void choose(candidate);
+                          }}
+                        >
+                          <MapPinIcon
+                            aria-hidden="true"
+                            className="size-4 shrink-0 text-muted-foreground"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-base leading-6 font-medium wrap-break-word">
+                              {candidate.name}
+                            </span>
+                            <span className="block text-[13px] leading-5 wrap-break-word text-muted-foreground">
+                              {candidate.address}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
-          </div>
+            {place && (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="px-0"
+                onClick={() => {
+                  setChanging(false);
+                  setQuery("");
+                }}
+              >
+                Keep {place.name}
+              </Button>
+            )}
+          </>
         )}
         {!!placeError && <TripError error={placeError} />}
-        <p className="text-sm leading-6 text-muted-foreground lg:max-w-[70ch]">
-          Searches run only when you press Search. Place data ©{" "}
-          <a
-            className="underline"
-            href="https://www.openstreetmap.org/copyright"
-            target="_blank"
-            rel="noreferrer"
-          >
-            OpenStreetMap contributors
-          </a>
-          .
-        </p>
+        {searching && (
+          <p className="text-[13px] leading-5 text-muted-foreground">
+            Press Enter or Search to look up a place. Place data ©{" "}
+            <a
+              className="underline"
+              href="https://www.openstreetmap.org/copyright"
+              target="_blank"
+              rel="noreferrer"
+            >
+              OpenStreetMap contributors
+            </a>
+            .
+          </p>
+        )}
       </div>
     </section>
   );
