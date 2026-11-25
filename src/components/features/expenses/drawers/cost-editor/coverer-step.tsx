@@ -14,6 +14,7 @@ export function CovererStep({
   setCoverAmount,
   currency,
   people,
+  recordsPayment,
 }: {
   formID: string;
   coverer: number;
@@ -22,6 +23,8 @@ export function CovererStep({
   setCoverAmount: (amount: string) => void;
   currency: Currency;
   people: ExpensePerson[];
+  /** A new expense records the reservation as paid when it is saved. */
+  recordsPayment?: boolean;
 }) {
   return (
     <>
@@ -38,11 +41,16 @@ export function CovererStep({
         ]}
         onChange={(value) => setCoverer(Number(value))}
       />
-      {!!coverer && (
+      {coverer ? (
         <ExpenseAmountPanel
           inputID={`${formID}-advance`}
           label="Reservation amount"
           currency={currency.code}
+          footer={
+            recordsPayment
+              ? "Recorded as paid to the business when you save"
+              : "A plan, not a payment"
+          }
         >
           <ExpenseNumberInput
             id={`${formID}-advance`}
@@ -52,11 +60,13 @@ export function CovererStep({
             onChange={(e) => setCoverAmount(e.target.value)}
           />
         </ExpenseAmountPanel>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {recordsPayment
+            ? "Choose who pays the reservation. Saving records it as paid to the business, and everyone else then owes that person their share."
+            : "This reservation is part of the expense total. It stays a plan until the payment is confirmed."}
+        </p>
       )}
-      <p className="text-sm text-muted-foreground">
-        This reservation is part of the expense total. It stays a plan until the
-        payment is confirmed.
-      </p>
     </>
   );
 }

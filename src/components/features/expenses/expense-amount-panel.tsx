@@ -3,11 +3,14 @@ import { cn } from "cn";
 import { Label } from "@/components/ui/label";
 import { fieldRequired } from "@/components/shared/field-required";
 
+// Figma "Amount panel": label + currency, the big amount, an optional basis
+// toggle, then a live share/status line.
 export function ExpenseAmountPanel({
   inputID,
   label,
   currency,
   children,
+  toggle,
   footer,
   required,
 }: {
@@ -15,15 +18,16 @@ export function ExpenseAmountPanel({
   label: string;
   currency: ReactNode;
   children: ReactNode;
+  toggle?: ReactNode;
   footer?: ReactNode;
   required?: boolean;
 }) {
   return (
     <div
       data-slot="expense-amount-panel"
-      className="min-w-0 rounded-xl bg-[var(--ocean)] p-5 text-[var(--ocean-text)] [--money-border:var(--ocean-text)] [--money-error:#ffd5ca] [--money-focus:var(--aqua)] sm:p-6"
+      className="grid min-w-0 justify-items-center gap-4 rounded-[16px] bg-[var(--ocean)] p-5 text-[var(--ocean-text)] [--money-border:var(--ocean-text)] [--money-error:#ffd5ca] [--money-focus:var(--aqua)]"
     >
-      <div className="flex items-center justify-between gap-4 [&_[data-slot=label]]:text-sm [&_[data-slot=label]]:font-medium [&_[data-slot=label]]:text-inherit">
+      <div className="flex w-full items-center justify-between gap-4 [&_[data-slot=label]]:text-sm [&_[data-slot=label]]:font-medium [&_[data-slot=label]]:text-inherit">
         <Label
           htmlFor={inputID}
           className={cn(required && fieldRequired, "after:text-[#ffd5ca]")}
@@ -36,12 +40,13 @@ export function ExpenseAmountPanel({
       </div>
       <div
         data-slot="expense-amount-control"
-        className="mx-auto mt-6 mb-2 w-full max-w-sm text-center text-6xl leading-tight font-semibold tracking-tight [&_[data-slot=input]]:min-h-20! [&_.reference-field>span]:px-0"
+        className="w-full max-w-[280px] text-center text-[36px] leading-[43px] font-semibold tracking-tight sm:text-5xl sm:leading-[60px] [&_.reference-field>span]:px-0 [&_[data-slot=input]]:min-h-16!"
       >
         {children}
       </div>
+      {toggle}
       {footer && (
-        <div className="mt-5 text-sm [overflow-wrap:anywhere] [&_strong]:text-white [&_.repayment-error]:text-[#ffd5ca]">
+        <div className="w-full text-center text-sm [overflow-wrap:anywhere] [&_strong]:text-white [&_.repayment-error]:text-[#ffd5ca]">
           {footer}
         </div>
       )}

@@ -415,6 +415,7 @@ export function TaskDetailsDrawer({
       </TripDialog>
       {editing && currencies.data && (
         <ExpenseCostEditor
+          recordsPayment
           key={`${revision}-${editing.cost?.id ?? "new"}`}
           tripID={trip.id}
           activity={{
@@ -422,7 +423,6 @@ export function TaskDetailsDrawer({
             title: task.activity?.title ?? "",
           }}
           prepTask={{ id: task.id, title: task.title }}
-          backLabel="Back to task"
           initial={editing.cost}
           people={people.filter(
             (p) =>

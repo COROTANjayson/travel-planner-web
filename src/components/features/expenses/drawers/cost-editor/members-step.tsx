@@ -15,11 +15,11 @@ export function MembersStep({
   change: () => void;
 }) {
   return (
-    <div className="divide-y">
+    <div className="divide-y overflow-hidden rounded-[16px] border bg-card">
       {people.map((person) => (
         <label
           key={person.user_id}
-          className="flex min-h-16 items-center gap-3 py-3"
+          className="flex min-h-12 cursor-pointer items-center gap-3 px-3.5 py-3 sm:p-4"
         >
           <input
             type="checkbox"

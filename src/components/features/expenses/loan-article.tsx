@@ -1,8 +1,8 @@
 "use client";
 
+import { rowDetail, rowTitle } from "@/components/features/expenses/card-row";
 import type { ReactNode } from "react";
 import type { ExpenseEditor } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { OptionsMenu } from "@/components/shared/options-menu";
 import type {
@@ -62,11 +62,6 @@ export function LoanArticle({
         : remaining < BigInt(loan.amount_minor)
           ? "Partially paid"
           : "Unpaid";
-  const canReceive =
-    writable &&
-    current?.user_id === loan.from_user_id &&
-    debt &&
-    remaining > 0n;
   const options = [
     ...(writable && latestReceipt && current?.user_id === loan.from_user_id
       ? [
@@ -93,96 +88,54 @@ export function LoanArticle({
     <article
       className={
         flow
-          ? "relative border-b border-border p-3 last:border-b-0 [overflow-wrap:anywhere]"
+          ? "px-3.5 py-3 [overflow-wrap:anywhere] sm:p-4"
           : "space-y-2 border-b border-border pt-[22px] pb-[13px] break-words last:border-b-0 last:pb-[30px]"
       }
     >
       {flow && !managementOnly && (
         <>
-          {options.length > 0 && (
-            <div className="activity-loan-options [position:absolute] [top:2px] [right:0] [margin:0]">
-              <OptionsMenu
-                name={`${name(loan.to_user_id)} · ${loan.description}`}
-                disabled={api.pending}
-                items={options}
-              />
+          <div className="flex items-center gap-3">
+            <div className="grid min-w-0 flex-1 gap-0.5">
+              <h4 className={rowTitle}>{name(loan.to_user_id)}</h4>
+              <p className={rowDetail}>{loan.description}</p>
             </div>
-          )}
-          <div
-            className={cn(
-              "flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm leading-[22px] max-[480px]:block",
-              options.length > 0 && "pr-11",
-            )}
-          >
-            <div className="min-w-0 flex-[1_1_180px]">
-              <h4 className="min-w-0 text-[15px] font-semibold">
-                {name(loan.to_user_id)}
-              </h4>
-              <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
-                {loan.description}
-              </p>
-            </div>
-            <div className="ml-auto max-w-full text-right max-[480px]:mt-1 max-[480px]:flex max-[480px]:flex-wrap max-[480px]:items-baseline max-[480px]:gap-x-2 max-[480px]:gap-y-0.5 max-[480px]:text-left">
-              <span className="font-semibold tabular-nums">
+            <div className="grid max-w-[50%] shrink-0 justify-items-end gap-0.5 text-right">
+              <span className={`tabular-nums ${rowTitle}`}>
                 {money(loan.amount_minor, loan.currency)}
               </span>
-              <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
+              <span className="text-[13px] leading-[21px] font-semibold text-muted-foreground">
                 {status}
-                {remaining !== 0n &&
-                  ` · Outstanding ${money(remaining.toString(), loan.currency)}`}
-              </p>
+                {status === "Partially paid" &&
+                  ` · ${money(remaining.toString(), loan.currency)} left`}
+              </span>
             </div>
+            {options.length > 0 && (
+              <div className="activity-loan-options -mr-2 shrink-0">
+                <OptionsMenu
+                  name={`${name(loan.to_user_id)} · ${loan.description}`}
+                  disabled={api.pending}
+                  items={options}
+                />
+              </div>
+            )}
           </div>
-          {canReceive && (
-            <div
-              className={cn(
-                "mt-0.5 flex flex-wrap items-center justify-end gap-x-3 gap-y-0",
-                options.length > 0 && "pr-11",
-              )}
-            >
-              <Button
-                variant="link"
-                className="-my-2 min-h-11 px-0 py-2 [font-size:13px]"
-                disabled={api.pending}
-                onClick={() => open({ type: "repayment", debt })}
-              >
-                Record repayment
-              </Button>
-            </div>
-          )}
         </>
       )}
       {!flow && !managementOnly && (
         <>
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <h4
-              className={`min-w-0 flex-1 basis-40 ${flow ? "text-base font-semibold" : "text-lg font-bold"}`}
-            >
-              {flow ? name(loan.to_user_id) : loan.description}
+            <h4 className="min-w-0 flex-1 basis-40 text-lg font-bold">
+              {loan.description}
             </h4>
             <span className="max-w-full shrink-0 text-base tabular-nums">
               {money(loan.amount_minor, loan.currency)}
-              {flow ? " total" : ""}
             </span>
           </div>
-          {flow && (
-            <p className="text-sm text-muted-foreground">{loan.description}</p>
-          )}
-          {!flow && (
-            <p className="text-sm">
-              {name(loan.to_user_id)} borrowed from {name(loan.from_user_id)}
-            </p>
-          )}
+          <p className="text-sm">
+            {name(loan.to_user_id)} borrowed from {name(loan.from_user_id)}
+          </p>
           <p className="text-sm text-muted-foreground">
-            {remaining < 0n
-              ? "Credit for review"
-              : remaining === 0n
-                ? "Paid"
-                : remaining < BigInt(loan.amount_minor)
-                  ? "Partially paid"
-                  : "Unpaid"}
-            {(!flow || remaining !== 0n) &&
-              ` · Outstanding ${money(remaining.toString(), loan.currency)}`}
+            {status} · Outstanding {money(remaining, loan.currency)}
           </p>
           <div className="flex flex-wrap gap-2">
             {writable &&
@@ -190,8 +143,7 @@ export function LoanArticle({
               debt &&
               remaining > 0n && (
                 <Button
-                  variant={flow ? "link" : "outline"}
-                  className={flow ? "min-h-11 px-0 py-2" : undefined}
+                  variant="outline"
                   disabled={api.pending}
                   onClick={() => open({ type: "repayment", debt })}
                 >

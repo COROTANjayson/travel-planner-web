@@ -1,5 +1,6 @@
 "use client";
 
+import { rowDetail, rowTitle } from "@/components/features/expenses/card-row";
 import { CaretRightIcon } from "@phosphor-icons/react";
 import type { Expense } from "@/lib/expenses";
 import { plural } from "@/lib/utils";
@@ -30,16 +31,12 @@ export function ExpensesRow({
     <button
       type="button"
       data-finance-link="details"
-      className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card py-3.5 pr-3 pl-4 text-left outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="flex w-full items-center gap-3 rounded-[16px] border border-border bg-card py-3.5 pr-3 pl-4 text-left outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
       onClick={onOpen}
     >
       <span className="min-w-0 flex-1">
-        <span className="block text-base leading-[22px] font-semibold">
-          Expenses
-        </span>
-        <span className="block text-[13px] leading-5 text-muted-foreground">
-          {count}
-        </span>
+        <span className={`block ${rowTitle}`}>Expenses</span>
+        <span className={`block ${rowDetail}`}>{count}</span>
       </span>
       {codes.length > 0 && (
         <span className="min-w-0 shrink text-right [overflow-wrap:anywhere]">
@@ -49,10 +46,10 @@ export function ExpensesRow({
               .reduce((sum, cost) => sum + BigInt(cost.amount_minor), 0n);
             return (
               <span key={code} className="block">
-                <span className="block text-base leading-[22px] font-semibold tabular-nums">
+                <span className={`block tabular-nums ${rowTitle}`}>
                   {money(total, code)} total
                 </span>
-                <span className="block text-[13px] leading-5 text-muted-foreground tabular-nums">
+                <span className={`block tabular-nums ${rowDetail}`}>
                   Your share {money(share(code), code)}
                 </span>
               </span>

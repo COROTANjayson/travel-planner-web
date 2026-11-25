@@ -243,6 +243,7 @@ export function ActivityExpenseDrafts({
       )}
       {editing !== undefined && currencies.data && (
         <ExpenseCostEditor
+          recordsPayment={false}
           tripID={tripID}
           activity={{ id: activityID, title: title.trim() }}
           initial={editing ?? undefined}

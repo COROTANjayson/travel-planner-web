@@ -1,5 +1,6 @@
 "use client";
 import { Label } from "@/components/ui/label";
+import { fieldRequired } from "@/components/shared/field-required";
 import {
   Select,
   SelectTrigger,
@@ -14,6 +15,7 @@ export function ExpenseSelect({
   options,
   onChange,
   disabled,
+  required,
 }: {
   id: string;
   label: string;
@@ -21,10 +23,13 @@ export function ExpenseSelect({
   options: { value: string; label: string }[];
   onChange: (value: string) => void;
   disabled?: boolean;
+  required?: boolean;
 }) {
   return (
     <div className="min-w-0 space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className={required ? fieldRequired : undefined}>
+        {label}
+      </Label>
       <Select
         value={value}
         disabled={disabled}

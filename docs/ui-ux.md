@@ -366,7 +366,8 @@ References: [text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast
 Approved 2026-11-13 as a design only. **The app does not implement this section
 yet**; the rules elsewhere in this guide still describe current behavior. When a
 rule here is built, move it into its section above and delete it from here. The
-Figma Screens page shows these designs.
+Figma Screens page shows these designs. The Add expense part is built
+(2026-11-22); Add activity is not.
 
 The aim is fewer decisions before saving: sensible defaults, fewer visible
 fields, and the same patterns in every form. No capability is removed, no new
@@ -376,19 +377,11 @@ endpoints, and no new libraries (Base UI `Combobox` is already installed).
   the default dark label style, not muted text. Required fields show the red
   asterisk. Each error sits under its own field, and the first invalid field
   takes focus. Actions are right-aligned, Cancel then the primary action.
-- Add expense, cost step: show Expense name, the amount panel, then two rows that
-  open the existing steps: Split ("Evenly among 4 people", opening members and
-  custom split) and Who's paying ("Decide later", opening the planned coverer).
-  The amount panel's footer gives the live share ("₱800.00 each · 4 people") or
-  the current problem. Remove the helper paragraph and the separate summary box.
-  The initials stack beside Back stays as a shortcut to members.
-- Add expense, price basis: Group total is the default. Per person / Group total
-  is a small toggle inside the amount panel, not a question above it.
-- Add expense, name: the first expense of an activity pre-fills the activity
-  name, selected so typing replaces it.
-- Unchanged: Trips, Invitations, the trip Expenses page, and the payment,
-  reservation, repayment and loan screens. A wider wording pass for money terms
-  is not part of this design.
+  Built for the expense forms (Add expense steps and Record money lent); Add
+  activity still to do.
+- Unchanged: Trips, Invitations and the trip Expenses page. (The payment and
+  loan screens were since aligned with their Figma frames; see Expenses.) A
+  wider wording pass for money terms is not part of this design.
 
 ## Prep inside activities (approved design, not yet built)
 
@@ -442,35 +435,91 @@ there and delete it from here. The Figma Screens page shows these designs.
   use the shared cost editor without requiring a replacement activity. Preserve
   editor/member/viewer permissions and return focus to the entry button, or the
   expenses heading if removing the last cost hides the button.
-- (Next design for this step: see
-  [Form simplification](#form-simplification-approved-design-not-yet-built).)
-  Expense setup follows the reference field order: expense name, per-person/group
-  basis, price beside split where they fit, share preview, optional planned coverer.
-  Included members are an initials stack (up to three, then +N) at the right of the
-  Back row; it opens the members step. Custom splitting opens a separate step with
-  member amounts and **Use this split**; **Change custom split** sits at the right
-  of the preview's share line. On that step, Back returns to the expense and asks
-  before dropping typed amounts; nothing changes until **Use this split**, including
-  a per-person price. **Reset to even** sits beside the title. The footer pins the
-  running total above the action, stating the amount left or over on a sand surface
-  until it matches, plus a link that splits the remainder among rows not yet edited.
+- Add expense, cost step: Expense name, the amount panel, then two detail rows
+  (bordered, right chevron) that open the other steps: **Split** ("Evenly among 4
+  people" or "Custom amounts · 4 people") and **Who's paying** ("Decide later" or
+  the planned coverer). The amount panel holds the Group total / Per person toggle
+  (Group total is the default) and a live footer: "₱800 each · 4 people", the
+  total for per-person or custom splits, or the current problem. An activity's
+  first expense pre-fills the activity name, selected so typing replaces it.
+  The subtitle is the activity and the expense day ("Big Lagoon kayak tour ·
+  Friday, November 13"). Split opens **Who is included?** (a bordered checkbox
+  list, "All 4 members" as subtitle) with a **Split with custom amounts** link
+  under the list. Custom splitting is a separate step: **Reset to even** under the
+  subtitle, member amounts in a bordered list (underlined only while editing),
+  then one sand status line ("₱3,200 of ₱3,200 assigned · Matches the total", or
+  the amount left or over), plus a link that splits the remainder among rows not
+  yet edited. Back returns to the expense and drops typed amounts; nothing
+  changes until **Use this split**, including a per-person price. Every step's
+  footer is Cancel (Back on later steps) then the primary action, right-aligned
+  on desktop and sharing the width on mobile.
   Blank or unreadable amounts count as nothing in that total; unreadable ones show
   their error on the row. Applying requires every row, and amount fields accept
   well-formed thousands separators.
-  Keep expense forms in the right drawer on desktop and full-screen on mobile,
-  with a 60% black backdrop, labels and sticky actions. Expense drawers match the
-  activity drawer's 680px width so no clipped form shows behind them. The currency
+  Add expense and its steps are one 480px centered dialog on desktop (24px
+  corners, close button, title over a muted subtitle, divider above the footer)
+  and a bottom sheet on mobile, over a 60% black backdrop; the close button and
+  Escape step back like Back. The currency
   picker sits inside the price field after a divider. Show blocked-step
   messages in the form's error area and move focus there. Required fields show a red
   asterisk; controls that open another step show a right chevron.
-- **View payments** opens a separate cost payment screen with Share/Paid/Left
-  columns, business total paid/remaining, and named reimbursements. **Update a
-  payment** selects a member. **Record reservation** previews own-share-first
-  coverage from the API before confirming. A member detail shows business
-  payments separately from reimbursements and their receiver-only confirmation.
-- Owners/editors plan per-person/group costs and equal/custom shares. Optional
-  planned coverage is explicitly not a payment. Record actual payments separately;
-  preview own-share-first allocation or exact member-specific coverage.
+- An expense row opens its payments drawer: the expense name over "₱3,200 · 4
+  people", a bordered Member/Share/Paid/Left table, then a "Paid to the
+  business" card with the amount paid and what remains. For owners and editors,
+  this whole card opens **Record reservation** while money remains payable to
+  the business, including costs without a planned coverer and further payments
+  after a deposit. Show a right chevron on the clickable card and no separate
+  footer action. Members, viewers and settled or credit-review balances keep a
+  read-only summary without the chevron. Tapping a
+  member row (right chevron) opens that member's payment modal directly over
+  the drawer. Below 640px, put each member's name above three labeled amounts
+  (Share, Paid, Left), keeping currency amounts on one line. Wider screens keep
+  the aligned table with a separate chevron column. Exceptionally large amounts
+  scroll within their amount area instead of widening the drawer. The modal opens over
+  the drawer, like Add expense; there is no separate member screen or member
+  picker. The modal ("{Name}'s payment", "{Expense} · share ₱800") keeps one
+  decision per row and as few words as possible:
+  - The dark ocean card (the Add expense amount panel) leads. At rest it shows
+    "Left to pay", the amount in large type, an aqua progress bar on
+    ocean-raised, and "₱250 of ₱500 paid"; a fully paid share shows a check,
+    "Paid in full" and the share.
+  - Below it, one bordered row per payee with no heading: the expense name for
+    the business, or the person with "Reservation" (or "Reservation · {name}
+    confirms" when the viewer can't confirm it), then the amount and one
+    action: **Mark paid** (editors, business) or **Received** (only the person
+    repaid).
+  - The action turns the ocean card into the amount entry for that payee: "To
+    {payee}", the full amount pre-filled and selected (editable, at most
+    what's owed), and "Paid today · change". The row is highlighted with a
+    filled button, other actions wait, and the footer becomes Cancel and
+    "Confirm ₱250". No dropdown and no preview; after saving, the card shows
+    the new progress and the payment appears under Paid.
+  - **Paid**: one line per recorded payment ("₱250 to {payee} · Nov 22,
+    2026"), newest first, with **Change** and **Undo** in a ⋯ menu. Change
+    reuses the card's amount entry ("Change · to {payee}", Save change). Business
+    payment corrections retain saved coverage and expose the existing manual
+    coverage controls; amounts must match before saving. Choosing automatic
+    coverage explicitly recalculates it own-share-first. Undo
+    shows the payment struck through in the card ("Undo · to {payee}",
+    "Balances update right away.") with a destructive Undo payment. Editors
+    change or undo business payments; a reimbursement's recipient or an
+    editor changes or undoes it, with a required reason under the card. A
+    business payment with linked repayments stays locked ("Undo the
+    repayments to {name} first to change this."). Viewers see the lines
+    without the menu.
+  - The footer is **Done** at rest. Closing the modal while a payment is
+    open cancels that payment first.
+    **Record reservation** (from the drawer footer) is a separate modal that
+    previews own-share-first coverage from the API before confirming.
+- Owners/editors plan per-person/group costs and equal/custom shares. On a new
+  expense saved directly from an activity or Prep task, choosing who pays first
+  and a reservation amount records that
+  payment to the business when the expense is saved (dated the expense date,
+  allocated own-share-first), so everyone else owes the payer at once; the
+  coverer step says so ("Recorded as paid to the business when you save"). On
+  an activity draft or existing expense, planned coverage stays a plan until **Record
+  reservation**. Record other payments separately; preview own-share-first
+  allocation or exact member-specific coverage.
 - Only planners/editors confirm business payments. Only the recipient confirms a
   new reimbursement received. Recipients and editors may correct/reverse an existing
   receipt with a reason and visible history. Viewers cannot write. No approval queue.
@@ -514,34 +563,38 @@ there and delete it from here. The Figma Screens page shows these designs.
   and filters and restore focus to the row or selected filter if it disappeared.
   Explain that amounts owed to you can be opened to record money received; other
   payment management stays inside activities. Prefer display names and wrap fallback emails.
-  Inside an activity, My Expenses shows every own expense share, including fully paid items, plus
-  money owed and receivable from reimbursements and loans. Paid means the settled
+  Inside an activity, My Expenses summarizes own expense shares and shows outstanding
+  business balances, reimbursements and loans. Fully paid expense rows remain in
+  All expenses. Paid means the settled
   part of the signed-in person's expense shares, not their cash outlay or loans.
   Keep currencies separate and credits explicitly labeled for review.
-  Personal balance rows put the person first, then the expense, with the amount
-  aligned right. Show each currency total once beside You owe or Owed to you.
-  Mark as paid is a compact text action with a 44px minimum touch target.
-- All expenses shows whole-row payment buttons with a right chevron and permitted Add expense.
-  Use one keyboard stop per expense, with name and amount above participant count,
-  total, and concise payment status. Restore focus to the row after returning from payments.
-  Use underlined All expenses and My expenses tabs with keyboard arrow navigation
-  on mobile and desktop. Show estimated total and your share in a pale sea panel,
-  labels above amounts. Below it, align the expense count and + Add expense action
-  in one row, with a divider before expense rows. Keep the financial header compact.
-  Borrow list is always the last entry, with a loan count and original amount lent
-  per currency. It opens only loans made by the signed-in person for that activity,
-  one row per loan, including paid loans. Show borrower, description, original and
-  outstanding amounts and status. Group borrower and description on the left, with
-  amount and status aligned right; stack these groups on narrow screens. Keep row
-  dividers continuous with the count header and close the list with a bottom divider.
-  Use Record repayment for loan receipt actions and their form, supporting both
-  partial and full amounts. Put Undo repayment
-  and Remove loan in the row's compact options popover, with 44px minimum targets.
-  Paid loans omit Outstanding zero. Loan rows are not clickable.
-  Add borrow sits beside the loan count above the list and opens Record money lent.
-  Keep the Borrow list title and activity subtitle close together, with no extra
-  separator above the loan-count toolbar. Align Record repayment beneath the amounts.
-  Borrow list navigation is a flat row with its count, per-currency totals, and chevron.
+  My Expenses opens with Your share, Paid and To pay in a pale sea card. You owe
+  and Owed to you are headings over separate bordered cards: the person first,
+  the reimbursement or loan description below, and the amount aligned
+  right. Mark as paid is a compact text action under the amount with a 44px
+  minimum touch target. Business balances show the expense and "Pay to business"
+  and open its payments on selection.
+- All expenses: estimated total and your share in a pale sea panel, labels above
+  amounts. Below it, the expense count and a + Add expense text link in one row,
+  then one bordered list (16px corners, row dividers). Each expense is one
+  whole-row button (one keyboard stop) opening its payments: name over "From
+  Prep · 4 people · Total ₱3,200" on the left, the per-person amount (or the
+  total for uneven splits) over concise payment status on the right. Restore
+  focus to the row after returning from payments. Use underlined All expenses
+  and My expenses tabs with keyboard arrow navigation on mobile and desktop.
+  Borrow list is always the last row of that list, with a loan count and the
+  amount lent per currency. It opens only loans made by the signed-in person for
+  that activity, one row per loan, including paid loans, in a bordered list under
+  the loan count and a + Add borrow text link (opens Record money lent). Each
+  loan shows borrower over description on the left and the original amount over
+  status on the right ("Unpaid", "Partially paid · ₱X left", "Paid" or "Credit
+  for review"). Record repayment is an outline button under the list (one per
+  repayable loan, naming the borrower when there are several), supporting
+  partial and full amounts. Record money lent asks who borrowed, what it is
+  for, the amount ("Loans never add to activity spending") and Date lent, with
+  Cancel then Record money lent. Undo repayment and Remove loan sit in the
+  row's compact options popover, with 44px minimum targets. Loan rows are not
+  clickable.
   Loans never increase activity spending, expense shares, or personal Paid totals.
 - Use contextual Back actions: payment screens return to their originating expense
   or personal view; Borrow list returns to All expenses; both expense views

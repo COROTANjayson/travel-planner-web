@@ -1,7 +1,10 @@
 "use client";
 
 import type { RefObject, ReactNode } from "react";
-import { CaretRightIcon } from "@phosphor-icons/react";
+import {
+  CardRowContent,
+  cardRowClass,
+} from "@/components/features/expenses/card-row";
 import type { ExpenseEditor } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
 import { Button } from "@/components/ui/button";
 import type {
@@ -56,49 +59,36 @@ export function CostArticle({
     <article
       className={
         flow
-          ? "space-y-2 border-b border-border p-0 last:border-b-0"
+          ? "p-0"
           : "space-y-2 border-b border-border pt-[22px] pb-[13px] last:border-b-0 last:pb-[30px]"
       }
     >
       {flow && !managementOnly && (
         <Button
           variant="ghost"
-          className="activity-expense-row h-auto min-h-11 w-full rounded-[6px] px-3 py-4 text-left whitespace-normal hover:bg-[color-mix(in_srgb,var(--foreground)_3%,transparent)] hover:text-foreground active:not-focus-visible:scale-100"
+          className={cardRowClass}
           aria-label={`View ${cost.description} payments`}
           onClick={(event) => {
             triggerRef.current = event.currentTarget;
             setPaymentCost(cost);
           }}
         >
-          <span className="activity-expense-row-content [display:grid] [flex:1] [min-width:0] [gap:2px] [overflow-wrap:anywhere]">
-            <span className="activity-expense-row-title [display:flex] [flex-wrap:wrap] [justify-content:space-between] [align-items:baseline] [gap:4px_20px] [font-size:15px] [line-height:22px]">
-              <span className="min-w-0 flex-[1_1_140px] font-semibold">
-                {cost.description}
-              </span>
-              <span className="activity-expense-row-price [display:inline-flex] [align-items:center] [gap:12px] [max-width:100%] [margin-left:auto] [font-size:14px] [font-weight:500] tabular-nums">
-                {equal && cost.shares[0]
-                  ? `${money(cost.shares[0].amount_minor, cost.currency)} each`
-                  : money(cost.amount_minor, cost.currency)}
-                <CaretRightIcon
-                  aria-hidden="true"
-                  className="size-4 text-muted-foreground"
-                />
-              </span>
-            </span>
-            <span className="activity-expense-row-meta [color:var(--muted-foreground)] [font-size:13px] [line-height:20px] [font-weight:400]">
-              {cost.shares.length}{" "}
-              {cost.shares.length === 1 ? "person" : "people"}
-              {" · "}
-              {money(cost.amount_minor, cost.currency)} total
-            </span>
-            <span className="activity-expense-row-meta [color:var(--muted-foreground)] [font-size:13px] [line-height:20px] [font-weight:400]">
-              {paid === 0n && !!cost.planned_coverer_user_id
+          <CardRowContent
+            title={cost.description}
+            detail={`${cost.prep_task_id ? "From Prep · " : ""}${cost.shares.length} ${cost.shares.length === 1 ? "person" : "people"} · Total ${money(cost.amount_minor, cost.currency)}`}
+            value={
+              equal && cost.shares[0]
+                ? money(cost.shares[0].amount_minor, cost.currency)
+                : money(cost.amount_minor, cost.currency)
+            }
+            status={
+              paid === 0n && !!cost.planned_coverer_user_id
                 ? `${name(cost.planned_coverer_user_id)} will cover the ${money(cost.planned_cover_amount_minor ?? "0", cost.currency)} reservation`
                 : paid > 0n
                   ? `${money(paid, cost.currency)} paid`
-                  : "Not paid yet"}
-            </span>
-          </span>
+                  : "Not paid yet"
+            }
+          />
         </Button>
       )}
       {!flow && !managementOnly && (
@@ -143,18 +133,16 @@ export function CostArticle({
                 : "Not paid yet"}
             </p>
           )}
-          {
-            <Button
-              variant="outline"
-              className="activity-view-payments mt-1.5 min-h-12 w-full justify-start rounded-[999px] bg-transparent px-4 py-3 text-sm font-bold"
-              onClick={(event) => {
-                triggerRef.current = event.currentTarget;
-                setPaymentCost(cost);
-              }}
-            >
-              View payments
-            </Button>
-          }
+          <Button
+            variant="outline"
+            className="activity-view-payments mt-1.5 min-h-12 w-full justify-start rounded-[999px] bg-transparent px-4 py-3 text-sm font-bold"
+            onClick={(event) => {
+              triggerRef.current = event.currentTarget;
+              setPaymentCost(cost);
+            }}
+          >
+            View payments
+          </Button>
         </>
       )}
       {managementOnly && <h4 className="font-semibold">{cost.description}</h4>}

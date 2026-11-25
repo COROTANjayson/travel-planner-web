@@ -88,7 +88,10 @@ export function PersonalPayments({
   }
   if (!current) return null;
   return (
-    <section className="space-y-4" aria-label="My payments">
+    <section
+      className={showExpenses ? "space-y-6" : "space-y-4"}
+      aria-label="My payments"
+    >
       <h3
         ref={heading}
         tabIndex={-1}
@@ -104,8 +107,6 @@ export function PersonalPayments({
           current={current}
           activityID={activityID}
           currency={currency}
-          triggerRef={trigger}
-          setCost={setCost}
         />
       )}
       <BalanceGroups

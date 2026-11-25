@@ -176,6 +176,51 @@ release();
 await first;
 delay = null;
 assert.equal(calls.filter(([path]) => path.endsWith?.("/expenses")).length, 1);
+// A new expense with someone paying the reservation first also records that
+// payment to the business, so the others owe the payer right away.
+calls.length = 0;
+response = { ...sanitized, id: 9, version: 1 };
+await api.saveExpense(
+  {
+    ...input,
+    planned_coverer_user_id: 2,
+    planned_cover_amount_minor: "100000",
+  },
+  undefined,
+  "reserve-key",
+);
+const reservationCall = calls.find(([path]) =>
+  path.endsWith?.("/expense_payments"),
+);
+assert.ok(reservationCall, "The reservation is recorded with the expense");
+assert.deepEqual(
+  {
+    ...JSON.parse(reservationCall[1].body),
+    key: reservationCall[1].headers["Idempotency-Key"],
+  },
+  {
+    expense_id: 9,
+    currency: input.currency,
+    amount_minor: "100000",
+    paid_on: input.incurred_on,
+    payer_user_id: 2,
+    key: "reserve-key:reservation",
+  },
+);
+calls.length = 0;
+await api.saveExpense(
+  {
+    ...input,
+    planned_coverer_user_id: 2,
+    planned_cover_amount_minor: "100000",
+  },
+  { ...response },
+  "edit-key",
+);
+assert.ok(
+  !calls.some(([path]) => path.endsWith?.("/expense_payments")),
+  "Editing keeps Record reservation for an existing expense",
+);
 calls.length = 0;
 response = undefined;
 await api.remove("expenses", { id: 4, version: 3 });
@@ -1297,6 +1342,14 @@ const approvedProps = {
   onBack() {},
 };
 const costTree = () => render(approved.ExpenseCostEditor, approvedProps);
+// The Split row opens the members step; its link leads to custom amounts.
+const openCustom = () => {
+  find(costTree(), "expense-split").props.onClick();
+  if (costTree().props.title === "Who is included?")
+    nodes(costTree())
+      .find((n) => n.props.children === "Split with custom amounts")
+      .props.onClick();
+};
 const submitCost = () =>
   nodes(costTree())
     .find((n) => n.type === "form")
@@ -1306,25 +1359,13 @@ refs = [];
 const costMarkup = renderToStaticMarkup(costTree());
 assert.match(costMarkup, /Group price/);
 assert.doesNotMatch(costMarkup, /Group price ·/);
-const membersControl = () => costTree().props.headerAction;
-assert.equal(
-  membersControl().props["aria-label"],
-  "Who is included? All 5 members",
-  "The initials announce their question and current value",
-);
-const initialsMarkup = renderToStaticMarkup(membersControl());
-assert.match(initialsMarkup, /I3/);
-assert.doesNotMatch(initialsMarkup, /I4/);
-assert.match(initialsMarkup, /\+2/);
-assert.equal(
-  render(approved.ExpenseCostEditor, { ...approvedProps, pending: true }).props
-    .headerAction.props.disabled,
-  true,
-  "The initials sit outside the disabled fieldset, so they block themselves",
-);
-membersControl().props.onClick();
+// Figma: a centered dialog (bottom sheet on mobile), not the side drawer.
+assert.equal(costTree().props.presentation, undefined);
+assert.equal(costTree().props.mobilePresentation, "sheet");
+assert.match(costTree().props.description, /^Resort day · \w+day, \w+ \d+$/);
+find(costTree(), "expense-split").props.onClick();
 assert.equal(costTree().props.title, "Who is included?");
-assert.ok(!membersControl(), "Only the cost step shows the initials");
+assert.equal(costTree().props.description, "All 5 members");
 states = [];
 refs = [];
 assert.equal(
@@ -1338,23 +1379,79 @@ for (const id of ["expense-name", "expense-price"])
     /after:content-\['\*'\]/,
     "Required expense fields are marked",
   );
+// An activity's first expense starts with the activity name, selected so
+// typing replaces it; once edited, focusing no longer selects.
 states = [];
 refs = [];
-assert.equal(
-  render(approved.ExpenseCostEditor, {
-    ...approvedProps,
-    people: people.slice(0, 1),
-  }).props.headerAction.props["aria-label"],
-  "Who is included? 1 member",
-);
+{
+  const named = () =>
+    find(
+      render(approved.ExpenseCostEditor, {
+        ...approvedProps,
+        defaultName: "Resort day",
+      }),
+      "expense-name",
+    );
+  assert.equal(named().props.value, "Resort day");
+  let selections = 0;
+  named().props.onFocus({ target: { select: () => selections++ } });
+  assert.equal(selections, 1);
+  named().props.onChange({ target: { value: "Resort day pass" } });
+  assert.equal(named().props.onFocus, undefined);
+}
+
+// Activity drafts stage plans; only direct expense saves record a reservation.
+{
+  const { ActivityExpenseDrafts } = load(
+    "src/components/features/expenses/activity-expense-drafts.tsx",
+    viewMocks,
+    viewGlobals,
+  );
+  const draftProps = {
+    tripID: 7,
+    title: "Resort day",
+    zone: "Asia/Manila",
+    people,
+    changes: [],
+    onChange() {},
+    pending: false,
+  };
+  states = [];
+  refs = [];
+  const draft = () => render(ActivityExpenseDrafts, draftProps);
+  nodes(draft())
+    .find((n) => n.props["aria-label"] === "Add expense")
+    .props.onClick({ currentTarget: null });
+  const editor = nodes(draft()).find((n) => n.type === CostEditor);
+  assert.equal(editor.props.recordsPayment, false);
+  for (const recordsPayment of [false, true]) {
+    states = [];
+    refs = [];
+    const edit = () =>
+      render(approved.ExpenseCostEditor, { ...editor.props, recordsPayment });
+    find(edit(), "expense-price").props.onChange({ target: { value: "100" } });
+    find(edit(), "expense-coverer").props.onClick();
+    nodes(edit())
+      .find((n) => n.props.label === "Who will pay first?")
+      .props.onChange("1");
+    const html = renderToStaticMarkup(edit());
+    assert.match(
+      html,
+      recordsPayment
+        ? /Recorded as paid to the business when you save/
+        : /A plan, not a payment/,
+    );
+  }
+}
 states = [];
 refs = [];
 saved = undefined;
 find(costTree(), "expense-name").props.onChange({ target: { value: "Inn" } });
 find(costTree(), "expense-price").props.onChange({ target: { value: "4000" } });
-nodes(costTree())
-  .find((n) => n.props.label === "Split")
-  .props.onChange("exact");
+assert.match(renderToStaticMarkup(costTree()), /₱800 each · 5 people/);
+assert.match(renderToStaticMarkup(costTree()), /Evenly among 5 people/);
+assert.match(renderToStaticMarkup(costTree()), /Decide later/);
+openCustom();
 assert.equal(costTree().props.title, "Custom split");
 for (const [i, value] of ["1000", "900", "800", "700", "600"].entries())
   find(costTree(), `expense-share-${i + 1}`).props.onChange({
@@ -1392,13 +1489,13 @@ let focusedErrors = 0;
 for (const ref of refs) ref.current = { focus: () => focusedErrors++ };
 const stepError = () =>
   nodes(costTree()).find((n) => n.type === TripError)?.props.error;
-nodes(costTree())
-  .find((n) => n.props.label === "Split")
-  .props.onChange("exact");
-assert.equal(costTree().props.title, "Add expense");
+openCustom();
+assert.equal(costTree().props.title, "Who is included?");
 assert.ok(stepError() instanceof ApiError);
 assert.match(stepError().message, /Enter a valid price/);
 assert.equal(focusedErrors, 1);
+costTree().props.onOpenChange(false);
+assert.equal(costTree().props.title, "Add expense");
 find(costTree(), "expense-coverer").props.onClick();
 assert.ok(stepError() instanceof ApiError);
 assert.match(stepError().message, /Enter a valid price and split first/);
@@ -1419,10 +1516,7 @@ const startExpense = (price = "4000") => {
     target: { value: price },
   });
 };
-const openSplit = () =>
-  nodes(costTree())
-    .find((n) => n.props.label === "Split")
-    .props.onChange("exact");
+const openSplit = openCustom;
 const startSplit = () => {
   startExpense();
   openSplit();
@@ -1440,21 +1534,24 @@ const typeAllShares = (values) =>
 const dismiss = () => costTree().props.onOpenChange(false);
 const stepTitle = () => costTree().props.title;
 const footerNodes = () => nodes(costTree().props.footer);
-const footerText = () => renderToStaticMarkup(costTree().props.footer);
+// The split status sits in the body, under the amounts.
+const footerText = () => renderToStaticMarkup(costTree());
 const splitStatus = () =>
-  footerNodes().find((n) => "data-balanced" in n.props).props["data-balanced"];
+  nodes(costTree()).find((n) => "data-balanced" in n.props).props[
+    "data-balanced"
+  ];
 const balanceButton = () =>
-  footerNodes().find((n) =>
+  nodes(costTree()).find((n) =>
     /^(Split|Give) the remaining/.test(n.props.children),
   );
+// Group total comes first in the toggle, Per person second.
 const perPersonRadio = () =>
-  nodes(costTree()).find(
+  nodes(costTree()).filter(
     (n) => n.props.type === "radio" && n.props.name === "expense-basis",
-  );
+  )[1];
 const memberBoxes = () =>
   nodes(costTree()).filter((n) => n.props.type === "checkbox");
-const changeSplitButton = () =>
-  nodes(costTree()).find((n) => n.props.children === "Change custom split");
+const changeSplitButton = () => find(costTree(), "expense-split");
 const savedShares = () =>
   JSON.stringify(saved.shares.map((s) => s.amount_minor));
 
@@ -1473,7 +1570,6 @@ async function splitScenario(name, run) {
 
 await splitScenario("Back from an untouched split", () => {
   startSplit();
-  assert.equal(costTree().props.backLabel, "Back to expense");
   dismiss();
   assert.equal(stepTitle(), "Add expense");
   assert.equal(editorsClosed, 0, "Back must not close the whole expense");
@@ -1497,7 +1593,7 @@ await splitScenario("Abandoned edits keep the applied split", async () => {
   typeAllShares(["1000", "900", "800", "700", "600"]);
   await submitCost();
   assert.equal(stepTitle(), "Add expense");
-  changeSplitButton().props.onClick();
+  openSplit();
   typeShare(1, "1");
   dismiss();
   assert.equal(stepTitle(), "Add expense");
@@ -1512,7 +1608,7 @@ await splitScenario("Per-person holds until the split is used", async () => {
   startExpense("400");
   perPersonRadio().props.onChange();
   openSplit();
-  assert.match(costTree().props.description, /₱2,000 total/);
+  assert.match(costTree().props.description, /Inn · ₱2,000/);
   dismiss();
   assert.equal(perPersonRadio().props.checked, true);
   assert.equal(find(costTree(), "expense-price").props.value, "400");
@@ -1632,16 +1728,14 @@ await splitScenario("No balancing while an edited row is unfinished", () => {
   assert.ok(balanceButton());
 });
 await splitScenario("Reset to even replaces the dropdown", () => {
-  assert.ok(!costTree().props.titleAction, "Only the custom step offers reset");
+  // Figma: Reset to even sits in the body above the amounts, inside the
+  // form's fieldset, so it is disabled while saving like the amounts.
+  const reset = () =>
+    nodes(costTree()).find((n) => n.props.children === "Reset to even");
+  assert.ok(!reset(), "Only the custom step offers reset");
   startSplit();
   assert.ok(!nodes(costTree()).some((n) => n.props.label === "Split"));
-  const reset = () => costTree().props.titleAction;
-  assert.equal(reset().props.children, "Reset to even");
-  assert.equal(
-    render(approved.ExpenseCostEditor, { ...approvedProps, pending: true })
-      .props.titleAction.props.disabled,
-    true,
-  );
+  assert.ok(reset());
   typeShare(1, "1");
   reset().props.onClick();
   assert.equal(
@@ -1677,13 +1771,13 @@ await splitScenario("First click after focus selects the amount", () => {
 });
 await splitScenario("An added member is named on the expense", async () => {
   startExpense();
-  costTree().props.headerAction.props.onClick();
+  changeSplitButton().props.onClick();
   memberBoxes()[4].props.onChange({ target: { checked: false } });
   await submitCost();
   openSplit();
   await submitCost();
   assert.equal(stepTitle(), "Add expense");
-  costTree().props.headerAction.props.onClick();
+  changeSplitButton().props.onClick();
   memberBoxes()[4].props.onChange({ target: { checked: true } });
   await submitCost();
   assert.match(renderToStaticMarkup(costTree()), /Add an amount for Person 5/);
@@ -1771,9 +1865,7 @@ find(costTree(), "expense-name").props.onChange({
   target: { value: "Entrance" },
 });
 find(costTree(), "expense-price").props.onChange({ target: { value: "400" } });
-nodes(costTree())
-  .find((n) => n.props.type === "radio" && n.props.name === "expense-basis")
-  .props.onChange();
+perPersonRadio().props.onChange();
 const splitControl = nodes(costTree()).find((n) => n.props.label === "Split");
 if (splitControl.props.disabled)
   accessFailures.push("Custom split is disabled for a per-person expense");
@@ -1836,9 +1928,8 @@ let paymentStatus = {
     },
   ],
 };
-let previewQuery, paymentPreview;
+let previewQuery, paymentPreview, previewFailure;
 const paymentWrites = new Map();
-let paymentSaved = 0;
 const paymentApi = {
   pending: false,
   error: null,
@@ -1871,7 +1962,7 @@ const paymentModule = load(
         if (options.queryKey.includes("expense-status"))
           return { data: paymentStatus };
         previewQuery = options;
-        return { data: paymentPreview };
+        return { data: paymentPreview, error: previewFailure };
       },
     },
     "@/lib/money": money,
@@ -1886,6 +1977,7 @@ const paymentModule = load(
       TripDialog: ({ children }) => children,
     },
     "@/components/shared/trip-states": { TripError },
+    "@/components/shared/options-menu": { OptionsMenu: () => null },
   },
   { crypto },
 );
@@ -1900,169 +1992,419 @@ const workspaceProps = {
 };
 states = [];
 refs = [];
+// The workspace renders the payments drawer, then the payment modal over it.
+// Tapping a member row opens their payment modal straight away; there is no
+// member-detail screen and no "Update a payment" picker.
 tree = render(paymentModule.ExpensePaymentWorkspace, workspaceProps);
-nodes(tree.props.footer)
-  .find((n) => n.props.children === "Update a payment")
-  .props.onClick();
-tree = render(paymentModule.ExpensePaymentWorkspace, workspaceProps);
-const memberChoice = (id) =>
-  nodes(tree).find(
-    (n) =>
-      n.props.onClick &&
-      nodes(n).some((c) => c.props.children === `Person ${id}`),
+assert.equal(
+  nodes([tree.props.children].flat()[0].props.footer).some(
+    (n) => n.props.children === "Update a payment",
+  ),
+  false,
+);
+const memberRow = (id) =>
+  nodes(tree).find((n) =>
+    n.props["aria-label"]?.startsWith(`View Person ${id}’s`),
   );
-const paidChoice = memberChoice(1);
-assert.equal(
-  paidChoice.props.disabled,
-  true,
-  "A fully paid member must not open a zero-amount payment form",
-);
-memberChoice(3).props.onClick();
-const formElement = render(
-  paymentModule.ExpensePaymentWorkspace,
-  workspaceProps,
+const openModal = (id) => {
+  tree = render(paymentModule.ExpensePaymentWorkspace, workspaceProps);
+  memberRow(id).props.onClick();
+  return [
+    render(paymentModule.ExpensePaymentWorkspace, workspaceProps).props
+      .children,
+  ].flat()[1];
+};
+// A fully paid member's modal shows progress, their payments and only Done.
+const paidElement = openModal(1);
+states = [];
+refs = [];
+tree = render(paidElement.type, paidElement.props);
+let modalHtml = renderToStaticMarkup(tree);
+assert.match(modalHtml, /₱800 of ₱800 paid/);
+assert.doesNotMatch(modalHtml, /To pay/);
+assert.match(modalHtml, />Paid</);
+assert.deepEqual(
+  nodes(tree.props.footer)
+    .map((n) => n.props.children)
+    .filter((c) => typeof c === "string"),
+  ["Done"],
 );
 states = [];
 refs = [];
-const paymentTree = () => render(formElement.type, formElement.props);
-tree = paymentTree();
-const payeeField = nodes(tree).find(
-  (n) => n.props.label === "Who received the payment?",
-);
-assert.equal(payeeField.props.value, "1:1");
-assert.equal(
-  payeeField.props.options.some((o) => o.value === "business"),
-  false,
-);
-assert.equal(find(tree, "payment-amount").props.value, "50.00");
-assert.equal(
-  previewQuery.enabled,
-  false,
-  "Reimbursements need no business preview",
-);
-find(tree, "payment-amount").props.onChange({ target: { value: "0" } });
-assert.match(renderToStaticMarkup(paymentTree()), /Enter a positive amount/);
-assert.doesNotMatch(
-  renderToStaticMarkup(paymentTree()),
-  /Something went wrong/,
-);
-states = [];
-refs = [];
-tree = render(formElement.type, {
-  ...formElement.props,
-  status: {
-    ...paymentStatus,
-    members: paymentStatus.members.map((m) =>
-      m.user_id === 3
-        ? { ...m, business_remaining_minor: "75000", remaining_minor: "80000" }
-        : m,
-    ),
-  },
+const memberElement = openModal(3);
+assert.ok(memberElement, "Tapping a member opens their payment modal");
+const memberModal = (overrides = {}) => {
+  const props = { ...memberElement.props, ...overrides };
+  return () => render(memberElement.type, props);
+};
+const rowAction = (t, label) =>
+  nodes(t).find((n) => n.props["aria-label"]?.startsWith(label));
+const submitInline = async (t) => {
+  nodes(t)
+    .find((n) => n.type === "form")
+    .props.onSubmit({ preventDefault() {}, stopPropagation() {} });
+  await new Promise((resolve) => setImmediate(resolve));
+};
+const withMember3 = (changes) => ({
+  ...paymentStatus,
+  members: paymentStatus.members.map((m) =>
+    m.user_id === 3 ? { ...m, ...changes } : m,
+  ),
 });
-assert.equal(find(tree, "payment-amount").props.value, "750.00");
-assert.equal(
-  nodes(tree).find((n) => n.props.label === "Who received the payment?").props
-    .value,
-  "business",
-);
-assert.equal(previewQuery.enabled, true);
+
+// Each debt is its own row. The recipient marks a reimbursement received;
+// the full amount is filled in and no business preview is involved.
 states = [];
 refs = [];
-tree = render(formElement.type, {
-  ...formElement.props,
-  current: { user_id: 4, role: "owner" },
-});
+let memberView = memberModal();
+modalHtml = renderToStaticMarkup(memberView());
+assert.match(modalHtml, /To pay/);
 assert.equal(
-  tree.props.footer.props.disabled,
-  true,
-  "An editor cannot confirm a reimbursement received by someone else",
+  rowAction(memberView(), "Mark paid"),
+  undefined,
+  "No business debt",
 );
+rowAction(memberView(), "Mark received").props.onClick();
+assert.equal(find(memberView(), "payment-amount").props.value, "50.00");
+// The ocean card becomes the amount entry for that payee.
+assert.match(renderToStaticMarkup(memberView()), /To Person 1/);
+assert.match(renderToStaticMarkup(memberView()), /Paid today · change/);
+find(memberView(), "payment-amount").props.onChange({ target: { value: "0" } });
+assert.match(renderToStaticMarkup(memberView()), /Enter a positive amount/);
+find(memberView(), "payment-amount").props.onChange({
+  target: { value: "60" },
+});
+assert.match(renderToStaticMarkup(memberView()), /Enter at most ₱50/);
 console.log(
-  "Paid-member selection, reimbursement defaults and local validation passed.",
+  "Member payment rows, recipient-only receipts and amount limits passed.",
 );
 
-for (const business of [false, true]) {
+// Business share: an editor marks it paid as a member payment.
+{
+  const calls = [];
+  const saved = { saveTransaction: paymentApi.saveTransaction };
+  paymentApi.saveTransaction = async (...args) => (calls.push(args), { id: 1 });
   states = [];
   refs = [];
-  paymentWrites.clear();
-  paymentSaved = 0;
-  paymentPreview = { after: { members: [] } };
-  const retryProps = {
-    ...formElement.props,
-    status: {
-      ...paymentStatus,
-      members: paymentStatus.members.map((member) =>
-        member.user_id === 3
-          ? { ...member, business_remaining_minor: business ? "75000" : "0" }
-          : member,
-      ),
-    },
-    onSaved: () => paymentSaved++,
-  };
-  const retryTree = () => render(formElement.type, retryProps);
-  const submitPayment = async () => {
-    nodes(retryTree())
-      .find((node) => node.type === "form")
-      .props.onSubmit({
-        preventDefault() {},
-        stopPropagation() {},
-      });
-    await new Promise((resolve) => setImmediate(resolve));
-  };
-  find(retryTree(), "payment-amount").props.onChange({
-    target: { value: "25.00" },
+  memberView = memberModal({
+    status: withMember3({
+      business_remaining_minor: "75000",
+      remaining_minor: "80000",
+    }),
   });
-  const originalDate = find(retryTree(), "payment-date").props.value;
-  await submitPayment();
-  assert.equal(paymentWrites.size, 1);
-  assert.equal(
-    paymentSaved,
-    0,
-    "A failed response keeps the payment draft open",
+  rowAction(memberView(), "Mark paid").props.onClick();
+  assert.equal(find(memberView(), "payment-amount").props.value, "750.00");
+  await submitInline(memberView());
+  const [kind, input] = calls.at(-1);
+  assert.equal(kind, "expense_payments");
+  assert.equal(input.payer_user_id, 3);
+  assert.equal(input.member_user_id, 3);
+  assert.equal(input.amount_minor, "75000");
+  Object.assign(paymentApi, saved);
+}
+
+// An editor who didn't receive the reimbursement can't confirm it.
+states = [];
+refs = [];
+memberView = memberModal({ current: { user_id: 4, role: "owner" } });
+assert.equal(rowAction(memberView(), "Mark received"), undefined);
+assert.match(
+  renderToStaticMarkup(memberView()),
+  /Reservation · Person 1 confirms/,
+);
+
+// A lost response keeps its key: retrying the same payment resolves it, and an
+// edited retry is refused instead of writing twice.
+states = [];
+refs = [];
+paymentWrites.clear();
+memberView = memberModal();
+rowAction(memberView(), "Mark received").props.onClick();
+find(memberView(), "payment-amount").props.onChange({
+  target: { value: "25.00" },
+});
+await submitInline(memberView());
+assert.equal(paymentWrites.size, 1);
+assert.ok(
+  nodes(memberView()).some((n) => n.type === TripError),
+  "A lost response is shown and the row stays open",
+);
+find(memberView(), "payment-amount").props.onChange({
+  target: { value: "20.00" },
+});
+await submitInline(memberView());
+assert.equal(paymentWrites.size, 1, "An edited retry must not write twice");
+assert.ok(nodes(memberView()).some((n) => n.props.error?.status === 409));
+find(memberView(), "payment-amount").props.onChange({
+  target: { value: "25.00" },
+});
+await submitInline(memberView());
+assert.equal(paymentWrites.size, 1);
+assert.doesNotMatch(renderToStaticMarkup(memberView()), /Changed submission/);
+console.log("Member payments keep submission keys across retries.");
+
+// Recorded payments can be changed or undone from the ⋯ menu.
+{
+  const calls = [];
+  const saved = {
+    remove: paymentApi.remove,
+    saveTransaction: paymentApi.saveTransaction,
+    saveSettlement: paymentApi.saveSettlement,
+  };
+  paymentApi.remove = async (...args) => (
+    calls.push(["remove", ...args]),
+    true
   );
-  find(retryTree(), "payment-date").props.onChange({
+  paymentApi.saveTransaction = async (...args) => (
+    calls.push(["transaction", ...args]),
+    { id: 1 }
+  );
+  paymentApi.saveSettlement = async (...args) => (
+    calls.push(["settlement", ...args]),
+    { id: 1 }
+  );
+  const payment = {
+    ...paymentStatus.payments[0],
+    version: 3,
+    paid_on: "2026-10-01",
+  };
+  const receipt = {
+    id: 50,
+    version: 2,
+    payment_id: payment.id,
+    from_user_id: 3,
+    to_user_id: 1,
+    currency: "PHP",
+    amount_minor: "2500",
+    paid_on: "2026-10-02",
+  };
+  const modal = (user, status, current = workspaceProps.current) => {
+    const props = {
+      ...paidElement.props,
+      user,
+      status: { ...paymentStatus, payments: [payment], ...status },
+      current,
+    };
+    return () => render(paidElement.type, props);
+  };
+  const menu = (t, what) =>
+    nodes(t).find((n) => n.props.items && n.props.name?.includes(what));
+  const pick = (t, what, label) =>
+    menu(t, what)
+      .props.items.find((i) => i.label === label)
+      .onClick();
+
+  // Undo a business payment: confirm on the row, no reason needed.
+  states = [];
+  refs = [];
+  let row = modal(1, {});
+  pick(row(), "to Inn", "Undo");
+  assert.match(renderToStaticMarkup(row()), /Undo · to Inn/);
+  assert.match(renderToStaticMarkup(row()), /Balances update right away/);
+  await submitInline(row());
+  assert.deepEqual(calls.at(-1).slice(0, 3), [
+    "remove",
+    "expense_payments",
+    payment,
+  ]);
+  assert.equal(calls.at(-1)[3], undefined);
+
+  // A date correction must keep a payment made specifically for someone else.
+  const forSomeoneElse = {
+    ...payment,
+    amount_minor: "10000",
+    allocations: [{ user_id: 3, amount_minor: "10000" }],
+  };
+  states = [];
+  refs = [];
+  row = modal(1, { payments: [forSomeoneElse] });
+  pick(row(), "to Inn", "Change");
+  nodes(row())
+    .find((n) => n.props["aria-label"]?.startsWith("Date paid:"))
+    .props.onClick();
+  find(row(), "payment-date").props.onChange({
     target: { value: "2026-10-02" },
   });
-  await submitPayment();
+  await submitInline(row());
   assert.equal(
-    paymentWrites.size,
-    1,
-    "Editing an uncertain payment must not write it twice",
+    JSON.stringify(calls.at(-1)[2].allocations),
+    JSON.stringify(forSomeoneElse.allocations),
+    "Correcting a date must not apply someone else's coverage to the payer",
   );
-  assert.equal(paymentSaved, 0);
-  assert.ok(
-    nodes(retryTree()).some((node) => node.props.error?.status === 409),
-  );
-  find(retryTree(), "payment-date").props.onChange({
-    target: { value: originalDate },
+  assert.equal(calls.at(-1)[2].paid_on, "2026-10-02");
+
+  // A zero allocation to another member's credit must not block a correction.
+  states = [];
+  refs = [];
+  row = modal(1, {
+    payments: [
+      forSomeoneElse,
+      {
+        ...payment,
+        id: 99,
+        allocations: [{ user_id: 1, amount_minor: "90000" }],
+      },
+    ],
   });
-  await submitPayment();
-  assert.equal(paymentWrites.size, 1);
+  pick(row(), "to Inn", "Change");
+  const beforeCreditCorrection = calls.length;
+  await submitInline(row());
+  assert.equal(calls.length, beforeCreditCorrection + 1);
+
+  // Change a business payment: amount and date pre-filled, saved with version.
+  states = [];
+  refs = [];
+  row = modal(1, {});
+  pick(row(), "to Inn", "Change");
+  assert.equal(find(row(), "payment-amount").props.value, "1000.00");
+  find(row(), "payment-amount").props.onChange({ target: { value: "900" } });
+  const writesBeforeCoverage = calls.length;
+  await submitInline(row());
   assert.equal(
-    paymentSaved,
-    1,
-    "Retrying the original payment resolves its saved result",
+    calls.length,
+    writesBeforeCoverage,
+    "Changing an amount requires matching coverage",
   );
-  const saveSettlement = paymentApi.saveSettlement;
-  paymentApi.saveSettlement = async () => undefined;
-  await submitPayment();
+  assert.match(
+    renderToStaticMarkup(row()),
+    /Coverage amounts must equal the payment/,
+  );
+  // Explicitly choose the API's own-share-first allocation for the new amount.
+  nodes(row())
+    .find((n) => n.props.setManual)
+    .props.setManual(false);
+  await submitInline(row());
+  const [, kind, input, record] = calls.at(-1);
+  assert.equal(kind, "expense_payments");
+  assert.equal(record, payment);
+  assert.equal(input.version, 3);
+  assert.equal(input.amount_minor, "90000");
+  assert.equal(input.paid_on, "2026-10-01");
   assert.equal(
-    paymentSaved,
-    1,
-    "A duplicate-suppressed save must keep the payment draft open",
+    JSON.stringify(input.allocations),
+    JSON.stringify(activity.allocatePayment("90000", 1, inn.shares)),
   );
-  paymentApi.saveSettlement = saveSettlement;
+
+  // A payment with linked repayments is locked until they are undone.
+  states = [];
+  refs = [];
+  row = modal(1, { receipts: [receipt] });
+  assert.ok(menu(row(), "to Inn").props.items.every((i) => i.disabled));
+  assert.match(renderToStaticMarkup(row()), /Undo the repayments to/);
+
+  // Undoing a reimbursement needs a reason, as the API requires.
+  states = [];
+  refs = [];
+  calls.length = 0;
+  row = modal(3, { receipts: [receipt] });
+  pick(row(), "to Person 1", "Undo");
+  await submitInline(row());
+  assert.equal(calls.length, 0, "No reason, no undo");
+  find(row(), "payment-reason").props.onChange({
+    target: { value: "Entered twice" },
+  });
+  await submitInline(row());
+  assert.deepEqual(calls.at(-1), [
+    "remove",
+    "settlements",
+    receipt,
+    "Entered twice",
+  ]);
+
+  // Viewers see what was paid but cannot change or undo it.
+  states = [];
+  refs = [];
+  row = modal(1, {}, { user_id: 2, role: "viewer" });
+  assert.match(renderToStaticMarkup(row()), /to Inn/);
+  assert.equal(menu(row(), "to Inn"), undefined);
+
+  // Undoing the last payment removes a payer who has no share from the status.
+  states = [];
+  refs = [];
+  row = modal(99, { payments: [], receipts: [], members: [] });
+  assert.equal(
+    row(),
+    null,
+    "A missing member closes safely instead of crashing",
+  );
+  Object.assign(paymentApi, saved);
+}
+console.log(
+  "Member payment modal: paid state, change and undo with permissions passed.",
+);
+
+// Shared payments remain available without a plan and after a first deposit.
+{
+  const original = paymentStatus;
+  const reservationCard = (cost = inn, current = workspaceProps.current) => {
+    states = [];
+    refs = [];
+    const t = render(paymentModule.ExpensePaymentWorkspace, {
+      ...workspaceProps,
+      cost,
+      current,
+    });
+    assert.equal([t.props.children].flat()[0].props.footer, undefined);
+    return nodes(t).find(
+      (n) =>
+        n.type === "button" &&
+        n.props["aria-label"] === `Record reservation for ${cost.description}`,
+    );
+  };
+  assert.ok(reservationCard({ ...inn, planned_coverer_user_id: undefined }));
+  assert.ok(reservationCard({ ...inn, planned_coverer_user_id: 1 }));
+  assert.ok(reservationCard(inn, { user_id: 1, role: "editor" }));
+  for (const role of ["member", "viewer"]) {
+    assert.equal(reservationCard(inn, { user_id: 1, role }), undefined);
+  }
+  paymentStatus = { ...original, business_remaining_minor: "0" };
+  assert.equal(reservationCard(), undefined);
+  paymentStatus = { ...original, business_remaining_minor: "-100" };
+  assert.equal(reservationCard(), undefined);
+  paymentStatus = original;
 }
 
 states = [];
 refs = [];
 paymentPreview = undefined;
 const joined = { user_id: 99, display_name: "New participant", email: null };
+// The business summary opens the reservation form over the drawer.
+const reservationWorkspace = {
+  ...workspaceProps,
+  cost: {
+    ...inn,
+    planned_coverer_user_id: 3,
+    planned_cover_amount_minor: "20000",
+  },
+};
+tree = render(paymentModule.ExpensePaymentWorkspace, reservationWorkspace);
+nodes(tree)
+  .find(
+    (n) =>
+      n.props["aria-label"] === `Record reservation for ${inn.description}`,
+  )
+  .props.onClick();
+const formElement = [
+  render(paymentModule.ExpensePaymentWorkspace, reservationWorkspace).props
+    .children,
+].flat()[1];
 const payerProps = {
   ...formElement.props,
-  reservation: true,
   participants: [people[0], people[2], joined],
 };
+// Reopening after a deposit uses what remains, rather than repeating the deposit.
+for (const cost of [
+  { ...inn, planned_coverer_user_id: 1, planned_cover_amount_minor: "100000" },
+  { ...inn, planned_coverer_user_id: 0, planned_cover_amount_minor: "" },
+]) {
+  states = [];
+  refs = [];
+  const t = render(formElement.type, { ...payerProps, cost });
+  assert.equal(find(t, "payment-amount").props.value, "3000.00");
+  assert.equal(previewQuery.enabled, true);
+}
+states = [];
+refs = [];
 tree = render(formElement.type, payerProps);
 const payerField = nodes(tree).find((node) => node.props.label === "Who paid?");
 assert.deepEqual(
@@ -2154,7 +2496,8 @@ for (const [borrower, amount] of [
   assert.doesNotMatch(renderToStaticMarkup(tree), /Lent by/);
   assert.equal(find(tree, "loan-borrower").props.value, "0");
   assert.equal(find(tree, "cost-activity"), undefined);
-  assert.equal(find(tree, "cost-date"), undefined);
+  // Figma: Record money lent ends with Date lent.
+  assert.ok(find(tree, "cost-date"));
   assert.deepEqual(
     Array.from(find(tree, "loan-borrower").props.options, (p) => p.value),
     ["0", "2", "3"],
@@ -2240,7 +2583,7 @@ for (const role of ["member", "editor", "owner", "viewer"]) {
   assert.match(renderToStaticMarkup(tree), /Person 2 borrowed from Person 1/);
   assert.match(renderToStaticMarkup(tree), /Unpaid/);
   assert.equal(
-    nodes(tree).some((n) => n.props.children === "Record repayment"),
+    nodes(tree).some((n) => /^Record repayment/.test(n.props.children)),
     role !== "viewer",
   );
 }
@@ -2248,7 +2591,7 @@ states = [];
 refs = [];
 tree = render(view.ActivityExpenses, { ...ownerProps, compact: true });
 assert.equal(
-  nodes(tree).some((n) => n.props.children === "Record repayment"),
+  nodes(tree).some((n) => /^Record repayment/.test(n.props.children)),
   false,
   "An unrelated owner cannot confirm receipt",
 );
@@ -2536,7 +2879,7 @@ tree = render(view.ActivityExpenses, { ...lenderProps, compact: true });
 assert.match(renderToStaticMarkup(tree), /Paid/);
 assert.match(renderToStaticMarkup(tree), /Cash for Person 2/);
 assert.equal(
-  nodes(tree).some((n) => n.props.children === "Record repayment"),
+  nodes(tree).some((n) => /^Record repayment/.test(n.props.children)),
   false,
 );
 console.log(
@@ -2707,7 +3050,7 @@ for (const role of ["member", "editor", "owner", "viewer"]) {
     role !== "viewer",
   );
   assert.equal(
-    nodes(tree).some((n) => n.props.children === "Record repayment"),
+    nodes(tree).some((n) => /^Record repayment/.test(n.props.children)),
     role !== "viewer",
   );
 }
@@ -2736,7 +3079,7 @@ assert.doesNotMatch(
   /Outstanding|history and corrections/i,
 );
 assert.equal(
-  nodes(tree).some((n) => n.props.children === "Record repayment"),
+  nodes(tree).some((n) => /^Record repayment/.test(n.props.children)),
   false,
 );
 await nodes(tree)
@@ -2772,9 +3115,8 @@ for (const [amount, status] of [
   };
   tree = finance("loans");
   assert.match(renderToStaticMarkup(tree), new RegExp(status));
-  assert.match(renderToStaticMarkup(tree), /Outstanding/);
   assert.equal(
-    nodes(tree).some((n) => n.props.children === "Record repayment"),
+    nodes(tree).some((n) => /^Record repayment/.test(n.props.children)),
     BigInt(amount) > 0n,
   );
 }
@@ -2889,19 +3231,12 @@ assert.deepEqual(
   ["100000", "100000", "0"].map((n) => money.expenseMoney(n, currencies[0])),
 );
 assert.match(renderToStaticMarkup(tree), /Reservation|Expense reimbursement/);
-assert.ok(
+assert.equal(
   nodes(tree).some((n) => n.props["aria-label"] === "View Inn payments"),
-  "Fully settled expense shares remain visible",
+  false,
+  "Settled expenses stay in All expenses instead of repeating below the balance summary",
 );
 const personalTrigger = { isConnected: true };
-nodes(tree)
-  .find((n) => n.props["aria-label"] === "View Inn payments")
-  .props.onClick({ currentTarget: personalTrigger });
-tree = personal({ showExpenses: true, activityID: "1", ledger: paidLedger });
-assert.equal(
-  nodes(tree).find((n) => n.type === PaymentWorkspace).props.backLabel,
-  "Back to My Expenses",
-);
 states = [];
 refs = [];
 tree = personal({
@@ -2927,6 +3262,17 @@ assert.deepEqual(
   summaryValues(tree),
   ["100000", "40000", "60000"].map((n) => money.expenseMoney(n, currencies[0])),
 );
+assert.match(renderToStaticMarkup(tree), /You owe/);
+assert.match(renderToStaticMarkup(tree), /Pay to business/);
+assert.match(renderToStaticMarkup(tree), /Expense reimbursement/);
+nodes(tree)
+  .find((n) => n.props["aria-label"] === "View Inn payments")
+  .props.onClick({ currentTarget: personalTrigger });
+tree = personal({ showExpenses: true, activityID: "1", ledger: paidLedger });
+assert.equal(
+  nodes(tree).find((n) => n.type === PaymentWorkspace).props.backLabel,
+  "Back to My Expenses",
+);
 console.log(
   "Activity overview/detail/personal/borrow disclosure, settled-share totals, lender filtering and Undo passed.",
 );
@@ -2941,10 +3287,7 @@ assert.equal(
   ).length,
   1,
 );
-assert.doesNotMatch(
-  renderToStaticMarkup(tree),
-  /Owed to me:|Expense reimbursement/,
-);
+assert.doesNotMatch(renderToStaticMarkup(tree), /Owed to me:/);
 const compactReceipt = nodes(tree).find(
   (n) =>
     n.props["aria-label"] ===

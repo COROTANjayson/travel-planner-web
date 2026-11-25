@@ -52,6 +52,19 @@ export const financeTabsHeader =
 export const financeLoansHeader =
   "pt-5 pb-3 [&>div]:grid [&>div]:gap-1 [&>div>*]:m-0 [&_h2]:m-0 [&_h2]:text-[26px] [&_h2]:leading-[34px] [&_p]:leading-[22px]";
 
+// Figma expense modals: a 480px centered dialog on desktop, a bottom sheet on mobile.
+export const expenseModalProps = {
+  focusTitleOnChange: true,
+  mobilePresentation: "sheet",
+  headerClassName:
+    "border-b-0 pt-5 pr-4 pb-0 pl-6 md:pt-5 md:pr-4 md:pb-0 md:pl-6 [&>div]:space-y-1 [&>div]:pt-1 [&_h2]:text-[22px] [&_h2]:leading-7 [&_[data-slot=trip-dialog-description]]:leading-5",
+  bodyClassName: "px-6 pt-4 pb-6 md:pt-5",
+  className:
+    "expense-flow-dialog bg-background max-md:rounded-t-[24px] md:max-w-[480px] md:rounded-[24px] [&_[data-slot='input']]:min-h-12 [&_[data-slot='input']]:rounded-[0.875rem] [&_[data-slot='select-trigger']]:[min-height:3rem] [&_[data-slot='select-trigger']]:[border-radius:0.875rem] [&_[data-slot='select-trigger']_>_svg]:[display:block]",
+  backdropClassName: "bg-black/60",
+  disablePointerDismissal: true,
+} as const;
+
 // Repayment drawer overrides on top of the expense variant.
 export const repaymentSlots = {
   header:

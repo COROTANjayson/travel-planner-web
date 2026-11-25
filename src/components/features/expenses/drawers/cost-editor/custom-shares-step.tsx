@@ -1,11 +1,12 @@
 "use client";
 
+import { rowTitle } from "@/components/features/expenses/card-row";
 import { ExpenseMoneyRow } from "@/components/features/expenses/expense-layout";
 
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { ExpensePriceField } from "@/components/features/expenses/expense-fields";
 import { Label } from "@/components/ui/label";
-import { expenseName, type ExpensePerson } from "@/lib/expenses";
+import { expenseName, type Currency, type ExpensePerson } from "@/lib/expenses";
 
 export function CustomSharesStep({
   formID,
@@ -20,7 +21,7 @@ export function CustomSharesStep({
 }: {
   formID: string;
   selectedPeople: ExpensePerson[];
-  meta: Parameters<typeof ExpensePriceField>[0]["currency"];
+  meta: Currency;
   exact: Record<number, string>;
   setExact: Dispatch<SetStateAction<Record<number, string>>>;
   setEditedShares: Dispatch<SetStateAction<number[]>>;
@@ -29,23 +30,24 @@ export function CustomSharesStep({
   change: () => void;
 }) {
   return (
-    <div className="grid gap-3">
-      <p className="text-sm text-muted-foreground">
-        Shares &middot; {meta.code}
-      </p>
+    <div className="overflow-hidden rounded-[16px] border bg-card">
       {selectedPeople.map((person) => {
         const shareID = `${formID}-share-${person.user_id}`;
         const shareProblem = readShare(person.user_id).problem;
         return (
-          <ExpenseMoneyRow key={person.user_id}>
-            <Label htmlFor={shareID}>{expenseName(person)}</Label>
+          <ExpenseMoneyRow
+            key={person.user_id}
+            className="px-3.5 py-1.5 last:border-b-0 sm:px-4 [&_[data-slot=input]:not(:focus):not([aria-invalid=true])]:border-transparent [&_[data-slot=input]]:font-semibold"
+          >
+            <Label htmlFor={shareID} className={rowTitle}>
+              {expenseName(person)}
+            </Label>
             <ExpensePriceField
               currency={meta}
               id={shareID}
               aria-label={`Share for ${expenseName(person)}`}
               aria-invalid={shareProblem ? true : undefined}
               aria-describedby={shareProblem ? `${shareID}-error` : undefined}
-              inputMode="decimal"
               value={exact[person.user_id] ?? ""}
               onFocus={(e) => {
                 e.target.select();

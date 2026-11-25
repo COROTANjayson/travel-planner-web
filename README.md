@@ -70,7 +70,9 @@ Editing after a failed save keeps that key too. If the original save completed,
 an edited retry returns a conflict; check the saved record before starting again.
 
 Owners/editors plan per-person or group costs, equal/custom shares, and an optional
-coverer/amount. Planned coverage creates no payment or debt. Editors separately
+coverer/amount. Activity drafts and existing-expense edits keep coverage as a plan,
+with no payment or debt. Saving a new expense directly from an activity or Prep
+task also records its reservation payment. Editors separately
 confirm business payments, including deposits, multiple payers, and member-specific
 payments. Default coverage pays the payer's own share first, then other shares.
 

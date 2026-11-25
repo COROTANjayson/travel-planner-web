@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ApiError, useApi } from "@/lib/api";
 import { Temporal } from "@js-temporal/polyfill";
-import { ListChecksIcon, UsersIcon } from "@phosphor-icons/react";
+import { ListChecksIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   costAmountInput,
@@ -24,8 +24,8 @@ import {
   type ExpensePerson,
   type Share,
 } from "@/lib/expenses";
-import { participantInitials } from "@/lib/memberships";
 import { TripDialog } from "@/components/shared/trip-dialog";
+import { expenseModalProps } from "@/components/shared/trip-dialog-variants";
 import { TripError } from "@/components/shared/trip-states";
 import { CostStep } from "@/components/features/expenses/drawers/cost-editor/cost-step";
 import { CovererStep } from "@/components/features/expenses/drawers/cost-editor/coverer-step";
@@ -37,9 +37,10 @@ import { SplitStatusFooter } from "@/components/features/expenses/drawers/cost-e
 export function ExpenseCostEditor({
   activity,
   prepTask,
-  backLabel,
   tripID,
   initial,
+  defaultName,
+  recordsPayment,
   people,
   currencies,
   zone,
@@ -52,10 +53,12 @@ export function ExpenseCostEditor({
   finalFocus,
 }: {
   activity: { id?: number; title: string };
+  /** Pre-filled (and selected) name for a new expense, e.g. the activity's first. */
+  defaultName?: string;
+  /** The caller records a reservation payment when saving this new expense. */
+  recordsPayment: boolean;
   /** Adding from a prep task: the task (and its activity, if any) is fixed. */
   prepTask?: { id: number; title: string };
-  /** Replaces "Back to activity" on the first step. */
-  backLabel?: string;
   tripID: number;
   initial?: Expense;
   people: ExpensePerson[];
@@ -77,7 +80,9 @@ export function ExpenseCostEditor({
   const [step, setStep] = useState<
     "cost" | "custom" | "members" | "coverer" | "review"
   >("cost");
-  const [description, setDescription] = useState(initial?.description ?? "");
+  const [description, setDescription] = useState(
+    initial?.description ?? defaultName ?? "",
+  );
   const [currency, setCurrency] = useState(initial?.currency ?? "PHP");
   const meta = currencies.find((c) => c.code === currency) ?? {
     code: currency,
@@ -121,9 +126,11 @@ export function ExpenseCostEditor({
   const submitRef = useRef<HTMLButtonElement>(null);
   const firstClickSelects = useRef(false);
   useEffect(() => {
+    // Custom split starts on its first amount, past Reset to even.
     (
-      formRef.current?.querySelector<HTMLElement>("input,button,[tabindex]") ??
-      formRef.current
+      formRef.current?.querySelector<HTMLElement>(
+        step === "custom" ? "input" : "input,button,[tabindex]",
+      ) ?? formRef.current
     )?.focus();
   }, [step]);
   const money = (value: string | bigint) => expenseMoney(String(value), meta);
@@ -227,6 +234,12 @@ export function ExpenseCostEditor({
     setEditedShares([]);
     setValidation(null);
     setStep("custom");
+  }
+  // The Split row opens members; its "Split with custom amounts" link opens
+  // the amounts.
+  function openSplit() {
+    setValidation(null);
+    setStep("members");
   }
   function balanceShares() {
     setExact((v) => ({ ...v, ...evenInputs(remaining.toString(), untouched) }));
@@ -339,10 +352,19 @@ export function ExpenseCostEditor({
             : initial
               ? "Edit expense"
               : "Add expense";
+  const day = Temporal.PlainDate.from(date).toLocaleString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
   const subtitle =
     step === "cost"
-      ? activity.title || undefined
-      : `${description || "Expense"} · ${money(total)} ${basis === "per_person" ? "total" : "group price"}`;
+      ? [activity.title, day].filter(Boolean).join(" · ")
+      : step === "members"
+        ? selected.length === people.length
+          ? `All ${people.length} members`
+          : `${selected.length} of ${people.length} members`
+        : `${description || "Expense"} · ${money(total)}`;
   const footerLabel =
     step === "custom"
       ? "Use this split"
@@ -355,107 +377,34 @@ export function ExpenseCostEditor({
     <TripDialog
       open
       finalFocus={finalFocus}
-      focusTitleOnChange
-      presentation="detail"
-      className="activity-details-dialog expense-flow-dialog [&_[data-slot='input']]:min-h-12 [&_[data-slot='input']]:rounded-[0.875rem] [&_[data-slot='select-trigger']]:[min-height:3rem] [&_[data-slot='select-trigger']]:[border-radius:0.875rem] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[min-height:44px] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[padding:0] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[text-align:left] [&_[data-slot='trip-dialog-footer']_.expense-split-status_[data-slot='button']]:[white-space:normal] [&_.activity-detail-navigation_.trip-people[data-slot='button']]:[min-width:44px] [&_.activity-detail-navigation_.trip-people[data-slot='button']]:[justify-content:flex-end] [&_.activity-detail-navigation_.trip-people[data-slot='button']]:[border-radius:9999px] [&_.activity-detail-navigation_.trip-people[data-slot='button']:focus-visible]:[outline:2px_solid_var(--ring)] [&_.activity-detail-navigation_.trip-people[data-slot='button']:focus-visible]:[outline-offset:2px] [&_[data-slot='select-trigger']_>_svg]:[display:block] [&_.repayment-panel_[data-slot='input']]:[border-radius:0] [&_.repayment-panel_[data-slot='input']]:[border-color:var(--ocean-text)] [&_.repayment-panel_[data-slot='input']]:[background:transparent] [&_.repayment-panel_[data-slot='input']]:[color:#fff] [&_.repayment-panel_[data-slot='input']]:[caret-color:#fff] [&_.repayment-panel_[data-slot='input']:focus-visible]:[outline:2px_solid_var(--aqua)] [&_.repayment-panel_[data-slot='input']:focus-visible]:[outline-offset:4px] [&_.repayment-panel_[data-slot='input']:focus-visible]:[box-shadow:none] [&_.repayment-panel_[data-slot='input'][aria-invalid='true']]:[border-color:#ffd5ca] [&_.repayment-panel_[data-slot='input'][aria-invalid='true']]:[box-shadow:none]"
-      variant="expense"
-      backLabel={
-        step === "cost" ? (backLabel ?? "Back to activity") : "Back to expense"
-      }
-      backdropClassName="bg-black/60"
+      {...expenseModalProps}
       title={title}
       description={subtitle}
-      titleAction={
-        step === "custom" && (
-          // Outside the form's disabled fieldset, so it blocks itself while busy.
-          <Button
-            type="button"
-            variant="link"
-            className="figma-summary-action px-0 [&[data-slot='button']]:[min-height:44px] [&[data-slot='button']]:[margin-block:-0.625rem] [&[data-slot='button']]:[margin-left:auto] [&[data-slot='button']]:[white-space:normal]"
-            disabled={busy}
-            onClick={resetShares}
-          >
-            Reset to even
-          </Button>
-        )
-      }
-      headerAction={
-        step === "cost" && (
-          // Outside the form's disabled fieldset, so it blocks itself while busy.
-          <Button
-            type="button"
-            variant="ghost"
-            className="trip-people [&[data-slot='button']]:[border-radius:9999px] [&[data-slot='button']]:[padding-inline:0.375rem]"
-            disabled={busy}
-            aria-label={`Who is included? ${
-              selected.length === 1
-                ? "1 member"
-                : selected.length === people.length
-                  ? `All ${selected.length} members`
-                  : `${selected.length} members`
-            }`}
-            onClick={() => setStep("members")}
-          >
-            {selectedPeople.length ? (
-              <span
-                aria-hidden="true"
-                className="trip-people-avatars [display:flex] [&>span]:[display:grid] [&>span]:[min-width:2rem] [&>span]:[min-height:2rem] [&>span]:[place-items:center] [&>span]:[border:2px_solid_var(--background)] [&>span]:[border-radius:9999px] [&>span]:[background:var(--trip-sea)] [&>span]:[color:var(--foreground)] [&>span]:[padding-inline:0.125rem] [&>span]:[font-size:0.6875rem] [&>span]:[font-weight:600] [&_>_span_+_span]:[margin-left:-0.5rem]"
-              >
-                {selectedPeople.slice(0, 3).map((person) => (
-                  <span key={person.user_id}>
-                    {participantInitials(person)}
-                  </span>
-                ))}
-                {selectedPeople.length > 3 && (
-                  <span>+{selectedPeople.length - 3}</span>
-                )}
-              </span>
-            ) : (
-              <>
-                <UsersIcon aria-hidden="true" />
-                Members
-              </>
-            )}
-          </Button>
-        )
-      }
       busy={busy}
-      disablePointerDismissal
       onOpenChange={(open) => {
         if (!open) back();
       }}
       footer={
-        <>
-          {step === "custom" && (
-            <SplitStatusFooter
-              unassigned={unassigned}
-              assigned={assigned}
-              total={total}
-              canBalance={canBalance}
-              untouched={untouched}
-              remaining={remaining}
-              busy={busy}
-              money={money}
-              balanceShares={balanceShares}
-            />
-          )}
+        <div className="flex gap-3 sm:justify-end max-sm:[&>*]:flex-1 [&>[data-slot=button]]:justify-center!">
           <Button
-            ref={submitRef}
-            className="w-full"
-            type="submit"
-            form={formID}
+            type="button"
+            variant="outline"
             disabled={busy}
+            onClick={back}
           >
+            {step === "cost" ? "Cancel" : "Back"}
+          </Button>
+          <Button ref={submitRef} type="submit" form={formID} disabled={busy}>
             {reviewing ? "Reviewing…" : pending ? "Saving…" : footerLabel}
           </Button>
-        </>
+        </div>
       }
     >
       <form
         tabIndex={-1}
         ref={formRef}
         id={formID}
-        className="figma-expense-form [padding-top:0.5rem] [&_label]:[color:var(--muted-foreground)] [&_label]:[font-weight:400]"
+        className="figma-expense-form [padding-top:0.5rem]"
         onChange={change}
         onSubmit={(e) => {
           e.preventDefault();
@@ -463,7 +412,7 @@ export function ExpenseCostEditor({
           return submit();
         }}
       >
-        <fieldset disabled={busy} className="space-y-6 min-w-0">
+        <fieldset disabled={busy} className="min-w-0 space-y-5">
           {step === "cost" && prepTask && (
             <div className="flex items-center gap-2.5 rounded-xl bg-secondary p-3">
               <ListChecksIcon
@@ -487,6 +436,7 @@ export function ExpenseCostEditor({
               formID={formID}
               description={description}
               setDescription={setDescription}
+              selectName={!!defaultName && description === defaultName}
               basis={basis}
               setBasis={setBasis}
               mode={mode}
@@ -507,7 +457,7 @@ export function ExpenseCostEditor({
               money={money}
               change={change}
               invalid={invalid}
-              openCustomSplit={openCustomSplit}
+              openSplit={openSplit}
               setStep={setStep}
             />
           )}
@@ -515,25 +465,61 @@ export function ExpenseCostEditor({
             <ReviewStep review={review} people={people} money={money} />
           )}
           {step === "members" && (
-            <MembersStep
-              people={people}
-              selected={selected}
-              setSelected={setSelected}
-              change={change}
-            />
+            <>
+              <MembersStep
+                people={people}
+                selected={selected}
+                setSelected={setSelected}
+                change={change}
+              />
+              {/* Not in the Figma frame: keeps custom amounts reachable. */}
+              <Button
+                type="button"
+                variant="link"
+                className="-my-2 min-h-11 px-0"
+                onClick={() =>
+                  selected.length
+                    ? openCustomSplit()
+                    : invalid("Include at least one member.")
+                }
+              >
+                Split with custom amounts
+              </Button>
+            </>
           )}
           {step === "custom" && (
-            <CustomSharesStep
-              formID={formID}
-              selectedPeople={selectedPeople}
-              meta={meta}
-              exact={exact}
-              setExact={setExact}
-              setEditedShares={setEditedShares}
-              readShare={readShare}
-              firstClickSelectsRef={firstClickSelects}
-              change={change}
-            />
+            <>
+              <Button
+                type="button"
+                variant="link"
+                className="-my-2 min-h-11 px-0"
+                onClick={resetShares}
+              >
+                Reset to even
+              </Button>
+              <CustomSharesStep
+                formID={formID}
+                selectedPeople={selectedPeople}
+                meta={meta}
+                exact={exact}
+                setExact={setExact}
+                setEditedShares={setEditedShares}
+                readShare={readShare}
+                firstClickSelectsRef={firstClickSelects}
+                change={change}
+              />
+              <SplitStatusFooter
+                unassigned={unassigned}
+                assigned={assigned}
+                total={total}
+                canBalance={canBalance}
+                untouched={untouched}
+                remaining={remaining}
+                busy={busy}
+                money={money}
+                balanceShares={balanceShares}
+              />
+            </>
           )}
           {step === "coverer" && (
             <CovererStep
@@ -544,11 +530,12 @@ export function ExpenseCostEditor({
               setCoverAmount={setCoverAmount}
               currency={meta}
               people={people}
+              recordsPayment={recordsPayment && !initial}
             />
           )}
-          {(validation || error) && (
+          {failure && (
             <div ref={feedback} tabIndex={-1}>
-              <TripError error={validation ?? error!} />
+              <TripError error={failure} />
               {onReload &&
                 failure instanceof ApiError &&
                 failure.status === 409 && (

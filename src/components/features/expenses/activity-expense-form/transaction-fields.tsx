@@ -7,6 +7,7 @@ import { ExpenseSelect } from "@/components/features/expenses/expense-forms";
 import { Input } from "@/components/ui/input";
 import { ExpenseNumberInput } from "@/components/features/expenses/expense-number-input";
 import { Label } from "@/components/ui/label";
+import { fieldRequired } from "@/components/shared/field-required";
 import {
   expenseName,
   type ActivityLedger,
@@ -96,6 +97,11 @@ export function TransactionFields({
               : "Amount paid"
       }
       currency={currencyField}
+      footer={
+        editor.type === "loan"
+          ? "Loans never add to activity spending"
+          : undefined
+      }
     >
       <ExpenseNumberInput
         id="cost-amount"
@@ -157,12 +163,13 @@ export function TransactionFields({
 
   if (editor.type === "loan") {
     return (
-      <div className="space-y-6 [&_[data-slot=input]]:min-h-12 [&_[data-slot=select-trigger]]:min-h-12 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:break-all [&_[data-slot=select-value]]:line-clamp-none">
-        {amountField}
+      // Figma: borrower, purpose, the amount, then the date.
+      <div className="space-y-5 [&_[data-slot=input]]:min-h-12 [&_[data-slot=select-trigger]]:min-h-12 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:break-all [&_[data-slot=select-value]]:line-clamp-none">
         <div className="space-y-5">
           {canChooseLender && !editor.memberID && !editor.payment && payerField}
           <ExpenseSelect
             id="loan-borrower"
+            required
             label="Who borrowed the money?"
             value={String(borrower)}
             options={[
@@ -181,7 +188,9 @@ export function TransactionFields({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="cost-description">What is the loan for?</Label>
+          <Label htmlFor="cost-description" className={fieldRequired}>
+            What is the loan for?
+          </Label>
           <Input
             id="cost-description"
             required
@@ -191,6 +200,8 @@ export function TransactionFields({
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
+        {amountField}
+        {dateField}
       </div>
     );
   }

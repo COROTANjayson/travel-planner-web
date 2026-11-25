@@ -25,21 +25,17 @@ export function SplitStatusFooter({
 }) {
   return (
     <div
-      className="expense-split-status [display:grid] [gap:4px] [margin-bottom:12px] [padding:12px_16px] [border:1px_solid_var(--border)] [border-radius:16px] [background:var(--secondary)] [overflow-wrap:anywhere] [&_.figma-summary-value]:[font-size:18px] [&_.figma-summary-value]:[line-height:24px] [&[data-balanced='false']]:[background:var(--trip-sand)] [&_p:not(.figma-summary-value)]:[font-size:14px] [&_p:not(.figma-summary-value)]:[line-height:20px]"
+      className="grid gap-1 rounded-xl bg-[var(--trip-sand)] p-3 text-[13px] leading-[21px] font-semibold [overflow-wrap:anywhere]"
       data-balanced={unassigned === 0n}
     >
-      <div aria-live="polite">
-        <p className="figma-summary-value [font-weight:700] [font-size:22px] [line-height:30px]">
-          {unassigned === 0n
-            ? "Matches the total"
-            : unassigned > 0n
-              ? `${money(unassigned)} left to assign`
-              : `${money(-unassigned)} over`}
-        </p>
-        <p>
-          {money(assigned)} of {money(total)} assigned
-        </p>
-      </div>
+      <p aria-live="polite">
+        {money(assigned)} of {money(total)} assigned ·{" "}
+        {unassigned === 0n
+          ? "Matches the total"
+          : unassigned > 0n
+            ? `${money(unassigned)} left to assign`
+            : `${money(-unassigned)} over`}
+      </p>
       {canBalance && (
         <Button
           type="button"

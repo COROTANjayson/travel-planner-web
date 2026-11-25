@@ -17,7 +17,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TripError } from "@/components/shared/trip-states";
 import { ExpenseSelect } from "@/components/features/expenses/expense-forms";
-import { allocatePayment, uncovered } from "@/lib/activity-expenses";
+import {
+  allocatePayment,
+  checkCoverage,
+  uncovered,
+} from "@/lib/activity-expenses";
 import {
   costAmountInput,
   costTotal,
@@ -245,27 +249,7 @@ export function ActivityExpenseForm({
         : editor.memberID
           ? [{ user_id: editor.memberID, amount_minor: total }]
           : allocatePayment(total, payer, remaining);
-      if (
-        preview.reduce((n, s) => n + BigInt(s.amount_minor), 0n) !==
-        BigInt(total)
-      )
-        throw new Error("Coverage amounts must equal the payment.");
-      if (
-        preview.some(
-          (s) =>
-            BigInt(s.amount_minor) >
-            (BigInt(
-              remaining.find((r) => r.user_id === s.user_id)?.amount_minor ??
-                "0",
-            ) > 0n
-              ? BigInt(
-                  remaining.find((r) => r.user_id === s.user_id)
-                    ?.amount_minor ?? "0",
-                )
-              : 0n),
-        )
-      )
-        throw new Error("Coverage cannot exceed a traveler's uncovered share.");
+      checkCoverage(preview, remaining, total);
     }
   } catch (cause) {
     previewError = (cause as Error).message;
@@ -592,14 +576,14 @@ export function ActivityExpenseForm({
           </div>
         )}
         <div
-          className={`expense-form-actions sticky bottom-0 -mx-6 flex flex-col-reverse flex-wrap justify-end gap-2 bg-card px-6 py-4${simpleRepayment ? "" : " border-t"}`}
+          className={`expense-form-actions sticky bottom-0 -mx-6 flex justify-end gap-3 bg-card px-6 py-4 max-sm:[&>*]:flex-1${simpleRepayment ? "" : " border-t"}`}
         >
-          {!simpleRepayment && editor.type !== "loan" && (
-            <Button type="button" variant="ghost" onClick={onCancel}>
+          {!simpleRepayment && (
+            <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
           )}
-          <Button type="submit" disabled={!!repaymentError} className="w-full">
+          <Button type="submit" disabled={!!repaymentError}>
             {pending
               ? "Saving…"
               : review

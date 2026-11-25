@@ -332,8 +332,44 @@ export function useExpensesApi(
       ),
     get: <T extends FinancialRecord>(kind: LedgerKind, id: number) =>
       read<T>(`${base}/${kind}/${id}`),
-    saveExpense: (input: ExpenseInput, record?: Expense, key?: string) =>
-      mutate("expenses", record ? "PUT" : "POST", input, record, key),
+    // A new expense with someone paying the reservation first also records
+    // that payment to the business, so the others owe the payer right away
+    // (the API allocates it own-share-first, like Record reservation).
+    // Retries reuse both keys, so neither record is created twice.
+    saveExpense: async (
+      input: ExpenseInput,
+      record?: Expense,
+      key?: string,
+    ) => {
+      const saved = await mutate(
+        "expenses",
+        record ? "PUT" : "POST",
+        input,
+        record,
+        key,
+      );
+      const amount = BigInt(input.planned_cover_amount_minor || 0);
+      if (
+        !record &&
+        typeof saved === "object" &&
+        input.planned_coverer_user_id &&
+        amount > 0n
+      )
+        await mutate(
+          "expense_payments",
+          "POST",
+          {
+            expense_id: saved.id,
+            currency: input.currency,
+            amount_minor: String(amount),
+            paid_on: input.incurred_on,
+            payer_user_id: input.planned_coverer_user_id,
+          },
+          undefined,
+          key && `${key}:reservation`,
+        );
+      return saved;
+    },
     saveSettlement: (
       input: SettlementInput,
       record?: Settlement,

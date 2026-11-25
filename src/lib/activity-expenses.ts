@@ -70,6 +70,25 @@ export function uncovered(cost: Expense, ledger: ActivityLedger): Share[] {
     .map(([user_id, value]) => ({ user_id, amount_minor: value.toString() }));
 }
 
+/** Coverage must add up to the payment and fit each traveler's uncovered share. */
+export function checkCoverage(
+  coverage: Share[],
+  remaining: Share[],
+  total: string,
+) {
+  if (
+    coverage.reduce((n, s) => n + BigInt(s.amount_minor), 0n) !== BigInt(total)
+  )
+    throw new Error("Coverage amounts must equal the payment.");
+  const left = new Map(
+    remaining.map((s) => [s.user_id, pos(BigInt(s.amount_minor))]),
+  );
+  if (
+    coverage.some((s) => BigInt(s.amount_minor) > (left.get(s.user_id) ?? 0n))
+  )
+    throw new Error("Coverage cannot exceed a traveler's uncovered share.");
+}
+
 export function allocatePayment(
   amount: string,
   payer: number,

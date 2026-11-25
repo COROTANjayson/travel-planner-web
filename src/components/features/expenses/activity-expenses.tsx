@@ -1,5 +1,6 @@
 "use client";
 
+import { rowTitle } from "@/components/features/expenses/card-row";
 import { useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BorrowListLink } from "@/components/features/expenses/borrow-list-link";
@@ -90,6 +91,13 @@ export function ActivityExpenses(
     data?.expenses.filter((e) => matchesActivity(e, activityID)) ?? [];
   const loans = data?.loans.filter((l) => matchesActivity(l, activityID)) ?? [];
   const ownLoans = loans.filter((l) => l.from_user_id === current?.user_id);
+  // Each repayment needs its loan, so several loans name the borrower.
+  const repayable = ownLoans.flatMap((loan) => {
+    const debt = data?.debts.find((d) => d.loan_id === loan.id);
+    return writable && debt && BigInt(debt.amount_minor) > 0n
+      ? [{ loan, debt }]
+      : [];
+  });
   const codes = [...new Set([...costs, ...loans].map((e) => e.currency))];
   const hasOtherBalances =
     !!data &&
@@ -192,7 +200,7 @@ export function ActivityExpenses(
       return;
     try {
       await api.remove(kind, record, reason ?? undefined);
-      if (flow && props.view === "loans")
+      if (props.view === "loans")
         heading.current?.focus({ preventScroll: true });
     } catch (cause) {
       setLocalError(cause as Error);
@@ -254,24 +262,17 @@ export function ActivityExpenses(
         />
       )}
       {!props.managementOnly && !flow && (
-        <div
-          className={cn(
-            "mb-2.5 flex flex-wrap items-center justify-between gap-3 **:data-[slot=button]:min-h-12 **:data-[slot=button]:px-4 **:data-[slot=button]:text-sm **:data-[slot=button]:font-bold",
-            !flow && "border-t border-border pt-3.5",
-          )}
-        >
-          {!flow && (
-            <h3
-              ref={heading}
-              tabIndex={-1}
-              className="text-[22px] leading-[1.4] font-bold"
-            >
-              Expenses
-            </h3>
-          )}
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3.5 **:data-[slot=button]:min-h-12 **:data-[slot=button]:px-4 **:data-[slot=button]:text-sm **:data-[slot=button]:font-bold">
+          <h3
+            ref={heading}
+            tabIndex={-1}
+            className="text-[22px] leading-[1.4] font-bold"
+          >
+            Expenses
+          </h3>
           {hasActivity && (
             <div className="flex flex-wrap gap-2">
-              {writable && !flow && (
+              {writable && (
                 <Button
                   variant="outline"
                   onClick={() => open({ type: "loan" })}
@@ -279,7 +280,7 @@ export function ActivityExpenses(
                   Record money lent
                 </Button>
               )}
-              {isEditor && showCosts && (
+              {isEditor && (
                 <Button onClick={() => open({ type: "cost" })}>
                   Add expense
                 </Button>
@@ -316,7 +317,7 @@ export function ActivityExpenses(
         {localError && <TripError error={localError} />}
         {data && currencies.data && (
           <>
-            {!props.managementOnly && (!flow || props.view === "details") && (
+            {!props.managementOnly && showCosts && (
               <ExpenseTotals
                 codes={
                   flow ? [...new Set(costs.map((c) => c.currency))] : codes
@@ -326,33 +327,37 @@ export function ActivityExpenses(
                 current={current}
                 activityID={activityID}
                 money={money}
-                view={flow ? props.view : undefined}
+                view={props.view}
               />
             )}
-            {flow && props.view === "details" && !props.managementOnly && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pt-1 pb-3 group-data-[finance-view=loans]/finance:gap-2 group-data-[finance-view=loans]/finance:pt-0 group-data-[finance-view=details]/finance:mb-0 group-data-[finance-view=loans]/finance:mb-0">
-                <h3 className="text-[18px] font-bold group-data-[finance-view=loans]/finance:text-base">
+            {props.view === "details" && !props.managementOnly && (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className={rowTitle}>
                   {costs.length} {costs.length === 1 ? "expense" : "expenses"}
                 </h3>
                 {hasActivity && isEditor && (
-                  <Button onClick={() => open({ type: "cost" })}>
+                  <Button
+                    variant="link"
+                    className="min-h-11 px-0"
+                    onClick={() => open({ type: "cost" })}
+                  >
                     <PlusIcon aria-hidden="true" />
                     Add expense
                   </Button>
                 )}
               </div>
             )}
-            {flow && props.view === "loans" && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pt-1 pb-3 group-data-[finance-view=loans]/finance:gap-2 group-data-[finance-view=loans]/finance:pt-0 group-data-[finance-view=details]/finance:mb-0 group-data-[finance-view=loans]/finance:mb-0">
-                <h3
-                  ref={heading}
-                  tabIndex={-1}
-                  className="text-[18px] font-bold group-data-[finance-view=loans]/finance:text-base"
-                >
+            {props.view === "loans" && (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 ref={heading} tabIndex={-1} className={rowTitle}>
                   {ownLoans.length} {ownLoans.length === 1 ? "loan" : "loans"}
                 </h3>
                 {writable && hasActivity && (
-                  <Button onClick={() => open({ type: "loan" })}>
+                  <Button
+                    variant="link"
+                    className="min-h-11 px-0"
+                    onClick={() => open({ type: "loan" })}
+                  >
                     <PlusIcon aria-hidden="true" />
                     Add borrow
                   </Button>
@@ -367,7 +372,7 @@ export function ActivityExpenses(
                   : ""}
               </p>
             )}
-            {flow && props.view === "overview" && (
+            {props.view === "overview" && (
               <ExpensesRow
                 costs={costs}
                 share={(code) =>
@@ -387,7 +392,14 @@ export function ActivityExpenses(
               />
             )}
             {(showCosts || showLoans) && (
-              <div className="group-data-[finance-view=details]/finance:mb-0 group-data-[finance-view=loans]/finance:border-b group-data-[finance-view=loans]/finance:border-border">
+              <div
+                className={
+                  props.view === "details" ||
+                  (props.view === "loans" && ownLoans.length > 0)
+                    ? "divide-y overflow-hidden rounded-[16px] border bg-card"
+                    : undefined
+                }
+              >
                 {showCosts &&
                   costs.map((cost) => (
                     <CostArticle
@@ -428,17 +440,33 @@ export function ActivityExpenses(
                       receiptRows={receiptRows}
                     />
                   ))}
+                {props.view === "details" && (
+                  <BorrowListLink
+                    ownLoans={ownLoans}
+                    money={money}
+                    onViewChange={props.onViewChange}
+                  />
+                )}
               </div>
             )}
-            {flow && props.view === "details" && (
-              <BorrowListLink
-                ownLoans={ownLoans}
-                money={money}
-                onViewChange={props.onViewChange}
-              />
-            )}
-            {flow && props.view === "loans" && (
+            {props.view === "loans" && (
               <>
+                {repayable.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {repayable.map(({ loan, debt }) => (
+                      <Button
+                        key={loan.id}
+                        variant="outline"
+                        disabled={api.pending}
+                        onClick={() => open({ type: "repayment", debt })}
+                      >
+                        {repayable.length === 1
+                          ? "Record repayment"
+                          : `Record repayment · ${name(loan.to_user_id)}`}
+                      </Button>
+                    ))}
+                  </div>
+                )}
                 {!ownLoans.length && (
                   <p className="text-muted-foreground">
                     You haven’t recorded any money lent for this activity.
@@ -487,14 +515,19 @@ export function ActivityExpenses(
       )}
       {editing?.type === "cost" && useCostEditor && currencies.data && (
         <ExpenseCostEditor
+          recordsPayment
           tripID={trip.id}
           key={`${revision}-${editing.cost?.id ?? "new"}`}
           activity={{
             id: Number(activityID) || undefined,
             title: activityTitle,
           }}
-          backLabel={hasActivity ? undefined : "Back to expenses"}
           initial={editing.cost}
+          defaultName={
+            hasActivity && !editing.cost && !costs.length
+              ? activityTitle
+              : undefined
+          }
           people={people.filter(
             (p) =>
               editing.cost?.shares.some((s) => s.user_id === p.user_id) ||
