@@ -270,7 +270,9 @@ export function useExpensesApi(
       await refresh();
       toast.success(
         method === "DELETE"
-          ? "Record deleted."
+          ? kind === "expenses"
+            ? "Expense deleted."
+            : "Record deleted."
           : kind === "expenses"
             ? "Expense saved."
             : kind === "expense_loans"
@@ -284,7 +286,9 @@ export function useExpensesApi(
           ? cause
           : new ApiError(
               500,
-              "Saving may have completed. Retry this submission or refresh the ledger before creating another record.",
+              method === "DELETE"
+                ? "Deleting may have completed. Refresh the ledger before trying again."
+                : "Saving may have completed. Retry this submission or refresh the ledger before creating another record.",
             );
       setError(failure);
       if (failure.status === 400) {

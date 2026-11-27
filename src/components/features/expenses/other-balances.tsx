@@ -27,7 +27,7 @@ export function OtherBalances({
         Other balances and historical receipts
       </summary>
       <div className="space-y-3 text-sm">
-        {activityID === "unassigned" &&
+        {!Number(activityID) &&
           data.settlements
             .filter((s) => !s.payment_id && !s.loan_id)
             .map((s) => (

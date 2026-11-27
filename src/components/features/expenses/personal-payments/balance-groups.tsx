@@ -93,13 +93,19 @@ export function BalanceGroups({
                       {title}: {money(total)}
                     </p>
                   )}
-                  <ul className={showExpenses ? "space-y-3" : "divide-y"}>
+                  <ul
+                    className={
+                      showExpenses
+                        ? "divide-y overflow-hidden rounded-[16px] border bg-card"
+                        : "divide-y"
+                    }
+                  >
                     {costs.map(({ expense, amount }) => (
                       <li
                         key={`cost-${expense.id}`}
                         className={
                           showExpenses
-                            ? "overflow-hidden rounded-[16px] border bg-card"
+                            ? "overflow-hidden"
                             : "flex flex-wrap items-center justify-between gap-3 py-3"
                         }
                       >
@@ -157,7 +163,7 @@ export function BalanceGroups({
                         key={`${d.payment_id ? "payment" : "loan"}-${d.payment_id ?? d.loan_id}-${d.from_user_id}-${d.to_user_id}`}
                         className={
                           showExpenses
-                            ? "personal-balance-row grid grid-cols-[minmax(0,1fr)_minmax(0,42%)] items-center gap-3 rounded-[16px] border bg-card px-3.5 py-3 sm:p-4"
+                            ? "personal-balance-row grid grid-cols-[minmax(0,1fr)_minmax(0,42%)] items-center gap-3 px-3.5 py-3 sm:p-4"
                             : "flex flex-wrap items-center justify-between gap-3 py-3"
                         }
                       >

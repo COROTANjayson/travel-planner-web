@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  ActivityPicker,
+  type PickerActivity,
+} from "@/components/features/expenses/activity-picker";
 import { ExpenseAmountPanel } from "@/components/features/expenses/expense-amount-panel";
 
 import type { ExpenseEditor } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
@@ -21,6 +25,10 @@ export function TransactionFields({
   isCost,
   record,
   ledger,
+  activity,
+  setActivity,
+  pickActivities,
+  zone,
   description,
   setDescription,
   currency,
@@ -46,6 +54,9 @@ export function TransactionFields({
   activity: string;
   setActivity: (activity: string) => void;
   activityOptions: { value: string; label: string }[];
+  /** Money lent outside an activity: choose one here. */
+  pickActivities?: PickerActivity[];
+  zone: string;
   description: string;
   setDescription: (description: string) => void;
   currency: string;
@@ -201,6 +212,19 @@ export function TransactionFields({
           />
         </div>
         {amountField}
+        {pickActivities && (
+          <ActivityPicker
+            id="loan-activity"
+            required
+            activities={pickActivities}
+            zone={zone}
+            value={Number(activity)}
+            onChange={(value) => {
+              setActivity(value ? String(value) : "");
+              changed();
+            }}
+          />
+        )}
         {dateField}
       </div>
     );

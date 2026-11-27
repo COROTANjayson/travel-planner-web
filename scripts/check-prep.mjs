@@ -1245,8 +1245,10 @@ const prepRowMock = ({ task, byActivity, amounts }) =>
 const detailsMock = ({ task }) =>
   React.createElement("p", null, `Details for ${task.title}`);
 let financeLedger = { data: undefined };
+let prepParams = "";
 const { Prep } = load("src/components/features/prep/prep.tsx", {
   ...uiMocks,
+  "next/navigation": { useSearchParams: () => new URLSearchParams(prepParams) },
   "@tanstack/react-query": { useQuery: () => query },
   "@/lib/api": { ApiError },
   "@/lib/prep": { ...realPrep, usePrepApi: () => ({ list() {}, reset() {} }) },
@@ -1279,6 +1281,16 @@ const section = (props = {}) =>
   });
 const sectionText = (tree) =>
   renderToStaticMarkup(tree).replace(/<[^>]+>/g, " ");
+
+// An expense links straight to its task; a deleted task opens nothing.
+fresh();
+prepParams = "task=1";
+query = { isSuccess: true, data: [task(1, { title: "Linked task" })] };
+assert.match(sectionText(section()), /Details for Linked task/);
+fresh();
+prepParams = "task=404";
+assert.doesNotMatch(sectionText(section()), /Details for/);
+prepParams = "";
 
 fresh();
 query = { isPending: true };

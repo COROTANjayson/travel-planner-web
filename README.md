@@ -44,12 +44,16 @@ Open an activity from the itinerary for a short overview: expense total, your sh
 reimbursements, and borrowed money for that activity. Back returns to the
 previous view inside the activity window. Existing activity expense links remain
 supported. Currency totals stay separate. **Expenses** in the trip header (desktop) or
-trip menu (mobile) opens `/trips/{id}/expenses`, a read-only trip overview: your per-currency
-balance and one filterable list of your own expenses, loans, amounts owed to you and settlements.
-**Costs without an activity** opens the existing expense and payment screens
-for whole-trip costs and costs whose activity was removed, including expenses
-kept after deleting a Prep task. Owners and editors can correct these costs and
-record business payments; other participants retain their usual read/receipt permissions.
+trip menu (mobile) opens `/trips/{id}/expenses`, with **Group** and **Personal** modes.
+
+**Group** lists every shared expense with per-currency totals, filters, payment
+progress and details; owners and editors add, edit, pay and delete there. Its totals
+exclude loans. **Personal** holds private expenses, visible only to their creator and
+kept out of every shared total, plus money you lent. Viewers manage their own private
+expenses but not shared costs, payments or loans. **Balances and history** keeps
+borrowed money, reimbursements, repayment corrections and unallocated receipts.
+Costs without an activity, including those kept after deleting an activity or Prep
+task, are ordinary Group rows with the usual permissions.
 
 Members, owners, and editors can **Record money lent** to one other active trip
 participant through **Add borrow** in the activity's **Borrow list**, always the
@@ -91,10 +95,10 @@ associate old receipts without recording another payment. Covered-food entry is
 deferred. Idempotency keys survive uncertain save failures.
 
 Money uses BigInt and integer minor-unit strings. Apply API migrations through
-`00013_activity_plan_requests.sql` before using this web version.
+`00017_personal_expenses.sql` before using this web version.
 `scripts/check-expenses.mjs` covers calculations, planned coverage, member-specific
-payments, permissions, adjustment previews, failed-save recovery, retries and the
-trip-wide balance page.
+payments, permissions, adjustment previews, failed-save recovery, retries, the Group
+and Personal pages, and private-expense isolation from the shared ledger cache.
 
 ## Trip prep
 

@@ -65,16 +65,28 @@ export function MemberPaymentModal(
   const today = Temporal.Now.zonedDateTimeISO(trip.time_zone)
     .toPlainDate()
     .toString();
-  const [active, setActive] = useState<Active | null>(null);
-  const [amount, setAmount] = useState("");
+  const member = status.members.find((m) => m.user_id === user);
+  const editor = current?.role === "owner" || current?.role === "editor";
+  const directBusiness =
+    editor &&
+    !!props.participants?.some((p) => p.user_id === user) &&
+    !!member &&
+    BigInt(member.business_remaining_minor) > 0n &&
+    !member.reimbursements.some((d) => BigInt(d.amount_minor) > 0n);
+  const [active, setActive] = useState<Active | null>(() =>
+    directBusiness ? { type: "pay", key: "business" } : null,
+  );
+  const [amount, setAmount] = useState(() =>
+    directBusiness
+      ? moneyInput(member.business_remaining_minor, props.currency.decimals)
+      : "",
+  );
   const [date, setDate] = useState(today);
   const [editDate, setEditDate] = useState(false);
   const [reason, setReason] = useState("");
   const [failure, setFailure] = useState<Error | null>(null);
   const [manual, setManual] = useState(true);
   const [allocation, setAllocation] = useState<Record<number, string>>({});
-  const member = status.members.find((m) => m.user_id === user);
-  const editor = current?.role === "owner" || current?.role === "editor";
   const writable = !!current && current.role !== "viewer";
   const money = (value: string | bigint) =>
     expenseMoney(String(value), props.currency);
@@ -443,6 +455,11 @@ export function MemberPaymentModal(
       open
       finalFocus={props.finalFocus}
       {...expenseModalProps}
+      initialFocus={
+        directBusiness
+          ? () => document.getElementById(`${formID}-amount`)
+          : undefined
+      }
       title={`${name(user)}’s payment`}
       description={`${cost.description} · share ${money(member.share_minor)}`}
       busy={api.pending}

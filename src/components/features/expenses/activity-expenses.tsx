@@ -7,6 +7,7 @@ import { BorrowListLink } from "@/components/features/expenses/borrow-list-link"
 import { ExpenseTotals } from "@/components/features/expenses/expense-totals";
 import { ExpensesRow } from "@/components/features/expenses/expenses-row";
 import { ExpenseViewTabs } from "@/components/features/expenses/expense-view-tabs";
+import { MoneyHistory } from "@/components/features/expenses/money-history";
 import { OtherBalances } from "@/components/features/expenses/other-balances";
 import { CostArticle } from "@/components/features/expenses/cost-article";
 import { LoanArticle } from "@/components/features/expenses/loan-article";
@@ -36,12 +37,14 @@ import { TripError } from "@/components/shared/trip-states";
 import type { ExpenseEditor } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
 import { ExpenseEditorDialog } from "@/components/features/expenses/dialogs/expense-editor-dialog";
 import { ReceiptHistoryDialog } from "@/components/features/expenses/dialogs/receipt-history-dialog";
+import { DeleteExpenseDialog } from "@/components/features/expenses/dialogs/delete-expense-dialog";
 import {
   useFinance,
   type Context,
 } from "@/components/features/expenses/use-finance";
 
-export type ActivityExpenseView = "overview" | "details" | "personal" | "loans";
+export type ActivityExpenseView =
+  "overview" | "details" | "personal" | "loans" | "history";
 
 export function ActivityExpenses(
   props: Context & {
@@ -79,10 +82,16 @@ export function ActivityExpenses(
   const [historyID, setHistoryID] = useState<number | null>(null);
   const [historyError, setHistoryError] = useState<Error | null>(null);
   const [revision, setRevision] = useState(0);
+  const [deleting, setDeleting] = useState<Expense | null>(null);
+  const [swipeOpen, setSwipeOpen] = useState<number | null>(null);
   const trigger = useRef<HTMLElement | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const key = useRef("");
+  const deleteFocus = useRef<HTMLElement | null>(null);
   const data = ledger.data;
+  const latestDeleting = data?.expenses.find(
+    (cost) => cost.id === deleting?.id,
+  );
   const people = tripPeople(data?.people, participants);
   const name = (id: number) =>
     expenseName(people.find((p) => p.user_id === id));
@@ -101,14 +110,19 @@ export function ActivityExpenses(
   const codes = [...new Set([...costs, ...loans].map((e) => e.currency))];
   const hasOtherBalances =
     !!data &&
-    ((activityID === "unassigned" &&
+    ((!hasActivity &&
       data.settlements.some((s) => !s.payment_id && !s.loan_id)) ||
       !!data.reversed_settlements?.length);
   const options =
     props.activities ??
     (hasActivity ? [{ id: Number(activityID), title: activityTitle }] : []);
   function open(next: ExpenseEditor) {
-    trigger.current = document.activeElement as HTMLElement;
+    trigger.current =
+      (next.type === "cost" && next.cost
+        ? document.querySelector<HTMLElement>(
+            `[data-expense-open="${next.cost.id}"]`,
+          )
+        : null) ?? (document.activeElement as HTMLElement);
     key.current = crypto.randomUUID();
     api.reset();
     setLocalError(null);
@@ -185,6 +199,10 @@ export function ActivityExpenses(
     key.current = "";
   }
   async function reverse(kind: LedgerKind, record: FinancialRecord) {
+    if (kind === "expenses") {
+      requestDelete(record as Expense);
+      return;
+    }
     const reason =
       kind === "settlements"
         ? window.prompt("Why are you reversing this receipt?")
@@ -205,6 +223,33 @@ export function ActivityExpenses(
     } catch (cause) {
       setLocalError(cause as Error);
     }
+  }
+  function requestDelete(cost: Expense) {
+    if (!isEditor || api.pending) return;
+    deleteFocus.current =
+      document.querySelector<HTMLElement>(`[data-expense-open="${cost.id}"]`) ??
+      (document.activeElement as HTMLElement);
+    api.reset();
+    setSwipeOpen(null);
+    setDeleting(cost);
+  }
+  async function deleteExpense() {
+    if (api.pending || !deleting) return;
+    if (!isEditor)
+      throw new ApiError(
+        403,
+        "You no longer have permission to delete expenses.",
+      );
+    if (!latestDeleting)
+      throw new ApiError(404, "This expense is no longer available.");
+    const index = costs.findIndex((cost) => cost.id === latestDeleting.id);
+    const next = costs[index + 1] ?? costs[index - 1];
+    const saved = await api.remove("expenses", latestDeleting);
+    if (!saved) return;
+    deleteFocus.current = next
+      ? document.querySelector<HTMLElement>(`[data-expense-open="${next.id}"]`)
+      : null;
+    setDeleting(null);
   }
   async function showHistory(id: number) {
     setHistoryID(id);
@@ -332,7 +377,7 @@ export function ActivityExpenses(
             )}
             {props.view === "details" && !props.managementOnly && (
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className={rowTitle}>
+                <h3 ref={heading} tabIndex={-1} className={rowTitle}>
                   {costs.length} {costs.length === 1 ? "expense" : "expenses"}
                 </h3>
                 {hasActivity && isEditor && (
@@ -418,6 +463,11 @@ export function ActivityExpenses(
                       reverse={reverse}
                       api={api}
                       receiptRows={receiptRows}
+                      requestDelete={() => requestDelete(cost)}
+                      swipeOpen={swipeOpen === cost.id}
+                      onSwipeOpenChange={(open) =>
+                        setSwipeOpen(open ? cost.id : null)
+                      }
                     />
                   ))}
                 {showLoans &&
@@ -473,6 +523,18 @@ export function ActivityExpenses(
                   </p>
                 )}
               </>
+            )}
+            {props.view === "history" && (
+              <MoneyHistory
+                data={data}
+                me={current?.user_id ?? 0}
+                writable={writable}
+                pending={api.pending}
+                name={name}
+                money={money}
+                receiptRows={receiptRows}
+                onReceive={(debt) => open({ type: "repayment", debt })}
+              />
             )}
             {!props.compact && hasOtherBalances && (
               <OtherBalances
@@ -588,6 +650,32 @@ export function ActivityExpenses(
           trigger.current?.isConnected ? trigger.current : heading.current
         }
       />
+      {deleting && (
+        <DeleteExpenseDialog
+          cost={latestDeleting ?? deleting}
+          hasPayments={
+            !!data?.payments.some(
+              (payment) => payment.expense_id === deleting.id,
+            )
+          }
+          isEditor={isEditor}
+          available={!!latestDeleting}
+          pending={api.pending}
+          money={money}
+          onDelete={deleteExpense}
+          onClose={() => {
+            if (!api.pending) {
+              setDeleting(null);
+              api.reset();
+            }
+          }}
+          finalFocus={() =>
+            deleteFocus.current?.isConnected
+              ? deleteFocus.current
+              : heading.current
+          }
+        />
+      )}
       <ReceiptHistoryDialog
         historyID={historyID}
         setHistoryID={setHistoryID}

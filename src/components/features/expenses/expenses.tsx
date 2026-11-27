@@ -1,40 +1,48 @@
 "use client";
 
-import { useRef, useState } from "react";
-import type { MyEntry } from "@/lib/trip-expenses";
-import { MarkAsPaidDialog } from "@/components/features/expenses/dialogs/mark-as-paid-dialog";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { useApi } from "@/lib/api";
-import { localDate } from "@/lib/activity-time";
-import { allActivities, allActivitiesKey } from "@/lib/itinerary";
-import { TripBalance } from "@/components/features/expenses/trip-balance";
-import { TripExpenseList } from "@/components/features/expenses/trip-expense-list";
+import { ClockCounterClockwiseIcon } from "@phosphor-icons/react";
+import { ExpenseHistoryDrawer } from "@/components/features/expenses/drawers/expense-history-drawer";
+import { ExpenseListLoading } from "@/components/features/expenses/expense-list-parts";
+import { GroupExpenses } from "@/components/features/expenses/group-expenses";
+import {
+  ExpensesHeading,
+  type ExpenseMode,
+} from "@/components/features/expenses/mode-switch";
+import { PersonalExpenses } from "@/components/features/expenses/personal-expenses";
 import {
   useFinance,
   type Context,
 } from "@/components/features/expenses/use-finance";
 import { TripError } from "@/components/shared/trip-states";
-import { TripDialog } from "@/components/shared/trip-dialog";
 import { Button } from "@/components/ui/button";
-import { ActivityExpenses } from "@/components/features/expenses/activity-expenses";
+import { ApiError, useApi } from "@/lib/api";
+import {
+  groupFilters,
+  personalFilters,
+  type GroupFilter,
+  type PersonalFilter,
+} from "@/lib/expense-views";
+import { allActivities, allActivitiesKey } from "@/lib/itinerary";
+import {
+  personalExpensesKey,
+  usePersonalExpensesApi,
+} from "@/lib/personal-expenses";
 
+/** The trip Expenses page: Group (shared) and Personal (private) modes. */
 export function Expenses(props: Context & { active: boolean }) {
-  const { trip, active, participants, current } = props;
+  const { trip, active, participants, current, onFailure } = props;
+  const context = { trip, participants, current, onFailure };
   const { api, ledger, currencies } = useFinance(props, active);
-  const [selected, setSelected] = useState<MyEntry | null>(null);
-  const [unassignedOpen, setUnassignedOpen] = useState(false);
-  const unassignedTrigger = useRef<HTMLButtonElement | null>(null);
-  const headingRef = useRef<HTMLHeadingElement | null>(null);
-  const receiptKey = useRef("");
-  const trigger = useRef<HTMLButtonElement | null>(null);
-  const filterRef = useRef<HTMLButtonElement | null>(null);
-  const mobileFilterRef = useRef<HTMLButtonElement | null>(null);
-  const canReceive = !!current && current.role !== "viewer";
-  function close() {
-    if (api.pending) return;
-    setSelected(null);
-    api.reset();
-  }
+  const personalApi = usePersonalExpensesApi(trip.id, onFailure);
+  const personal = useQuery({
+    queryKey: personalExpensesKey(trip.id),
+    queryFn: ({ signal }) => personalApi.list(signal),
+    enabled: active,
+    retry: false,
+  });
   const read = useApi();
   const activities = useQuery({
     queryKey: allActivitiesKey(trip.id),
@@ -42,147 +50,150 @@ export function Expenses(props: Context & { active: boolean }) {
     retry: false,
     queryFn: ({ signal }) => allActivities(read, trip.id, signal),
   });
+  useEffect(() => {
+    if (
+      personal.error instanceof ApiError &&
+      [403, 404].includes(personal.error.status)
+    )
+      void onFailure(personal.error);
+  }, [personal.error, onFailure]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const historyTrigger = useRef<HTMLButtonElement | null>(null);
+  // Mode and filter live in the URL, so returning from Prep or an itinerary
+  // page, or reloading, shows the same list.
+  const params = useSearchParams();
+  const mode: ExpenseMode =
+    params.get("mode") === "personal" ? "personal" : "group";
+  const filter = params.get("filter") ?? "";
+  function show(nextMode: ExpenseMode, nextFilter: string) {
+    const next = new URLSearchParams(params);
+    if (nextMode === "group") next.delete("mode");
+    else next.set("mode", nextMode);
+    if (nextFilter === "all") next.delete("filter");
+    else next.set("filter", nextFilter);
+    window.history.replaceState(
+      null,
+      "",
+      next.size ? `?${next}` : window.location.pathname,
+    );
+  }
   if (!active) return null;
-  const data = ledger.data;
-  const me = current?.user_id ?? 0;
-  const people = data
-    ? [
-        ...new Map(
-          [...data.people, ...(participants ?? [])].map((p) => [p.user_id, p]),
-        ).values(),
-      ]
-    : [];
-  const loaded =
-    data && activities.data && currencies.data
-      ? { data, activities: activities.data, currencies: currencies.data }
-      : null;
-  const heading = (
-    <h2
-      id="trip-expenses-heading"
-      ref={headingRef}
-      tabIndex={-1}
-      className="trip-balance-title [font-size:1.25rem] [line-height:1.3] [font-weight:600] [letter-spacing:-0.02em] sr-only md:not-sr-only"
-    >
-      Your expenses
-    </h2>
-  );
+  const changeMode = (next: ExpenseMode) => {
+    if (next !== mode) show(next, "all");
+  };
+  const group = mode === "group";
+  const currencyList = currencies.data;
+  const loading =
+    currencies.isPending ||
+    (group
+      ? ledger.isPending
+      : personal.isPending || (ledger.isPending && !ledger.error));
+  const ready = group
+    ? ledger.data && currencyList
+    : currencyList && (personal.data || ledger.data);
+  // A failed half is reported next to the half that loaded.
+  const errors = [
+    ledger.error && {
+      key: "ledger",
+      title: group ? undefined : "Money you lent couldn’t load",
+      query: ledger,
+    },
+    !group &&
+      personal.error && {
+        key: "personal",
+        title: "Your personal expenses couldn’t load",
+        query: personal,
+      },
+    currencies.error && {
+      key: "currencies",
+      title: undefined,
+      query: currencies,
+    },
+    activities.error && {
+      key: "activities",
+      title: "Activities couldn’t load",
+      query: activities,
+    },
+  ].filter((e) => !!e);
+  const errorList = errors.map((e) => (
+    <TripError
+      key={e.key}
+      title={e.title}
+      error={e.query.error}
+      retry={() => void e.query.refetch()}
+      pending={e.query.isFetching}
+    />
+  ));
   return (
     <section
-      className="trip-expenses-page space-y-4 md:space-y-6 max-md:[&_.trip-balance]:[gap:12px] max-md:[&_.trip-balance]:[padding:14px] max-md:[&_.trip-balance]:[border-radius:14px] max-md:[&_.trip-balance-totals]:[gap:10px_16px] max-md:[&_.trip-balance-totals_>_[data-tone]]:[min-width:0] max-md:[&_.trip-balance-totals_>_[data-tone]]:[overflow-wrap:anywhere] max-md:[&_.trip-balance-totals_dd]:[font-size:1.5rem] max-md:[&_.trip-balance-totals_dd]:[line-height:1.875rem] max-md:[&_.trip-balance-totals_.trip-balance-overall]:[display:flex] max-md:[&_.trip-balance-totals_.trip-balance-overall]:[align-items:baseline] max-md:[&_.trip-balance-totals_.trip-balance-overall]:[justify-content:space-between] max-md:[&_.trip-balance-totals_.trip-balance-overall]:[flex-wrap:wrap] max-md:[&_.trip-balance-totals_.trip-balance-overall]:[gap:4px_12px] max-md:[&_.trip-balance-totals_.trip-balance-overall]:[padding-top:10px] max-md:[&_.trip-balance-overall_dd]:[margin:0] max-md:[&_.trip-balance-overall_dd]:[font-size:1.125rem] max-md:[&_.trip-balance-overall_dd]:[line-height:1.5rem] max-md:[&_.expense-row_>_button]:[scroll-margin-top:calc(var(--app-top)_+_12px)] max-md:[&_.expense-row_>_button]:[scroll-margin-bottom:calc(var(--app-bottom)_+_12px)]"
+      className="grid grid-cols-[minmax(0,1fr)] gap-4 md:gap-6"
       aria-labelledby="trip-expenses-heading"
     >
-      {loaded ? (
-        <TripBalance
-          title={heading}
-          ledger={loaded.data}
-          me={me}
-          currencies={loaded.currencies}
-        />
-      ) : (
-        heading
-      )}
-      {loaded && (
-        <p className="text-sm text-muted-foreground">
-          {canReceive
-            ? "Tap an amount owed to you to record money received."
-            : "Manage payments inside each activity."}
-        </p>
-      )}
-      {(ledger.isPending || activities.isPending || currencies.isPending) && (
-        <p role="status">Loading trip expenses…</p>
-      )}
-      {(ledger.error || activities.error || currencies.error) && (
-        <TripError
-          error={ledger.error ?? activities.error ?? currencies.error}
-          retry={() => {
-            void ledger.refetch();
-            void activities.refetch();
-            void currencies.refetch();
-          }}
+      {!ready && (
+        <ExpensesHeading
+          headingRef={headingRef}
+          mode={mode}
+          onModeChange={changeMode}
         />
       )}
-      {loaded && (
-        <TripExpenseList
-          ledger={loaded.data}
-          activities={loaded.activities}
-          people={people}
-          me={me}
-          currencies={loaded.currencies}
-          today={localDate(new Date().toISOString(), trip.time_zone)}
-          filterRef={filterRef}
-          mobileFilterRef={mobileFilterRef}
-          onReceive={
-            canReceive
-              ? (entry, button) => {
-                  if (!entry.debt || entry.debt.to_user_id !== current.user_id)
-                    return;
-                  api.reset();
-                  receiptKey.current = crypto.randomUUID();
-                  trigger.current = button;
-                  setSelected(entry);
-                }
-              : undefined
+      {!ready && errorList}
+      {!ready && loading && <ExpenseListLoading label="Loading expenses…" />}
+      {group && ledger.data && currencyList && (
+        <GroupExpenses
+          {...context}
+          headingRef={headingRef}
+          onModeChange={changeMode}
+          errors={errorList}
+          ledger={ledger.data}
+          activities={activities.data ?? []}
+          currencies={currencyList}
+          api={api}
+          filter={
+            Object.hasOwn(groupFilters, filter)
+              ? (filter as GroupFilter)
+              : "all"
           }
+          setFilter={(next) => show("group", next)}
         />
       )}
-      {loaded && loaded.data.expenses.some((cost) => !cost.activity_id) && (
+      {!group && ready && currencyList && (
+        <PersonalExpenses
+          {...context}
+          headingRef={headingRef}
+          onModeChange={changeMode}
+          errors={errorList}
+          expenses={personal.data}
+          ledger={ledger.data}
+          activities={activities.data ?? []}
+          activitiesError={!activities.data}
+          currencies={currencyList}
+          api={personalApi}
+          loans={api}
+          filter={
+            Object.hasOwn(personalFilters, filter)
+              ? (filter as PersonalFilter)
+              : "all"
+          }
+          setFilter={(next) => show("personal", next)}
+        />
+      )}
+      {ledger.data && currencyList && (
         <Button
-          variant="outline"
-          className="min-h-11"
-          onClick={(event) => {
-            unassignedTrigger.current = event.currentTarget;
-            setUnassignedOpen(true);
-          }}
+          ref={historyTrigger}
+          variant="ghost"
+          className="justify-self-start text-muted-foreground"
+          onClick={() => setHistoryOpen(true)}
         >
-          Costs without an activity
+          <ClockCounterClockwiseIcon aria-hidden="true" />
+          Balances and history
         </Button>
       )}
-      {unassignedOpen && (
-        <TripDialog
-          open
-          presentation="detail"
-          title="Costs without an activity"
-          backLabel="Back to expenses"
-          onBack={() => setUnassignedOpen(false)}
-          onOpenChange={(open) => setUnassignedOpen(open)}
-          finalFocus={() =>
-            unassignedTrigger.current?.isConnected
-              ? unassignedTrigger.current
-              : headingRef.current
-          }
-        >
-          <ActivityExpenses
-            {...props}
-            activityID="unassigned"
-            activityTitle="Costs without an activity"
-            activities={activities.data}
-          />
-        </TripDialog>
-      )}
-      {loaded && current && canReceive && (
-        <MarkAsPaidDialog
-          debt={selected?.debt ?? null}
-          setDebt={() => setSelected(null)}
-          api={api}
-          people={people}
-          currencies={loaded.currencies}
-          current={current}
-          participants={participants}
-          trip={trip}
-          ledger={loaded.data}
-          close={close}
-          finalFocus={() =>
-            trigger.current?.isConnected
-              ? trigger.current
-              : mobileFilterRef.current?.getClientRects().length
-                ? mobileFilterRef.current
-                : filterRef.current
-          }
-          receiptKey={receiptKey}
-          backLabel="Back to expenses"
-          description={
-            selected ? `${selected.title} · ${selected.detail}` : undefined
-          }
+      {historyOpen && (
+        <ExpenseHistoryDrawer
+          {...context}
+          onBack={() => setHistoryOpen(false)}
+          finalFocus={() => historyTrigger.current ?? headingRef.current}
         />
       )}
     </section>

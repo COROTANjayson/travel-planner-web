@@ -6,13 +6,14 @@ import {
   CalendarDotsIcon,
   CheckCircleIcon,
   CircleIcon,
-  PencilSimpleIcon,
   PlusIcon,
   UserIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
 import { taskMenuItems } from "@/components/features/prep/prep-task-row";
 import { ExpenseCostEditor } from "@/components/features/expenses/drawers/cost-editor/expense-cost-editor";
+import { DeleteExpenseDialog } from "@/components/features/expenses/dialogs/delete-expense-dialog";
+import { ExpenseSwipeRow } from "@/components/features/expenses/expense-swipe-row";
 import { ExpensePaymentWorkspace } from "@/components/features/expenses/drawers/payment-workspace/expense-payment-workspace";
 import { useFinance } from "@/components/features/expenses/use-finance";
 import { OptionsMenu } from "@/components/shared/options-menu";
@@ -76,6 +77,8 @@ export function TaskDetailsDrawer({
   });
   const [editing, setEditing] = useState<{ cost?: Expense } | null>(null);
   const [paying, setPaying] = useState<Expense | null>(null);
+  const [deleting, setDeleting] = useState<Expense | null>(null);
+  const [swipeOpen, setSwipeOpen] = useState<number | null>(null);
   const [revision, setRevision] = useState(0);
   const key = useRef("");
   const trigger = useRef<HTMLElement | null>(null);
@@ -134,12 +137,41 @@ export function TaskDetailsDrawer({
   const money = moneyIn(currencies.data ?? []);
   const people = tripPeople(ledger.data?.people, participants);
   const isEditor = current?.role === "owner" || current?.role === "editor";
+  const latestDeleting = costs.find((cost) => cost.id === deleting?.id);
+  const rowOf = (id: number) =>
+    document.querySelector<HTMLElement>(`[data-prep-expense-open="${id}"]`);
 
   function openCost(cost?: Expense) {
-    trigger.current = document.activeElement as HTMLElement;
+    trigger.current =
+      (cost && rowOf(cost.id)) || (document.activeElement as HTMLElement);
+    setSwipeOpen(null);
     key.current = crypto.randomUUID();
     finance.reset();
     setEditing({ cost });
+  }
+  function requestDelete(cost: Expense) {
+    if (!isEditor || finance.pending) return;
+    trigger.current = rowOf(cost.id);
+    setSwipeOpen(null);
+    finance.reset();
+    setDeleting(cost);
+  }
+  async function deleteExpense() {
+    if (finance.pending || !deleting) return;
+    if (!isEditor)
+      throw new ApiError(
+        403,
+        "Only trip owners and editors can delete expenses.",
+      );
+    if (!latestDeleting)
+      throw new ApiError(404, "This expense is no longer available.");
+    const index = costs.findIndex((cost) => cost.id === latestDeleting.id);
+    const next = costs[index + 1] ?? costs[index - 1];
+    const saved = await finance.remove("expenses", latestDeleting);
+    if (!saved) return;
+    trigger.current = next ? rowOf(next.id) : null;
+    setPaying(null);
+    setDeleting(null);
   }
   async function save(input: ExpenseInput) {
     if (!isEditor)
@@ -345,50 +377,53 @@ export function TaskDetailsDrawer({
                         : null;
                     const included = cost.shares.some((s) => s.user_id === me);
                     return (
-                      <li key={cost.id} className="flex items-center pr-1">
-                        <button
-                          type="button"
-                          className="flex min-h-16 min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
-                          onClick={(event) => {
-                            trigger.current = event.currentTarget;
-                            setPaying(cost);
-                          }}
+                      <li key={cost.id}>
+                        <ExpenseSwipeRow
+                          id={cost.id}
+                          name={cost.description}
+                          enabled={isEditor}
+                          disabled={finance.pending}
+                          open={swipeOpen === cost.id}
+                          onOpenChange={(open) =>
+                            setSwipeOpen(open ? cost.id : null)
+                          }
+                          onEdit={() => openCost(cost)}
+                          onDelete={() => requestDelete(cost)}
                         >
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-semibold break-words">
-                              {cost.description}
-                            </span>
-                            <span className="block text-[0.8125rem] text-muted-foreground">
-                              {cost.shares.length}{" "}
-                              {cost.shares.length === 1 ? "person" : "people"} ·
-                              Total {money(cost.amount_minor, cost.currency)}
-                            </span>
-                          </span>
-                          <span className="shrink-0 text-right">
-                            <span className="block font-semibold">
-                              {included && state
-                                ? money(state.share.toString(), cost.currency)
-                                : "—"}
-                            </span>
-                            <span className="block text-[0.8125rem] font-semibold text-muted-foreground">
-                              {included && state
-                                ? state.status
-                                : "Not included"}
-                            </span>
-                          </span>
-                        </button>
-                        {isEditor && (
-                          // Top-aligned with the title, and no hover fill: a filled
-                          // circle doesn't sit well in the card's rounded corner.
-                          <Button
-                            variant="ghost"
-                            className="size-11 shrink-0 self-start text-muted-foreground hover:bg-transparent hover:text-primary aria-expanded:bg-transparent dark:hover:bg-transparent"
-                            aria-label={`Edit ${cost.description}`}
-                            onClick={() => openCost(cost)}
+                          <button
+                            type="button"
+                            data-prep-expense-open={cost.id}
+                            className="flex min-h-16 w-full min-w-0 items-center gap-3 px-3 py-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset sm:px-3.5"
+                            onClick={(event) => {
+                              trigger.current = event.currentTarget;
+                              setPaying(cost);
+                            }}
                           >
-                            <PencilSimpleIcon aria-hidden="true" />
-                          </Button>
-                        )}
+                            <span className="min-w-0 flex-1">
+                              <span className="block font-semibold break-words">
+                                {cost.description}
+                              </span>
+                              <span className="block text-[0.8125rem] text-muted-foreground">
+                                {cost.shares.length}{" "}
+                                {cost.shares.length === 1 ? "person" : "people"}{" "}
+                                · Total{" "}
+                                {money(cost.amount_minor, cost.currency)}
+                              </span>
+                            </span>
+                            <span className="shrink-0 text-right">
+                              <span className="block font-semibold">
+                                {included && state
+                                  ? money(state.share.toString(), cost.currency)
+                                  : "—"}
+                              </span>
+                              <span className="block text-[0.8125rem] font-semibold text-muted-foreground">
+                                {included && state
+                                  ? state.status
+                                  : "Not included"}
+                              </span>
+                            </span>
+                          </button>
+                        </ExpenseSwipeRow>
                       </li>
                     );
                   })}
@@ -468,6 +503,25 @@ export function TaskDetailsDrawer({
           onBack={() => setPaying(null)}
           backLabel="Back to task"
           onFailure={onFailure}
+        />
+      )}
+      {deleting && (
+        <DeleteExpenseDialog
+          cost={latestDeleting ?? deleting}
+          hasPayments={
+            !!ledger.data?.payments.some((p) => p.expense_id === deleting.id)
+          }
+          isEditor={isEditor}
+          available={!!latestDeleting}
+          pending={finance.pending}
+          money={money}
+          onDelete={deleteExpense}
+          onClose={() => {
+            if (finance.pending) return;
+            setDeleting(null);
+            finance.reset();
+          }}
+          finalFocus={back}
         />
       )}
     </>

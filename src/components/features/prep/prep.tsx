@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CaretDownIcon, CaretRightIcon, PlusIcon } from "@phosphor-icons/react";
@@ -71,7 +72,9 @@ export function Prep({
   const [view, setView] = useState<View>("all");
   const [doneOpen, setDoneOpen] = useState(false);
   const [editing, setEditing] = useState<Editing | null>(null);
-  const [details, setDetails] = useState<number | null>(null);
+  // Links from expenses open their task directly.
+  const linked = Number(useSearchParams().get("task")) || null;
+  const [details, setDetails] = useState<number | null>(linked);
   const [notice, setNotice] = useState<Error | null>(null);
   const addTrigger = useRef<HTMLElement | null>(null);
   const acted = useRef<number | null>(null);

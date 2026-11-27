@@ -115,8 +115,8 @@ design.
   with no day-rail label. Expenses and Prep are separate pages: Expenses and Prep
   buttons in the desktop header (and entries in the mobile trip menu) open
   `/trips/{id}/expenses` and `/trips/{id}/prep`; each shows a "Back to itinerary"
-  link instead of the Expenses/Prep buttons. Expense management stays inside each
-  activity. People and Settings remain secondary and available in every view.
+  link instead of the Expenses/Prep buttons. Group expenses are managed on
+  the Expenses page or inside their activity. People and Settings remain secondary and available in every view.
   The following itinerary requirements describe the approved Step 2 implementation.
 - Activity cards use 16px mobile padding and 20px desktop padding with a 128px
   desktop minimum height, semibold 18px mobile and 20px desktop titles and 16px
@@ -379,7 +379,7 @@ endpoints, and no new libraries (Base UI `Combobox` is already installed).
   takes focus. Actions are right-aligned, Cancel then the primary action.
   Built for the expense forms (Add expense steps and Record money lent); Add
   activity still to do.
-- Unchanged: Trips, Invitations and the trip Expenses page. (The payment and
+- Unchanged: Trips and Invitations. (The trip Expenses page, payment and
   loan screens were since aligned with their Figma frames; see Expenses.) A
   wider wording pass for money terms is not part of this design.
 
@@ -426,15 +426,9 @@ there and delete it from here. The Figma Screens page shows these designs.
   and [07b](https://www.figma.com/design/fSnvj7wJlyAcAUGdWsGxFX/Travel-Planner?node-id=69-102).
   Keep Coastal Folio tokens, 44px touch targets,
   full-screen mobile forms, and sticky opaque form actions.
-- Expenses is an activity list; management lives inside activity details. Show
-  estimated total, my share, expense items, and per-member Share/Paid/Remaining.
-  Separate business payments from named reimbursements and keep currencies apart.
-- Trip expenses also offers **Costs without an activity** when such costs exist.
-  It opens the existing expense list and payment screens in a detail drawer,
-  including whole-trip and removed-activity costs. Task costs kept after deletion
-  use the shared cost editor without requiring a replacement activity. Preserve
-  editor/member/viewer permissions and return focus to the entry button, or the
-  expenses heading if removing the last cost hides the button.
+- Inside an activity, show estimated total, my share, expense items, and
+  per-member Share/Paid/Remaining. Separate business payments from named
+  reimbursements and keep currencies apart.
 - Add expense, cost step: Expense name, the amount panel, then two detail rows
   (bordered, right chevron) that open the other steps: **Split** ("Evenly among 4
   people" or "Custom amounts · 4 people") and **Who's paying** ("Decide later" or
@@ -488,6 +482,10 @@ there and delete it from here. The Figma Screens page shows these designs.
     confirms" when the viewer can't confirm it), then the amount and one
     action: **Mark paid** (editors, business) or **Received** (only the person
     repaid).
+    When only the business remains to be paid and the current editor can record
+    it, open that amount entry immediately. Keep the payee choice when any
+    reimbursement is outstanding. Opening the form never records a payment;
+    the user still confirms the amount and date.
   - The action turns the ocean card into the amount entry for that payee: "To
     {payee}", the full amount pre-filled and selected (editable, at most
     what's owed), and "Paid today · change". The row is highlighted with a
@@ -527,43 +525,65 @@ there and delete it from here. The Figma Screens page shows these designs.
   both in one transaction. Preserve drafts on errors,
   submission keys across retries, and focus when dialogs close. Review paid-cost
   balance changes before saving; retain payments and show resulting credits.
-- The `/trips/{id}/expenses` page is a personal overview headed Your expenses.
-  Its pale sea panel shows You owe and You're owed separately, followed by Your total
-  share: all paid and unpaid expense shares assigned to the signed-in person, excluding
-  loans and repayments. Balances include personal loan obligations and receivables.
-  Show only currencies in that person's shares, debts, loans, or settlement history;
-  keep currencies separate and summary values independent of list filters.
-  Below it, one flat Expenses list from the signed-in person's view, newest
-  first: each own expense share with what is still owed on it, money lent or
-  borrowed with the amount left, people who owe a reimbursement, and settlements
-  paid or received. A pill segmented control (All, Upcoming, You owe, Owed to
-  you, Settled) filters the list. Upcoming means the record date is after today
-  in the trip zone. Per-person rows and category totals were dropped; People
-  stays in the header dialog.
-  Each row inside the bordered list repeats its own month over a bold day in a
-  dedicated date column, followed by the activity's category icon in a
-  rounded square, the expense or person's name over other details such as the activity, and
-  right-aligned status over the amount still open (or the share/loan amount when settled).
-  Show a secondary Your share, Lent, or Borrowed amount only when different from the
-  primary amount. Reimbursements show only the amount owed to you; payment history
-  shows only the amount paid or received, with no source totals. Preserve credit-review
-  labels. Below 640px, status and amounts take their own
-  line under the name so the name keeps its width.
-  Outstanding loan and reimbursement rows owed to the signed-in recipient open a
-  right-side repayment drawer (full-screen on mobile), including from All. Reuse
-  the existing receipt validation, with Back to expenses. The drawer asks to
-  Confirm money received, shows the sender and balance once, and defaults to full
-  repayment in an always-visible editable amount field. Keep sender and expense
-  details left-aligned above a dark teal payment panel containing the amount,
-  currency, and remaining balance. Keep the amount underline short and straight.
-  Show the remaining
-  balance live; invalid or excessive amounts show an inline error and disable confirmation. Record today in the trip timezone without a date control. Use one Confirm received action,
-  omit the locked currency selector and repeated recipient instructions. Viewers, other
-  rows, and credit-review entries remain read-only. After saving, refresh balances
-  and filters and restore focus to the row or selected filter if it disappeared.
-  Explain that amounts owed to you can be opened to record money received; other
-  payment management stays inside activities. Prefer display names and wrap fallback emails.
-  Inside an activity, My Expenses summarizes own expense shares and shows outstanding
+- The `/trips/{id}/expenses` page has two modes, switched by a full-pill Group /
+  Personal control beside the Expenses heading (full width on mobile, where the
+  heading is the mobile bar title). Group is the default. Mode and filter live in
+  the URL (`?mode=personal&filter=...`), so details, Prep links, browser Back and
+  reload keep the same list; changing mode resets the filter.
+- Group lists every live expense, newest first, including single-person, unassigned
+  and removed-activity costs and ones you have no share in. A pale sea panel shows
+  Group total, Your share, You owe and You're owed per currency, independent of the
+  filter. These cover expenses only: loans and unallocated receipts never reach
+  them. Filter chips are All, Needs payment (anyone still owes the business or a
+  person), You owe, Owed to you (including credits to review), and Settled (nothing
+  remaining and no credit). Below 768px, Group and Personal filters use one
+  full-width dropdown showing the selected filter, instead of wrapping chips.
+  Desktop keeps the chips. Choices keep 44px touch targets and filter changes
+  retain the URL state. Editors get a sand notice with how many expenses need
+  payment and how many have no payer or planned coverer; Show selects Needs payment.
+  Others see "Only editors can change group expenses."
+- A Group row shows the date, category, title, activity or Prep context, payer,
+  people, total, your share, your own status before the group's, and payment
+  progress. Progress adds up settled share amounts; only fully settled people count
+  in "2 of 4 paid", and "paid back" means the business is fully paid. Below 768px the
+  category is a plain icon, the date leads the detail line, and the bar is dropped.
+  The whole row opens details; editors also get a ⋯ menu (popover, or a sheet on
+  phones) with Record a payment, Edit expense and Delete. Other roles see a chevron.
+- Group details is the payments drawer (tall sheet on mobile) with the category,
+  activity and date, Total and Your share, one line per balance of yours, the linked
+  Prep task (opens `/trips/{id}/prep?task={taskID}`; a deleted task is plain text),
+  Who's in with Mark paid or Paid, the business card, and Payments. The footer has
+  Delete, Edit expense and Record a payment, which shows only while money is owed to
+  the business: reimbursements stay recipient-confirmed. Read-only roles see who
+  created it. Add group expense is the shared cost editor with a required activity.
+- Personal shows private expenses, which only their creator can see, and money you
+  lent. A sand panel shows Your personal spend and Lent, still to get back per
+  currency; lending is never spending. Filters are All, Expenses and Lent. Desktop
+  has Money I lent and Add expense; mobile has a floating Add pill that opens both
+  choices as a sheet. Viewers manage private expenses but cannot lend, so their pill
+  opens the expense form directly. The private form has a name, amount, optional
+  activity and date, and says "Only you can see personal expenses." A private expense
+  keeps its last activity title, marked "(removed)", once that link is gone. Loan
+  details offer Record repayment and, before any repayment, Remove. Money lent
+  always needs an activity.
+- Balances and history, under either list, opens a drawer with money you borrowed,
+  reimbursements owed to you, repayment history with receipt corrections and
+  reversals, and unallocated or reversed receipts. Viewers read it only.
+- Activity pickers on this page are one searchable list grouped by trip day.
+- Private expenses and the shared ledger load separately: either half of Personal
+  stays usable when the other fails, and neither blocks Group. A conflict in the
+  private form offers Reload latest expense and keeps what was typed.
+- Closing a dialog returns focus to the row, to the button inside the drawer that
+  opened it, or to the selected filter. After a deletion it goes to the next row. A
+  row menu's items are gone once it closes, so its dialogs return to the row.
+  Very large amounts take their own line rather than break mid-number.
+- Recording money received asks to Confirm money received, shows the sender and
+  balance once, and defaults to full repayment in an always-visible editable amount
+  field above the remaining balance. Invalid or excessive amounts show an inline
+  error and disable confirmation. Record today in the trip timezone without a date
+  control. Viewers, other rows, and credit-review entries remain read-only. Prefer
+  display names and wrap fallback emails.
+- Inside an activity, My Expenses summarizes own expense shares and shows outstanding
   business balances, reimbursements and loans. Fully paid expense rows remain in
   All expenses. Paid means the settled
   part of the signed-in person's expense shares, not their cash outlay or loans.
@@ -577,11 +597,31 @@ there and delete it from here. The Figma Screens page shows these designs.
 - All expenses: estimated total and your share in a pale sea panel, labels above
   amounts. Below it, the expense count and a + Add expense text link in one row,
   then one bordered list (16px corners, row dividers). Each expense is one
-  whole-row button (one keyboard stop) opening its payments: name over "From
+  main row button opening its payments: name over "From
   Prep · 4 people · Total ₱3,200" on the left, the per-person amount (or the
   total for uneven splits) over concise payment status on the right. Restore
   focus to the row after returning from payments. Use underlined All expenses
   and My expenses tabs with keyboard arrow navigation on mobile and desktop.
+  Owners and editors also get an adjacent 44px ellipsis button that toggles the
+  same Edit and Delete reveal as swiping, without an intermediate menu. Prep
+  task expense rows use the same actions and existing editor/confirmation.
+  On mobile, hide the ellipsis and reclaim its space; reveal it only on keyboard
+  or assistive focus so deletion remains available without a swipe.
+  Dragging the row left reveals adjacent 72px Edit and Delete actions with 12px
+  labels and no border gaps, without compressing its
+  content; passing halfway snaps it open. A full swipe never deletes. Keep one
+  row open, close on a right swipe, outside tap or Escape, and preserve vertical
+  scrolling and reduced motion. Edit opens the expense editor and returns focus
+  to the row when closed. The revealed Delete button opens the
+  confirmation with the expense name, total, people and payment status. Focus
+  Cancel first; disable actions and dismissal while deleting, retain errors for
+  retry, and remove the row and refresh totals after success. Return focus to the next
+  row's main button or the expense heading, keeping hidden mobile actions hidden.
+  Recorded payments do not block
+  expense deletion. For a paid expense, confirmation explains that its payments
+  and linked reimbursements will also leave active balances. The API soft-deletes
+  the related records atomically and retains receipt history. Preserve server
+  permissions and version checks.
   Borrow list is always the last row of that list, with a loan count and the
   amount lent per currency. It opens only loans made by the signed-in person for
   that activity, one row per loan, including paid loans, in a bordered list under

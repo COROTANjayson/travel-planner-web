@@ -25,7 +25,10 @@ export function ExpenseAmountPanel({
   return (
     <div
       data-slot="expense-amount-panel"
-      className="grid min-w-0 justify-items-center gap-4 rounded-[16px] bg-[var(--ocean)] p-5 text-[var(--ocean-text)] [--money-border:var(--ocean-text)] [--money-error:#ffd5ca] [--money-focus:var(--aqua)]"
+      className={cn(
+        "grid min-w-0 justify-items-center gap-4 rounded-[16px] bg-[var(--ocean)] p-5 text-[var(--ocean-text)] [--money-border:var(--ocean-text)] [--money-error:#ffd5ca] [--money-focus:var(--aqua)]",
+        !footer && !toggle && "pb-9",
+      )}
     >
       <div className="flex w-full items-center justify-between gap-4 [&_[data-slot=label]]:text-sm [&_[data-slot=label]]:font-medium [&_[data-slot=label]]:text-inherit">
         <Label

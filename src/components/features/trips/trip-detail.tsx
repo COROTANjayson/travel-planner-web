@@ -155,7 +155,7 @@ export function TripDetail({
           />
         </Button>
         <p className="min-w-0 flex-1 truncate text-sm font-medium">
-          {view ? `Trip ${view}` : trip.data.name}
+          {expenseView ? "Expenses" : view ? `Trip ${view}` : trip.data.name}
         </p>
         <TripOptionsDialog
           tripID={id}
@@ -189,7 +189,7 @@ export function TripDetail({
       <header className="planning-header flex flex-col gap-3 [&>nav]:order-first [&>nav]:w-full [&>nav]:items-center has-[.trip-summary]:gap-6 md:mb-3 lg:has-[.trip-summary]:mb-0">
         <div className="min-w-0 flex-1">
           {view ? (
-            <div className="trip-summary-compact [display:flex] [flex-wrap:wrap] [align-items:baseline] [gap:0.25rem_0.75rem] [&_h1]:[font-size:1.25rem] [&_h1]:[line-height:1.25] [&_h1]:[font-weight:600] [&_h1]:[letter-spacing:-0.025em] [&_p]:[font-size:0.8125rem] [&_p]:[color:var(--muted-foreground)]">
+            <div className="trip-summary-compact [display:grid] [gap:0.25rem] [overflow-wrap:anywhere] [&_h1]:[font-size:1.25rem] [&_h1]:[line-height:1.25] [&_h1]:[font-weight:600] [&_h1]:[letter-spacing:-0.025em] [&_p]:[font-size:0.8125rem] [&_p]:[color:var(--muted-foreground)]">
               <h1>{trip.data.name}</h1>
               <p>{formatTripDates(trip.data.start_date, trip.data.end_date)}</p>
             </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import type { PickerActivity } from "@/components/features/expenses/activity-picker";
 import { AdjustmentReview } from "@/components/features/expenses/activity-expense-form/adjustment-review";
 import { CostDateDetails } from "@/components/features/expenses/activity-expense-form/cost-date-details";
 import { CostFields } from "@/components/features/expenses/activity-expense-form/cost-fields";
@@ -56,6 +57,7 @@ export function ActivityExpenseForm({
   editor,
   activityID,
   activities,
+  pickActivities,
   people,
   currencies,
   userID,
@@ -73,6 +75,8 @@ export function ActivityExpenseForm({
   editor: ExpenseEditor;
   activityID: string;
   activities: { id: number; title: string }[];
+  /** Money lent outside an activity: choose one here. */
+  pickActivities?: PickerActivity[];
   people: ExpensePerson[];
   currencies: Currency[];
   userID: number;
@@ -301,7 +305,7 @@ export function ActivityExpenseForm({
             throw new Error("Explain the receipt correction.");
           if (editor.type === "repayment" && !debt)
             throw new Error("Choose an outstanding debt for this receipt.");
-          if ((isCost || editor.type === "loan") && !activity)
+          if (((isCost && !record) || editor.type === "loan") && !activity)
             throw new Error("Choose an activity first.");
           if (editor.type === "loan" && (!borrower || borrower === payer))
             throw new Error("Choose a different borrower.");
@@ -342,7 +346,8 @@ export function ActivityExpenseForm({
               amount_minor: total,
               amount_basis: basis,
               incurred_on: date,
-              payer_user_id: editor.type === "cover" ? userID : 0,
+              payer_user_id:
+                editor.type === "cover" ? userID : (record?.payer_user_id ?? 0),
               split_mode: mode,
               shares:
                 mode === "equal"
@@ -493,6 +498,8 @@ export function ActivityExpenseForm({
               activity={activity}
               setActivity={setActivity}
               activityOptions={activityOptions}
+              pickActivities={pickActivities}
+              zone={zone}
               description={description}
               setDescription={setDescription}
               currency={currency}

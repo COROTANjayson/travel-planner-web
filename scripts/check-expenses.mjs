@@ -354,12 +354,6 @@ const adjusted = {
 };
 assert.equal(activity.uncovered(adjusted, data)[0].amount_minor, "-10000");
 
-// Trip-wide balances: own rows from the signed-in person's view.
-const tripExpenses = load("src/lib/trip-expenses.ts");
-assert.equal(
-  tripExpenses.categoryOf({ activity_id: 9 }, [{ id: 9, category: "" }]),
-  "Other",
-);
 const loanLedgerShape = {
   ...cash,
   expenses: [
@@ -440,74 +434,284 @@ const loanLedgerShape = {
     },
   ],
 };
-const mine = tripExpenses.myEntries(cash, [resort], 3, (id) => `P${id}`);
+// Group and Personal rows, filters and totals for the trip Expenses page.
+const views = load("src/lib/expense-views.ts");
 assert.equal(
-  JSON.stringify(
-    mine.map((e) => [e.title, e.status, e.status_label, e.status_amount]),
-  ),
-  JSON.stringify([
-    ["Inn", "owe", "you owe", "80000"],
-    ["Entrance", "owe", "you owe", "40000"],
-    ["Food", "owe", "you owe", "35000"],
-  ]),
-  "Own expense rows carry what is still owed on them",
+  views.categoryOf({ activity_id: 9 }, [{ id: 9, category: "" }]),
+  "Other",
+);
+const groupCost = (id, amount, split, extra = {}) => ({
+  ...inn,
+  id,
+  description: `Cost ${id}`,
+  amount_minor: String(amount),
+  incurred_on: "2026-11-05",
+  shares: split.map(([user_id, value]) => ({
+    user_id,
+    amount_minor: String(value),
+  })),
+  ...extra,
+});
+const groupPayment = (
+  id,
+  expense_id,
+  payer_user_id,
+  covers,
+  currency = "PHP",
+) => ({
+  id,
+  expense_id,
+  payer_user_id,
+  currency,
+  paid_on: "2026-11-05",
+  amount_minor: String(covers.reduce((n, [, v]) => n + v, 0)),
+  allocations: covers.map(([user_id, value]) => ({
+    user_id,
+    amount_minor: String(value),
+  })),
+});
+const groupDebt = (payment_id, from_user_id, to_user_id, amount) => ({
+  payment_id,
+  from_user_id,
+  to_user_id,
+  activity_id: 1,
+  currency: "PHP",
+  description: "Debt",
+  amount_minor: String(amount),
+});
+const groupLedger = {
+  ...data,
+  expenses: [
+    // Paid by 1; 2 has repaid, 3 repaid part, 4 repaid nothing.
+    groupCost(10, 40000, [
+      [1, 10000],
+      [2, 10000],
+      [3, 10000],
+      [4, 10000],
+    ]),
+    // Nobody has paid or plans to, and it has no activity.
+    groupCost(
+      11,
+      30000,
+      [
+        [1, 15000],
+        [2, 15000],
+      ],
+      {
+        activity_id: undefined,
+        activity_name: "",
+        incurred_on: "2026-11-09",
+      },
+    ),
+    // One person, another currency, fully paid.
+    groupCost(12, 500, [[3, 500]], { currency: "JPY" }),
+    // The share shrank after it was paid.
+    groupCost(13, 10000, [[1, 10000]]),
+    // A zero share never owes anything.
+    groupCost(14, 5000, [
+      [1, 5000],
+      [2, 0],
+    ]),
+    // Half paid to the business, with someone planning to cover it.
+    groupCost(
+      15,
+      20000,
+      [
+        [1, 10000],
+        [2, 10000],
+      ],
+      {
+        planned_coverer_user_id: 2,
+        planned_cover_amount_minor: "20000",
+      },
+    ),
+    // 2 left the split after being covered, then 1 was over-repaid by 3.
+    groupCost(16, 10000, [[1, 10000]]),
+  ],
+  payments: [
+    groupPayment(1, 10, 1, [
+      [1, 10000],
+      [2, 10000],
+      [3, 10000],
+      [4, 10000],
+    ]),
+    groupPayment(2, 12, 3, [[3, 500]], "JPY"),
+    groupPayment(3, 13, 1, [[1, 12000]]),
+    groupPayment(4, 14, 1, [[1, 5000]]),
+    groupPayment(5, 15, 1, [[1, 10000]]),
+    groupPayment(6, 16, 1, [
+      [1, 10000],
+      [3, 4000],
+    ]),
+  ],
+  debts: [
+    groupDebt(1, 2, 1, 0),
+    groupDebt(1, 3, 1, 4000),
+    groupDebt(1, 4, 1, 10000),
+    groupDebt(6, 3, 1, -1000),
+    { ...groupDebt(undefined, 3, 1, 25000), loan_id: 7 },
+  ],
+  loans: [
+    {
+      ...loanLedgerShape.loans[0],
+      id: 7,
+      from_user_id: 1,
+      to_user_id: 3,
+      amount_minor: "25000",
+    },
+  ],
+  settlements: [],
+};
+const groupFor = (me, id) =>
+  views.groupRows(groupLedger, me).find((r) => r.expense.id === id);
+assert.deepEqual(
+  views
+    .groupRows(groupLedger, 3)
+    .map((r) => r.expense.id)
+    .join(),
+  "11,16,15,14,13,12,10",
+  "Every cost is listed newest first, including ones outside your shares",
+);
+let groupedRow = groupFor(3, 10);
+assert.deepEqual(
+  [groupedRow.paid, groupedRow.paidPeople, groupedRow.people].join(),
+  "26000,2,4",
+  "A part-repaid share counts its money but not its person",
+);
+assert.equal(groupedRow.covered, true);
+assert.equal(groupedRow.owe, 4000n);
+assert.equal(groupFor(1, 10).owed, 14000n);
+assert.equal(groupFor(1, 10).owe, 0n);
+assert.equal(groupFor(2, 10).owe, 0n);
+assert.equal(groupFor(2, 10).needsPayment, true, "Others still owe");
+groupedRow = groupFor(3, 11);
+assert.equal(groupedRow.noPayer, true);
+assert.equal(groupedRow.share, 0n);
+assert.equal(groupedRow.owe, 0n);
+assert.equal(groupedRow.needsPayment, true);
+assert.equal(groupFor(3, 12).settled, true);
+assert.equal(groupFor(3, 12).people, 1);
+groupedRow = groupFor(1, 13);
+assert.deepEqual(
+  [groupedRow.settled, groupedRow.needsPayment, groupedRow.credit].join(),
+  "false,false,2000",
+  "A credit is neither settled nor waiting for payment",
+);
+assert.equal(groupFor(1, 14).settled, true);
+assert.equal(groupFor(1, 14).paidPeople, 2);
+groupedRow = groupFor(2, 15);
+assert.equal(groupedRow.covered, false);
+assert.equal(groupedRow.noPayer, false);
+assert.equal(groupedRow.owe, 10000n);
+assert.equal(groupFor(1, 16).owe, 1000n, "An over-repayment is owed back");
+assert.equal(groupFor(2, 99), undefined);
+const idsFor = (filter, me) =>
+  views
+    .groupRows(groupLedger, me)
+    .filter((r) => views.matchesGroup(filter, r))
+    .map((r) => r.expense.id)
+    .sort((a, b) => a - b)
+    .join();
+assert.equal(idsFor("all", 3), "10,11,12,13,14,15,16");
+assert.equal(idsFor("payment", 3), "10,11,15");
+assert.equal(idsFor("settled", 3), "12,14");
+assert.equal(idsFor("owe", 3), "10");
+assert.equal(idsFor("owed", 1), "10,13");
+assert.equal(idsFor("owe", 2), "11,15");
+for (const fixture of [groupLedger, data, cash, loanLedgerShape])
+  for (const me of [1, 2, 3, 4, 5, 99]) {
+    const rows = views.groupRows(fixture, me);
+    const totals = views.groupTotals(fixture, me);
+    assert.equal(
+      totals.length,
+      new Set(fixture.expenses.map((e) => e.currency)).size,
+    );
+    for (const t of totals) {
+      const own = rows.filter((r) => r.expense.currency === t.currency);
+      for (const key of ["total", "share", "owe", "owed"])
+        assert.equal(
+          t[key],
+          own.reduce((n, r) => n + r[key], 0n),
+          `Group ${key} for ${me} in ${t.currency} equals its rows`,
+        );
+    }
+  }
+assert.equal(
+  views.groupTotals(cash, 3)[0].owe,
+  activity.personalTotals(data, 3, "PHP").remaining,
+  "A loan never reaches the Group figures",
 );
 assert.equal(
-  mine[0].total_minor,
-  "80000",
-  "An expense row's total is the member's assigned share",
+  activity.personalTotals(cash, 3, "PHP").remaining,
+  activity.personalTotals(data, 3, "PHP").remaining + 10000n,
+  "The shared money calculation itself is unchanged",
 );
-const lenderEntries = tripExpenses.myEntries(
-  loanLedgerShape,
-  [resort],
-  1,
-  (id) => `P${id}`,
+const privateExpense = (id, extra = {}) => ({
+  id,
+  trip_id: 7,
+  created_by_user_id: 1,
+  activity_id: 1,
+  activity_name: "Resort",
+  description: `Private ${id}`,
+  currency: "PHP",
+  amount_minor: "18000",
+  incurred_on: "2026-11-04",
+  version: 1,
+  ...extra,
+});
+const privateExpenses = [
+  privateExpense(1),
+  privateExpense(2, { currency: "JPY", amount_minor: "900" }),
+  privateExpense(3, {
+    activity_id: undefined,
+    activity_name: "Old tour",
+    incurred_on: "2026-11-01",
+  }),
+];
+const ownRows = views.personalRows(privateExpenses, loanLedgerShape, 1);
+assert.equal(
+  ownRows.map((r) => `${r.kind}-${r.record.id}`).join(),
+  "expense-2,expense-1,loan-2,loan-1,expense-3",
 );
 assert.equal(
-  lenderEntries.find((e) => e.key === "owed-1-3").total_minor,
-  undefined,
+  views.personalRows([], loanLedgerShape, 2).length,
+  0,
+  "Money you borrowed is not money you lent",
+);
+assert.equal(views.borrowedLoans(loanLedgerShape, 2).length, 1);
+assert.equal(ownRows.filter((r) => views.matchesPersonal("lent", r)).length, 2);
+assert.equal(
+  ownRows.filter((r) => views.matchesPersonal("expenses", r)).length,
+  3,
 );
 assert.equal(
-  lenderEntries.find((e) => e.key === "loan-1").total_minor,
-  "25000",
+  views
+    .personalSummary(ownRows)
+    .map((t) => `${t.currency}:${t.spent}:${t.lent}`)
+    .join(),
+  "JPY:900:0,PHP:36000:50000",
+  "Lending never counts as spending and currencies stay apart",
 );
-assert.equal(
-  lenderEntries.find((e) => e.key === "settlement-9").total_minor,
-  undefined,
-);
-const reimbursementEntries = tripExpenses.myEntries(
+const overRepaid = views.personalRows(
+  [],
   {
     ...loanLedgerShape,
-    settlements: [
-      {
-        ...loanLedgerShape.settlements[0],
-        loan_id: undefined,
-        payment_id: 1,
-        from_user_id: 3,
-      },
-    ],
+    debts: [{ ...loanLedgerShape.debts[1], amount_minor: "-500" }],
   },
-  [resort],
   1,
-  (id) => `P${id}`,
 );
 assert.equal(
-  reimbursementEntries.find((e) => e.key === "settlement-9").total_minor,
-  undefined,
+  views.personalSummary(overRepaid)[0].lent,
+  35000n,
+  "A credit never reduces what another borrower still owes",
 );
 assert.equal(
-  JSON.stringify(
-    tripExpenses
-      .myEntries(loanLedgerShape, [resort], 1, (id) => `P${id}`)
-      .map((e) => [e.title, e.status, e.status_label, e.status_amount]),
-  ),
-  JSON.stringify([
-    ["P2 paid you", "settled", "received", undefined],
-    ["You lent P2", "owed", "left to repay you", "15000"],
-    ["You lent P3", "owed", "left to repay you", "35000"],
-    ["P3 owes you", "owed", "owes you", undefined],
-  ]),
-  "Lender sees loans, repayments received and reimbursements owed",
+  views.groupRows(groupLedger, 1).length,
+  groupLedger.expenses.length,
+  "Private expenses are not an input to any Group function",
+);
+console.log(
+  "Group and Personal rows, filters, progress, credits, currencies and totals passed.",
 );
 
 let states = [],
@@ -539,7 +743,11 @@ const ExpenseSelect = (props) => React.createElement("div", null, props.label);
 const { TripError } = load("src/components/shared/trip-states.tsx", {
   "next/link": { default: wrap("a") },
   "@/lib/api": apiMock,
-  "@/components/ui/alert": { Alert: wrap("div"), AlertDescription: wrap("p") },
+  "@/components/ui/alert": {
+    Alert: wrap("div"),
+    AlertTitle: wrap("p"),
+    AlertDescription: wrap("p"),
+  },
   "@/components/ui/button": { Button: wrap("button") },
   "@/components/ui/skeleton": { Skeleton: wrap("div") },
 });
@@ -643,6 +851,57 @@ await tree.props.onSubmit({ preventDefault() {} });
 assert.equal(saved.amount_minor, "350000");
 assert.equal(saved.version, 1);
 
+// Older purchases without an activity keep their context and original payer.
+for (const activities of [[], [resort]]) {
+  states = [];
+  saved = undefined;
+  const unassigned = {
+    ...inn,
+    activity_id: undefined,
+    activity_name: "",
+    payer_user_id: 2,
+  };
+  const unassignedProps = {
+    ...props,
+    activityID: "unassigned",
+    activities,
+    editor: { type: "cost", cost: unassigned },
+    ledger: { ...data, payments: [] },
+  };
+  tree = render(formModule.ActivityExpenseForm, unassignedProps);
+  find(tree, "cost-description").props.onChange({
+    target: { value: "Corrected purchase" },
+  });
+  tree = render(formModule.ActivityExpenseForm, unassignedProps);
+  fail = true;
+  await tree.props.onSubmit({ preventDefault() {} });
+  assert.equal(saved, undefined);
+  tree = render(formModule.ActivityExpenseForm, unassignedProps);
+  assert.equal(
+    find(tree, "cost-description").props.value,
+    "Corrected purchase",
+  );
+  fail = false;
+  await tree.props.onSubmit({ preventDefault() {} });
+  assert.equal(saved.description, "Corrected purchase");
+  assert.equal(saved.activity_id, 0);
+  assert.equal(saved.payer_user_id, 2);
+  assert.equal(saved.version, unassigned.version);
+}
+states = [];
+saved = undefined;
+const newUnassignedProps = { ...props, activityID: "", activities: [] };
+tree = render(formModule.ActivityExpenseForm, newUnassignedProps);
+find(tree, "cost-description").props.onChange({
+  target: { value: "New cost" },
+});
+find(tree, "cost-amount").props.onChange({ target: { value: "100" } });
+tree = render(formModule.ActivityExpenseForm, newUnassignedProps);
+await tree.props.onSubmit({ preventDefault() {} });
+tree = render(formModule.ActivityExpenseForm, newUnassignedProps);
+assert.equal(saved, undefined);
+assert.match(renderToStaticMarkup(tree), /Choose an activity first/);
+
 // Local checks stay readable; unexpected failures never show their raw text.
 states = [];
 saved = undefined;
@@ -681,8 +940,12 @@ let viewData = data;
 const viewApi = { ...api, ledger: async () => data };
 const CostEditor = () => null;
 const PaymentWorkspace = () => null;
+const DeleteExpenseConfirmation = () => null;
 const PersonalPayments = () => null;
 const viewMocks = {
+  "@/components/features/expenses/dialogs/delete-expense-dialog": {
+    DeleteExpenseDialog: DeleteExpenseConfirmation,
+  },
   "@/components/ui/popover": {
     Popover: wrap("div"),
     PopoverTrigger: wrap("button"),
@@ -756,17 +1019,6 @@ const activityView = load(
   viewMocks,
   viewGlobals,
 );
-const view = {
-  ...activityView,
-  ...load(
-    "src/components/features/expenses/expenses.tsx",
-    {
-      ...viewMocks,
-      "@/components/features/expenses/activity-expenses": activityView,
-    },
-    viewGlobals,
-  ),
-};
 const viewProps = {
   active: false,
   trip: { id: 7, time_zone: "Asia/Manila" },
@@ -774,320 +1026,895 @@ const viewProps = {
   current: { user_id: 3, role: "member" },
   onFailure() {},
 };
-render(view.Expenses, viewProps);
+// Inspect what each mode renders and hands to its dialogs.
+const pageMocks = {
+  ...viewMocks,
+  "@/components/shared/options-menu": { OptionsMenu: () => null },
+  "@/components/features/expenses/drawers/group-expense-details": {
+    GroupExpenseDetails: () => null,
+  },
+  "@/components/features/expenses/drawers/expense-history-drawer": {
+    ExpenseHistoryDrawer: () => null,
+  },
+  "@/components/features/expenses/drawers/personal-expense-details": {
+    PersonalExpenseDetails: () => null,
+  },
+  "@/components/features/expenses/drawers/loan-details": {
+    LoanDetails: () => null,
+  },
+  "@/components/features/expenses/dialogs/expense-editor-dialog": {
+    ExpenseEditorDialog: () => null,
+  },
+  "@/components/features/expenses/dialogs/mark-as-paid-dialog": {
+    MarkAsPaidDialog: () => null,
+  },
+  "@/components/features/expenses/dialogs/personal-expense-dialog": {
+    PersonalExpenseDialog: () => null,
+  },
+  "@/components/features/expenses/dialogs/confirm-removal-dialog": {
+    ConfirmRemovalDialog: () => null,
+  },
+};
+const mocked = (path, name) =>
+  pageMocks[`@/components/features/expenses/${path}`][name];
+const GroupDetails = mocked(
+  "drawers/group-expense-details",
+  "GroupExpenseDetails",
+);
+const HistoryDrawer = mocked(
+  "drawers/expense-history-drawer",
+  "ExpenseHistoryDrawer",
+);
+const PersonalDetails = mocked(
+  "drawers/personal-expense-details",
+  "PersonalExpenseDetails",
+);
+const LoanDrawer = mocked("drawers/loan-details", "LoanDetails");
+const EditorDialog = mocked(
+  "dialogs/expense-editor-dialog",
+  "ExpenseEditorDialog",
+);
+const ReceiveDialog = mocked("dialogs/mark-as-paid-dialog", "MarkAsPaidDialog");
+const PersonalForm = mocked(
+  "dialogs/personal-expense-dialog",
+  "PersonalExpenseDialog",
+);
+const ConfirmRemoval = mocked(
+  "dialogs/confirm-removal-dialog",
+  "ConfirmRemovalDialog",
+);
+const RowMenu = pageMocks["@/components/shared/options-menu"].OptionsMenu;
+let query = "",
+  personalData = privateExpenses,
+  failing = {};
+const replaced = [];
+const personalApi = {
+  pending: false,
+  error: null,
+  reset() {},
+  list: async () => personalData,
+  get: async () => privateExpenses[0],
+  save: async () => privateExpenses[0],
+  remove: async () => true,
+};
+pageMocks["next/navigation"] = {
+  useSearchParams: () => new URLSearchParams(query),
+};
+pageMocks["@tanstack/react-query"] = {
+  useQuery(options) {
+    enabled.push(options.enabled);
+    const name =
+      options.queryKey[0] === "expense-currencies"
+        ? "currencies"
+        : options.queryKey[2];
+    const value = {
+      currencies,
+      activities: [resort],
+      ledger: viewData,
+      "personal-expenses": personalData,
+    }[name];
+    const error = failing[name] ?? null;
+    return {
+      data: error ? undefined : value,
+      isPending: !error && value === undefined,
+      isFetching: false,
+      error,
+      refetch() {},
+    };
+  },
+};
+pageMocks["@/lib/personal-expenses"] = {
+  personalExpensesKey: (id) => ["trip", id, "personal-expenses"],
+  usePersonalExpensesApi: () => personalApi,
+};
+const pageGlobals = {
+  ...viewGlobals,
+  window: {
+    ...viewGlobals.window,
+    location: { pathname: "/trips/7/expenses" },
+    history: { replaceState: (_s, _t, url) => replaced.push(url) },
+  },
+  URLSearchParams,
+};
+const page = load(
+  "src/components/features/expenses/expenses.tsx",
+  pageMocks,
+  pageGlobals,
+);
+const view = { ...activityView, ...page };
+const show = (props = {}) => {
+  states = [];
+  refs = [];
+  return render(page.Expenses, { ...viewProps, active: true, ...props });
+};
+const htmlOf = (props) => renderToStaticMarkup(show(props));
+render(page.Expenses, viewProps);
+assert.equal(enabled.length, 4);
 assert.ok(
   enabled.every((e) => !e),
   "Inactive expense queries pause",
 );
-states = [];
 enabled.length = 0;
-tree = render(view.Expenses, { ...viewProps, active: true });
-let html = renderToStaticMarkup(tree);
-assert.match(html, /1550|1,550/);
-assert.match(html, /Your total share<\/dt><dd>₱1,550/);
-assert.match(html, />Your expenses<\/h2>/);
-assert.match(html, /Tap an amount owed to you to record money received/);
-assert.doesNotMatch(html, /Overall expenses|Total:/);
-assert.match(
-  html,
-  /You owe<\/dt><dd>₱1,550/,
-  "You owe is the unpaid share plus borrowed money",
-);
-assert.match(html, /You’re owed<\/dt><dd>₱0/);
-assert.doesNotMatch(html, /<dt>Net</);
-assert.ok(
-  html.indexOf("You owe</dt>") < html.indexOf("Your total share</dt>"),
-  "Your balance comes before your total share",
-);
-assert.doesNotMatch(html, /Trip expenses/);
-assert.doesNotMatch(html, /Your share|To pay to business|Overall, you/);
-assert.match(html, /data-category="Rest"/);
-assert.equal(
-  (html.match(/class="expense-row(?:\s|")/g) ?? []).length,
-  (html.match(/<time dateTime=/g) ?? []).length,
-  "Every dated expense row has its own recognizable date",
-);
-assert.doesNotMatch(html, /expense-day-heading|expense-day-rows/);
-assert.doesNotMatch(html, /href=/, "Expense rows do not navigate");
-assert.doesNotMatch(html, /Mark as paid|View payments|Add expense/);
-assert.doesNotMatch(html, />Add cost</);
+viewData = groupLedger;
+let html = htmlOf();
+assert.ok(enabled.every(Boolean));
+assert.match(html, /Group totals/, "Group is the default");
+assert.match(html, /Group total<\/dt>/);
+assert.match(html, /Your share<\/dt>/);
+assert.match(html, /You owe<\/dt><dd[^>]*>₱40</);
+assert.match(html, /You’re owed<\/dt><dd[^>]*>₱50</); // Covered without a share (₱40) plus ₱10 over-repaid.
+assert.match(html, />JPY<\/p>/, "Each currency has its own totals");
+assert.match(html, /JPY 500/);
+assert.equal((html.match(/data-expense-row="group-/g) ?? []).length, 7);
+assert.match(html, /₱260 of ₱400 paid back · 2 of 4 people/);
+assert.match(html, /₱0 of ₱300 paid · no payer yet/);
+assert.match(html, /₱100 of ₱200 paid · 1 of 2 people/);
+assert.match(html, /All paid · 1 of 1 person</);
+assert.match(html, /No activity · 2 people/);
 assert.doesNotMatch(
   html,
-  /Paid for someone|Lent money|Historical repayments need allocation/,
+  /Private 1|Your personal spend|still to get back/,
+  "Group never shows private records",
 );
-assert.ok(enabled.every(Boolean));
+assert.match(html, /Only editors can change group expenses/);
+assert.doesNotMatch(html, /Add group expense|still need payment/);
+html = htmlOf({ current: { user_id: 3, role: "editor" } });
+assert.match(html, /Add group expense/);
+assert.match(html, /3 expenses still need payment · 1 has no payer yet/);
+assert.doesNotMatch(html, /Only editors can change/);
+query = "filter=settled";
+html = htmlOf();
+assert.equal((html.match(/data-expense-row="group-/g) ?? []).length, 2);
+assert.match(html, /Group total<\/dt>/, "Totals do not follow the filter");
+query = "filter=nonsense";
+assert.equal((htmlOf().match(/data-expense-row="group-/g) ?? []).length, 7);
+query = "filter=owed";
+assert.match(
+  htmlOf({ current: { user_id: 5, role: "member" } }),
+  /Nothing matches this filter/,
+);
+query = "mode=personal";
+html = htmlOf({ current: { user_id: 1, role: "member" } });
+assert.match(html, /Your personal spend<\/dt><dd[^>]*>₱360</);
+assert.match(html, /Lent, still to get back<\/dt><dd[^>]*>₱250</);
+assert.match(html, /Private 1/);
+assert.match(html, /Old tour \(removed\)/);
+assert.match(html, /₱250 left/);
+assert.match(html, /Money I lent/);
+assert.doesNotMatch(
+  html,
+  /Cost 10|Group total/,
+  "Personal never shows group expenses",
+);
+html = htmlOf({ current: { user_id: 1, role: "viewer" } });
+assert.match(html, /Private 1/);
+assert.match(html, /Add expense/, "Viewers add their own private expenses");
+assert.doesNotMatch(html, />Money I lent/, "Viewers cannot lend");
+query = "mode=personal&filter=lent";
+html = htmlOf({ current: { user_id: 1, role: "member" } });
+assert.equal((html.match(/data-expense-row="loan-/g) ?? []).length, 1);
+assert.doesNotMatch(html, /data-expense-row="expense-/);
 
-// Mobile and desktop controls share one filter, including empty results.
-const listModule = load(
-  "src/components/features/expenses/trip-expense-list.tsx",
-  viewMocks,
-  viewGlobals,
+// Each half of Personal survives the other failing, and neither blocks Group.
+query = "mode=personal";
+failing = { ledger: new ApiError(503, "Ledger offline") };
+html = htmlOf({ current: { user_id: 1, role: "member" } });
+assert.match(html, /Private 1/);
+assert.match(html, /Ledger offline/);
+assert.match(html, /Try again/);
+assert.doesNotMatch(html, /still to get back|>Money I lent/);
+failing = { "personal-expenses": new ApiError(503, "Private offline") };
+html = htmlOf({ current: { user_id: 1, role: "member" } });
+assert.match(html, /Private offline/);
+assert.match(html, /₱250 left/);
+assert.doesNotMatch(html, /Your personal spend/);
+query = "";
+html = htmlOf();
+assert.match(html, /Cost 10/);
+assert.doesNotMatch(html, /Private offline/);
+failing = { activities: new ApiError(503, "Activities offline") };
+html = htmlOf();
+assert.match(html, /Cost 10/);
+assert.match(html, /Resort/, "The saved activity title stays readable");
+assert.doesNotMatch(html, /Resort \(removed\)/);
+failing = { ledger: new ApiError(503, "Ledger offline") };
+html = htmlOf();
+assert.match(html, /Ledger offline/);
+assert.match(html, /aria-pressed="true"/, "The mode switch stays usable");
+failing = {};
+viewData = undefined;
+html = htmlOf();
+assert.match(html, /Loading expenses/);
+viewData = { ...data, expenses: [], payments: [], debts: [] };
+html = htmlOf();
+assert.match(html, /No group expenses yet/);
+assert.doesNotMatch(html, /Group total<|Filter expenses/);
+query = "mode=personal";
+personalData = [];
+assert.match(htmlOf(), /No personal expenses yet/);
+personalData = privateExpenses;
+
+// Mode and filter live in the URL without dropping other parameters.
+query = "x=1&filter=owe";
+viewData = groupLedger;
+let shown = nodes(show());
+shown
+  .find(
+    (n) =>
+      n.props["aria-pressed"] === false && n.props.children[1] === "Personal",
+  )
+  .props.onClick();
+assert.equal(replaced.at(-1), "?x=1&mode=personal");
+query = "mode=personal";
+shown = nodes(show());
+shown
+  .find(
+    (n) => n.props["aria-pressed"] === false && n.props.children[1] === "Group",
+  )
+  .props.onClick();
+assert.equal(replaced.at(-1), "/trips/7/expenses");
+query = "";
+shown = nodes(show({ current: { user_id: 3, role: "owner" } }));
+shown
+  .find((n) => n.props["aria-label"] === "Show expenses that need payment")
+  .props.onClick();
+assert.equal(replaced.at(-1), "?filter=payment");
+
+// History stays reachable for every role, from both modes.
+for (const role of ["owner", "editor", "member", "viewer"])
+  for (const mode of ["", "mode=personal"]) {
+    query = mode;
+    states = [];
+    refs = [];
+    const historyProps = {
+      ...viewProps,
+      active: true,
+      current: { user_id: 3, role },
+    };
+    const entry = nodes(render(page.Expenses, historyProps)).find((n) =>
+      React.Children.toArray(n.props.children).includes("Balances and history"),
+    );
+    entry.props.onClick();
+    const drawer = nodes(render(page.Expenses, historyProps)).find(
+      (n) => n.type === HistoryDrawer,
+    );
+    assert.equal(drawer.props.current.role, role);
+  }
+query = "";
+
+// Group: row activation, editor actions, and the dialogs they open.
+const groupModule = load(
+  "src/components/features/expenses/group-expenses.tsx",
+  pageMocks,
+  pageGlobals,
 );
-const listProps = {
-  ledger: loanLedgerShape,
-  activities: [resort],
-  people,
-  me: 1,
-  currencies,
-  today: "2026-11-08",
+const groupApi = {
+  pending: false,
+  error: null,
+  reset() {},
+  get: async () => inn,
+  saveExpense: async () => inn,
+  remove: async () => true,
 };
+const groupProps = {
+  ...viewProps,
+  current: { user_id: 1, role: "editor" },
+  headingRef: { current: null },
+  onModeChange() {},
+  ledger: groupLedger,
+  activities: [resort],
+  currencies,
+  api: groupApi,
+  filter: "all",
+  setFilter() {},
+};
+const groupTree = (props = groupProps) =>
+  nodes(render(groupModule.GroupExpenses, props));
 states = [];
 refs = [];
-let listTree = render(listModule.TripExpenseList, listProps);
-const mobilePicker = (node) => nodes(node).find((n) => n.props.onValueChange);
-assert.equal(nodes(listTree).filter((n) => n.type === "li").length, 4);
-mobilePicker(listTree).props.onValueChange("Settled");
-listTree = render(listModule.TripExpenseList, listProps);
-assert.equal(nodes(listTree).filter((n) => n.type === "li").length, 1);
-assert.match(renderToStaticMarkup(listTree), /paid you/);
-assert.ok(
-  nodes(listTree).some(
-    (n) =>
-      n.props["aria-pressed"] &&
-      React.Children.toArray(n.props.children).includes("Settled"),
-  ),
+let listed = groupTree();
+assert.equal(listed.filter((n) => n.type === RowMenu).length, 7);
+listed.find((n) => n.props["data-expense-row"] === "group-10").props.onClick();
+let drawerNode = groupTree().find((n) => n.type === GroupDetails);
+assert.equal(drawerNode.props.cost.id, 10);
+assert.equal(drawerNode.props.initialScreen, undefined);
+drawerNode.props.onBack();
+const menu = (id) =>
+  groupTree().find((n) => n.type === RowMenu && n.props.name === `Cost ${id}`)
+    .props.items;
+menu(11)[0].onClick();
+drawerNode = groupTree().find((n) => n.type === GroupDetails);
+assert.equal(
+  drawerNode.props.initialScreen,
+  "reservation",
+  "An unpaid cost goes straight to its business payment",
 );
-mobilePicker(listTree).props.onValueChange("Upcoming");
-listTree = render(listModule.TripExpenseList, listProps);
-assert.match(renderToStaticMarkup(listTree), /Nothing matches this filter/);
-mobilePicker(listTree).props.onValueChange(null);
-listTree = render(listModule.TripExpenseList, listProps);
-assert.equal(mobilePicker(listTree).props.value, "Upcoming");
-
-// The overview opens the existing recipient-only form for both kinds of debt.
-const overviewApiSave = viewApi.saveSettlement;
-const overviewWrites = [];
-viewData = loanLedgerShape;
-const recipientProps = {
-  ...viewProps,
-  active: true,
-  current: { user_id: 1, role: "member" },
+drawerNode.props.onBack();
+menu(10)[0].onClick();
+drawerNode = groupTree().find((n) => n.type === GroupDetails);
+assert.equal(
+  drawerNode.props.initialScreen,
+  null,
+  "A paid business leaves only recipient-confirmed repayments",
+);
+drawerNode.props.onBack();
+menu(10)[1].onClick();
+let costEditor = groupTree().find((n) => n.type === CostEditor);
+assert.equal(costEditor.props.initial.id, 10);
+assert.equal(
+  costEditor.props.activities,
+  undefined,
+  "Editing keeps its activity",
+);
+costEditor.props.onBack();
+menu(11)[1].onClick();
+assert.equal(
+  groupTree().find((n) => n.type === EditorDialog).props.editing.cost.id,
+  11,
+  "Costs without an activity keep their existing form",
+);
+groupTree()
+  .find((n) => n.type === EditorDialog)
+  .props.close();
+groupTree()
+  .find((n) =>
+    React.Children.toArray(n.props.children).includes("Add group expense"),
+  )
+  .props.onClick();
+costEditor = groupTree().find((n) => n.type === CostEditor);
+assert.equal(costEditor.props.activities.length, 1);
+assert.equal(costEditor.props.initial, undefined);
+const groupKeys = [];
+groupApi.saveExpense = async (_input, _cost, key) => {
+  groupKeys.push(key);
+  throw new ApiError(503, "Offline");
 };
-for (const kind of ["loan_id", "payment_id"]) {
-  states = [];
-  refs = [];
-  tree = render(view.Expenses, recipientProps);
-  const row = nodes(tree).find((n) => n.props.onReceive);
-  const entry = tripExpenses
-    .myEntries(viewData, [resort], 1, (id) =>
-      ledger.expenseName(people.find((p) => p.user_id === id)),
-    )
-    .find((e) => e.debt?.[kind]);
-  assert.ok(entry);
-  const filterTarget = { focus() {} };
-  row.props.filterRef.current = filterTarget;
-  const action = nodes(tree).find(
-    (n) => n.props["aria-label"] === `Record money received: ${entry.title}`,
-  );
-  assert.ok(action, "Owed rows are keyboard-operable buttons even in All");
-  action.props.onClick({ currentTarget: { isConnected: false } });
-  tree = render(view.Expenses, recipientProps);
-  let form = nodes(tree).find((n) => n.type === formModule.ActivityExpenseForm);
-  assert.equal(form.props.editor.debt[kind], entry.debt[kind]);
-  const drawer = nodes(tree).find(
-    (n) =>
-      n.props.backLabel === "Back to expenses" &&
-      n.props.presentation === "detail",
-  );
-  assert.ok(drawer);
+await assert.rejects(costEditor.props.onSave({}), /Offline/);
+costEditor = groupTree().find((n) => n.type === CostEditor);
+assert.ok(costEditor, "A failed save keeps the draft open");
+groupApi.saveExpense = async (_input, _cost, key) => {
+  groupKeys.push(key);
+  return inn;
+};
+await costEditor.props.onSave({});
+assert.equal(groupKeys[0], groupKeys[1], "Retries reuse the submission key");
+assert.ok(!groupTree().some((n) => n.type === CostEditor));
+menu(10)[2].onClick();
+let deletion = groupTree().find((n) => n.type === DeleteExpenseConfirmation);
+assert.equal(deletion.props.hasPayments, true);
+const removedKinds = [];
+groupApi.remove = async (kind, record) => {
+  removedKinds.push([kind, record.id]);
+  return true;
+};
+// Losing the role or the record while confirming blocks the request.
+deletion = groupTree({
+  ...groupProps,
+  current: { user_id: 1, role: "viewer" },
+}).find((n) => n.type === DeleteExpenseConfirmation);
+assert.equal(deletion.props.isEditor, false);
+await assert.rejects(deletion.props.onDelete(), /permission/);
+deletion = groupTree({
+  ...groupProps,
+  ledger: {
+    ...groupLedger,
+    expenses: groupLedger.expenses.filter((e) => e.id !== 10),
+  },
+}).find((n) => n.type === DeleteExpenseConfirmation);
+assert.equal(deletion.props.available, false);
+await assert.rejects(deletion.props.onDelete(), /no longer available/);
+assert.equal(removedKinds.length, 0);
+deletion = groupTree().find((n) => n.type === DeleteExpenseConfirmation);
+await deletion.props.onDelete();
+assert.equal(removedKinds.join(), "expenses,10");
+assert.ok(!groupTree().some((n) => n.type === DeleteExpenseConfirmation));
+states = [];
+refs = [];
+for (const role of ["member", "viewer"]) {
+  listed = groupTree({ ...groupProps, current: { user_id: 1, role } });
+  assert.ok(!listed.some((n) => n.type === RowMenu));
   assert.equal(
-    drawer.props.finalFocus(),
-    filterTarget,
-    "Removed rows return focus to the selected filter",
-  );
-  const mobileFilterTarget = { getClientRects: () => [{}] };
-  row.props.mobileFilterRef.current = mobileFilterTarget;
-  assert.equal(
-    drawer.props.finalFocus(),
-    mobileFilterTarget,
-    "Removed rows return focus to the visible mobile filter",
-  );
-  mobileFilterTarget.getClientRects = () => [];
-  assert.equal(
-    drawer.props.finalFocus(),
-    filterTarget,
-    "A hidden mobile filter does not steal desktop focus",
-  );
-  const input = { ...entry.debt, paid_on: "2026-11-02", amount_minor: "1000" };
-  viewApi.saveSettlement = async (...args) => {
-    overviewWrites.push(args);
-    throw new Error("Offline");
-  };
-  await assert.rejects(form.props.onSave(input), /Offline/);
-  tree = render(view.Expenses, recipientProps);
-  form = nodes(tree).find((n) => n.type === formModule.ActivityExpenseForm);
-  assert.ok(form, "Overview keeps a failed receipt open");
-  viewApi.saveSettlement = async (...args) => {
-    overviewWrites.push(args);
-    return { id: 100 };
-  };
-  await form.props.onSave(input);
-  assert.equal(overviewWrites.at(-1)[2], overviewWrites.at(-2)[2]);
-  tree = render(view.Expenses, recipientProps);
-  assert.ok(
-    !nodes(tree).some((n) => n.type === formModule.ActivityExpenseForm),
+    listed.filter((n) => n.props["data-expense-row"]).length,
+    7,
+    "Every role can open every group expense",
   );
 }
-viewApi.saveSettlement = overviewApiSave;
+
+// Personal: private expenses and money lent.
+const privateModule = load(
+  "src/components/features/expenses/personal-expenses.tsx",
+  pageMocks,
+  pageGlobals,
+);
+const loanApi = {
+  pending: false,
+  error: null,
+  reset() {},
+  saveTransaction: async () => inn,
+  remove: async () => true,
+};
+const privateProps = {
+  ...viewProps,
+  current: { user_id: 1, role: "member" },
+  headingRef: { current: null },
+  onModeChange() {},
+  expenses: privateExpenses,
+  ledger: {
+    ...loanLedgerShape,
+    loans: loanLedgerShape.loans.map((l) => ({ ...l, created_by_user_id: 1 })),
+  },
+  activities: [resort],
+  activitiesError: false,
+  currencies,
+  api: personalApi,
+  loans: loanApi,
+  filter: "all",
+  setFilter() {},
+};
+const privateTree = (props = privateProps) =>
+  nodes(render(privateModule.PersonalExpenses, props));
+const openRow = (key) =>
+  privateTree()
+    .find((n) => n.props["data-expense-row"] === key)
+    .props.onClick();
 states = [];
 refs = [];
-assert.doesNotMatch(
-  renderToStaticMarkup(
-    render(view.Expenses, {
-      ...recipientProps,
-      current: { user_id: 1, role: "viewer" },
-    }),
-  ),
-  /Record money received:/,
+openRow("expense-1");
+let detailNode = privateTree().find((n) => n.type === PersonalDetails);
+assert.equal(detailNode.props.record.id, 1);
+detailNode.props.onEdit();
+let personalForm = privateTree().find((n) => n.type === PersonalForm);
+assert.equal(personalForm.props.record.version, 1);
+const personalFormKey = personalForm.key;
+const personalSaves = [];
+personalApi.save = async (...args) => {
+  personalSaves.push(args);
+  throw new ApiError(409, "Changed");
+};
+await assert.rejects(
+  personalForm.props.onSave({ description: "Mine" }),
+  /Changed/,
 );
 assert.ok(
-  mine.every((e) => !e.debt),
-  "Debtor and own-share rows are not receipt actions",
+  privateTree().some((n) => n.type === PersonalForm),
+  "A conflict keeps the form open",
 );
-const repaid = tripExpenses.myEntries(
-  { ...loanLedgerShape, debts: [] },
-  [resort],
-  1,
-  (id) => `P${id}`,
-);
-assert.ok(repaid.every((e) => !e.debt));
-assert.equal(repaid.find((e) => e.key === "loan-1").status, "settled");
+personalApi.get = async () => ({ ...privateExpenses[0], version: 5 });
+await privateTree()
+  .find((n) => n.type === PersonalForm)
+  .props.onReload();
+personalForm = privateTree().find((n) => n.type === PersonalForm);
 assert.equal(
-  lenderEntries.find((e) => e.key === "loan-1").debt.amount_minor,
-  "15000",
+  personalForm.key,
+  personalFormKey,
+  "Reloading keeps the same form, so typed values survive",
 );
-viewData = data;
-
-states = [];
-tree = render(view.Expenses, {
-  ...viewProps,
-  active: true,
-  current: { user_id: 3, role: "viewer" },
-});
-
-assert.doesNotMatch(renderToStaticMarkup(tree), /Paid for someone/);
-states = [];
-refs = [];
-tree = render(view.Expenses, { ...viewProps, active: true });
-nodes(tree)
-  .find((n) => n.props.children?.[0] === "Upcoming")
-  .props.onClick();
-html = renderToStaticMarkup(
-  render(view.Expenses, { ...viewProps, active: true }),
-);
-assert.match(html, /Nothing matches this filter/);
-assert.match(html, /Your total share<\/dt><dd>₱1,550/);
-assert.doesNotMatch(html, /2026-11-01/);
-states = [];
-refs = [];
-viewData = {
-  ...data,
-  expenses: [{ ...inn, currency: "JPY" }],
-  payments: [],
-  loans: [],
-  settlements: [],
-  debts: [],
+personalApi.save = async (...args) => {
+  personalSaves.push(args);
+  return privateExpenses[0];
 };
-tree = render(view.Expenses, { ...viewProps, active: true });
-assert.match(renderToStaticMarkup(tree), /JPY/);
-const personalFixture = {
-  ...data,
-  expenses: [
-    {
-      ...inn,
-      amount_minor: "120000",
-      shares: [1, 2, 3].map((user_id) => ({ user_id, amount_minor: "40000" })),
+await personalForm.props.onSave({ description: "Mine" });
+assert.equal(
+  personalSaves[1][1].version,
+  5,
+  "The retry carries the new version",
+);
+assert.equal(personalSaves[0][2], personalSaves[1][2]);
+assert.ok(!privateTree().some((n) => n.type === PersonalForm));
+detailNode = privateTree().find((n) => n.type === PersonalDetails);
+detailNode.props.onDelete();
+let removal = privateTree().find((n) => n.type === ConfirmRemoval);
+assert.match(removal.props.summary, /Private 1 · ₱180/);
+personalApi.remove = async () => {
+  throw new ApiError(503, "Offline");
+};
+await assert.rejects(removal.props.onConfirm(), /Offline/);
+assert.ok(privateTree().some((n) => n.type === ConfirmRemoval));
+const privateRemovals = [];
+personalApi.remove = async (record) => {
+  privateRemovals.push(record.id);
+  return true;
+};
+await privateTree()
+  .find((n) => n.type === ConfirmRemoval)
+  .props.onConfirm();
+assert.equal(privateRemovals.join(), "1");
+assert.ok(!privateTree().some((n) => n.type === ConfirmRemoval));
+assert.ok(!privateTree().some((n) => n.type === PersonalDetails));
+openRow("loan-1");
+let loanNode = privateTree().find((n) => n.type === LoanDrawer);
+assert.equal(loanNode.props.canReceive, true);
+assert.equal(loanNode.props.canRemove, true);
+loanNode.props.onReceive();
+let receiving = privateTree().find((n) => n.type === ReceiveDialog);
+assert.equal(receiving.props.debt.loan_id, 1);
+assert.equal(receiving.props.debt.amount_minor, "15000");
+receiving.props.close();
+loanNode = privateTree({
+  ...privateProps,
+  current: { user_id: 1, role: "viewer" },
+}).find((n) => n.type === LoanDrawer);
+assert.equal(loanNode.props.canReceive, false, "Viewers keep read-only loans");
+assert.equal(loanNode.props.canRemove, false);
+loanNode = privateTree({
+  ...privateProps,
+  ledger: loanLedgerShape,
+}).find((n) => n.type === LoanDrawer);
+assert.equal(
+  loanNode.props.canRemove,
+  false,
+  "A member cannot remove a loan someone else recorded",
+);
+privateTree()
+  .find((n) =>
+    React.Children.toArray(n.props.children).includes("Money I lent"),
+  )
+  .props.onClick();
+let lendDialog = privateTree().find((n) => n.type === EditorDialog);
+assert.equal(lendDialog.props.editing.type, "loan");
+assert.equal(lendDialog.props.pickActivities.length, 1);
+await assert.rejects(
+  lendDialog.props.save({ from_user_id: 2 }),
+  /money you personally lent/,
+);
+const lendKeys = [];
+loanApi.saveTransaction = async (kind, _input, _record, key) => {
+  lendKeys.push([kind, key]);
+  return inn;
+};
+await lendDialog.props.save({ from_user_id: 1 });
+assert.equal(lendKeys[0][0], "expense_loans");
+assert.equal(
+  privateTree().find((n) => n.type === EditorDialog).props.editing,
+  null,
+);
+console.log(
+  "Group and Personal modes, filters, roles, failures, retries, conflicts and permission changes passed.",
+);
+
+// The real personal form keeps what was typed through failures and conflicts.
+const personalFormModule = load(
+  "src/components/features/expenses/dialogs/personal-expense-dialog.tsx",
+  {
+    ...viewMocks,
+    react: {
+      ...formReact,
+      useId: () => "personal",
     },
+    "@/components/features/expenses/activity-picker": {
+      ActivityPicker: () => null,
+    },
+    "@/components/shared/trip-dialog": {
+      TripDialog: ({ children, footer }) =>
+        React.createElement("div", null, children, footer),
+    },
+  },
+  viewGlobals,
+);
+let personalSaved,
+  personalFailure = null;
+const personalFormProps = {
+  activities: [resort],
+  activitiesError: false,
+  currencies,
+  zone: "Asia/Manila",
+  pending: false,
+  finalFocus: () => null,
+  onClose() {},
+  async onSave(value) {
+    if (personalFailure) throw personalFailure;
+    personalSaved = value;
+  },
+};
+const personalFormTree = (extra = {}) =>
+  render(personalFormModule.PersonalExpenseDialog, {
+    ...personalFormProps,
+    ...extra,
+  });
+const submitPersonal = async (extra) => {
+  await nodes(personalFormTree(extra))
+    .find((n) => n.type === "form")
+    .props.onSubmit({ preventDefault() {}, stopPropagation() {} });
+  return renderToStaticMarkup(personalFormTree(extra));
+};
+states = [];
+refs = [];
+assert.match(await submitPersonal(), /Name this expense/);
+nodes(personalFormTree())
+  .find((n) => n.props.id === "personal-name")
+  .props.onChange({ target: { value: " Coffee " } });
+assert.match(await submitPersonal(), /Enter an amount/);
+const setPersonalAmount = (value) =>
+  nodes(personalFormTree())
+    .find((n) => n.props.id === "personal-amount" && n.props.onChange)
+    .props.onChange({ target: { value } });
+for (const [value, message] of [
+  ["0", /positive amount/],
+  ["1.234", /2 decimal places/],
+  ["abc", /digits and a decimal point/],
+  ["92233720368547758.08", /too large/],
+]) {
+  setPersonalAmount(value);
+  assert.match(await submitPersonal(), message);
+}
+assert.equal(personalSaved, undefined);
+setPersonalAmount("1,180.50");
+personalFailure = new ApiError(503, "Offline");
+html = await submitPersonal();
+assert.match(html, /Offline/);
+assert.match(html, /Coffee/);
+assert.match(html, /1,180\.50/);
+personalFailure = new ApiError(409, "Changed elsewhere");
+let reloads = 0;
+const reloadable = { onReload: async () => void reloads++ };
+html = await submitPersonal(reloadable);
+assert.match(html, /Reload latest expense/);
+await nodes(personalFormTree(reloadable))
+  .find((n) => n.props.children === "Reload latest expense")
+  .props.onClick();
+html = renderToStaticMarkup(personalFormTree(reloadable));
+assert.equal(reloads, 1);
+assert.match(html, /What you typed is kept/);
+assert.match(html, /1,180\.50/);
+personalFailure = null;
+await submitPersonal(reloadable);
+assert.equal(personalSaved.amount_minor, "118050");
+assert.equal(personalSaved.activity_id, undefined);
+assert.ok(!("shares" in personalSaved) && !("payer_user_id" in personalSaved));
+// An activity deleted since is not resent, so the saved title survives.
+states = [];
+refs = [];
+const orphan = { record: { ...privateExpenses[0], activity_id: 404 } };
+await submitPersonal(orphan);
+assert.equal(personalSaved.activity_id, undefined);
+states = [];
+refs = [];
+await submitPersonal({ ...orphan, activities: [], activitiesError: true });
+assert.equal(
+  personalSaved.activity_id,
+  404,
+  "A failed activity list never clears a saved activity",
+);
+let releasePersonal,
+  personalCalls = 0;
+states = [];
+refs = [];
+const slowForm = {
+  record: privateExpenses[0],
+  onSave: () => {
+    personalCalls++;
+    return new Promise((resolve) => {
+      releasePersonal = resolve;
+    });
+  },
+};
+const slowSubmit = nodes(personalFormTree(slowForm)).find(
+  (n) => n.type === "form",
+);
+const submitEvent = { preventDefault() {}, stopPropagation() {} };
+const firstSubmit = slowSubmit.props.onSubmit(submitEvent);
+await slowSubmit.props.onSubmit(submitEvent);
+assert.equal(personalCalls, 1, "Rapid submits save once");
+releasePersonal();
+await firstSubmit;
+
+// The hook sends only private fields and keeps its key and version rules.
+const personalCallsMade = [];
+let personalResponse = () => privateExpenses[0];
+const invalidated = [];
+const toasts = [];
+const personalHook = load("src/lib/personal-expenses.ts", {
+  react: { ...formReact, useCallback: (fn) => fn },
+  "@tanstack/react-query": {
+    useQueryClient: () => ({
+      invalidateQueries: async ({ queryKey }) =>
+        invalidated.push(queryKey.join()),
+    }),
+  },
+  sonner: { toast: { success: (text) => toasts.push(text) } },
+  "@/lib/api": {
+    ApiError,
+    useApi:
+      () =>
+      async (path, init = {}) => {
+        personalCallsMade.push([init.method ?? "GET", path, init]);
+        return personalResponse(path, init);
+      },
+  },
+});
+const privateAccessFailures = [];
+states = [];
+refs = [];
+const hook = render(
+  () =>
+    personalHook.usePersonalExpensesApi(7, (error) =>
+      privateAccessFailures.push(error.status),
+    ),
+  {},
+);
+await hook.save(
+  {
+    description: " Coffee ",
+    currency: "PHP",
+    amount_minor: "1",
+    incurred_on: "2026-11-01",
+    activity_id: 0,
+    created_by_user_id: 9,
+    shares: [],
+  },
+  undefined,
+  "key-1",
+);
+assert.equal(personalCallsMade[0][1], "/api/v1/trips/7/personal-expenses");
+assert.equal(personalCallsMade[0][2].headers["Idempotency-Key"], "key-1");
+assert.equal(
+  personalCallsMade[0][2].body,
+  '{"description":"Coffee","currency":"PHP","amount_minor":"1","incurred_on":"2026-11-01"}',
+);
+assert.ok(
+  invalidated.every((key) => key === "trip,7,personal-expenses"),
+  "Private writes never touch the shared ledger cache",
+);
+await hook.save(
+  privateExpenses[0],
+  { ...privateExpenses[0], version: 4 },
+  "key-2",
+);
+assert.equal(personalCallsMade[1][0], "PUT");
+assert.equal(JSON.parse(personalCallsMade[1][2].body).version, 4);
+personalResponse = () => undefined;
+await hook.remove({ ...privateExpenses[0], version: 6 });
+assert.equal(
+  personalCallsMade[2][1],
+  "/api/v1/trips/7/personal-expenses/1?version=6",
+);
+assert.equal(
+  toasts.join(),
+  "Personal expense saved.,Personal expense saved.,Personal expense deleted.",
+);
+for (const [status, refreshed, denied] of [
+  [404, 1, 0],
+  [409, 1, 0],
+  [403, 1, 1],
+  [503, 0, 0],
+]) {
+  invalidated.length = privateAccessFailures.length = 0;
+  personalResponse = () => {
+    throw new ApiError(status, "No");
+  };
+  await assert.rejects(hook.remove(privateExpenses[0]), /No/);
+  assert.equal(invalidated.length, refreshed, `${status} refresh`);
+  assert.equal(privateAccessFailures.length, denied, `${status} access`);
+}
+personalResponse = () => {
+  throw new TypeError("Failed to fetch");
+};
+await assert.rejects(
+  hook.save(privateExpenses[0], undefined, "key-3"),
+  /may have completed/,
+);
+personalResponse = (path) =>
+  path.endsWith("offset=0")
+    ? Array.from({ length: 100 }, (_, id) => privateExpense(id + 1))
+    : [privateExpense(101)];
+assert.equal((await hook.list()).length, 101, "Every page is loaded");
+console.log(
+  "Private expense form, conflicts, retries, pagination and cache isolation passed.",
+);
+
+// Details and history keep their own restrictions.
+const loanDetailsModule = load(
+  "src/components/features/expenses/drawers/loan-details.tsx",
+  {
+    ...viewMocks,
+    "@/components/shared/trip-dialog": {
+      TripDialog: ({ children, footer }) =>
+        React.createElement("div", null, children, footer),
+    },
+  },
+);
+const loanDetailProps = {
+  loan: loanLedgerShape.loans[0],
+  ledger: loanLedgerShape,
+  activities: [resort],
+  name: (id) => `P${id}`,
+  money: money.moneyIn(currencies),
+  canReceive: true,
+  canRemove: true,
+  pending: false,
+  onReceive() {},
+  onRemove() {},
+  onBack() {},
+  finalFocus: () => null,
+};
+const loanHtml = (extra) =>
+  renderToStaticMarkup(
+    render(loanDetailsModule.LoanDetails, { ...loanDetailProps, ...extra }),
+  );
+html = loanHtml({});
+assert.match(html, /Left to get back<\/dt><dd[^>]*>₱150</);
+assert.match(html, /P2 paid you/);
+assert.match(html, /Record repayment/);
+assert.doesNotMatch(html, />Remove</, "Repaid loans cannot be removed");
+html = loanHtml({ loan: loanLedgerShape.loans[1] });
+assert.match(html, />Remove</);
+assert.match(html, /No repayments yet/);
+html = loanHtml({ canReceive: false, canRemove: false });
+assert.doesNotMatch(html, /Record repayment|>Remove</);
+
+viewData = {
+  ...loanLedgerShape,
+  settlements: [
+    ...loanLedgerShape.settlements,
     {
-      ...inn,
-      id: 90,
-      currency: "USD",
-      shares: [{ user_id: 2, amount_minor: "100" }],
+      id: 10,
+      currency: "PHP",
+      amount_minor: "700",
+      paid_on: "2026-11-01",
+      from_user_id: 2,
+      to_user_id: 1,
     },
   ],
-  payments: [],
-  debts: [],
-  loans: [],
-  settlements: [],
+  reversed_settlements: [
+    { ...loanLedgerShape.settlements[0], id: 11, amount_minor: "800" },
+  ],
 };
-const personalHtml = (fixture, user = 3) => {
-  viewData = fixture;
+const historyHtml = (user_id, role) => {
   states = [];
   refs = [];
   return renderToStaticMarkup(
-    render(view.Expenses, {
+    render(activityView.ActivityExpenses, {
       ...viewProps,
       active: true,
-      current: { user_id: user, role: "member" },
+      activityID: "",
+      activityTitle: "Balances and history",
+      view: "history",
+      current: { user_id, role },
     }),
   );
 };
-html = personalHtml(personalFixture);
-assert.match(html, /Your total share<\/dt><dd>₱400/);
-assert.doesNotMatch(html, /USD|Your share:/);
-const paidFixture = {
-  ...personalFixture,
-  payments: [
-    {
-      id: 80,
-      expense_id: inn.id,
-      payer_user_id: 3,
-      currency: "PHP",
-      amount_minor: "40000",
-      allocations: [{ user_id: 3, amount_minor: "40000" }],
-    },
-  ],
-};
-html = personalHtml(paidFixture);
-assert.match(html, /Your total share<\/dt><dd>₱400/);
-assert.match(html, /paid<\/span><span[^>]*><strong>₱400<\/strong><\/span>/);
-html = personalHtml({
-  ...paidFixture,
-  payments: [
-    {
-      ...paidFixture.payments[0],
-      amount_minor: "25000",
-      allocations: [{ user_id: 3, amount_minor: "25000" }],
-    },
-  ],
-});
-assert.match(
-  html,
-  /you owe<\/span><span[^>]*><strong>₱150<\/strong><span>Your share: ₱400/,
+html = historyHtml(2, "member");
+assert.match(html, /Money you borrowed/);
+assert.match(html, /₱150 to repay/);
+assert.match(html, /Repayment history/);
+assert.match(html, /Receipt history/);
+assert.match(html, /awaiting association/, "Legacy receipts stay reachable");
+assert.match(html, /Reversed receipt/);
+assert.doesNotMatch(html, /Associate existing receipt|Correct receipt/);
+html = historyHtml(1, "member");
+assert.match(html, /Reimbursements owed to you/);
+assert.match(html, />Mark paid</);
+assert.match(html, /Correct receipt/, "Recipients correct their own receipts");
+html = historyHtml(1, "viewer");
+assert.doesNotMatch(html, />Mark paid<|Correct receipt/);
+assert.match(html, /Read-only access/);
+assert.match(historyHtml(5, "editor"), /Associate existing receipt/);
+assert.doesNotMatch(historyHtml(5, "editor"), /Add expense|Add borrow/);
+viewData = data;
+console.log(
+  "Loan details, borrowed money, reimbursements and retained history passed.",
 );
-html = personalHtml({
-  ...paidFixture,
-  expenses: [
-    {
-      ...personalFixture.expenses[0],
-      shares: [{ user_id: 3, amount_minor: "30000" }],
-    },
-  ],
-});
-assert.match(html, /Your total share<\/dt><dd>₱300/);
-assert.match(html, /credit for review<\/span><span[^>]*><strong>₱100/);
-html = personalHtml(loanLedgerShape, 1);
-assert.match(html, /<strong>₱150<\/strong><span>Lent: ₱250/);
-assert.doesNotMatch(html, /Your share:/);
-html = personalHtml(loanLedgerShape, 2);
-assert.match(html, /<strong>₱150<\/strong><span>Borrowed: ₱250/);
-html = personalHtml(
-  {
-    ...personalFixture,
-    expenses: [],
-    loans: [{ ...loanLedgerShape.loans[0], currency: "JPY" }],
-    settlements: [{ ...loanLedgerShape.settlements[0], currency: "EUR" }],
-  },
-  1,
-);
-assert.match(html, /Your total share<\/dt><dd>JPY 0/);
-assert.match(html, /Your total share<\/dt><dd>EUR 0/);
-html = personalHtml({
-  ...personalFixture,
-  expenses: [personalFixture.expenses[1]],
-});
-assert.match(html, /No expenses yet/);
-assert.doesNotMatch(html, /USD|Your total share/);
+
 viewData = data;
 states = [];
 refs = [];
@@ -1979,7 +2806,7 @@ const paymentModule = load(
     "@/components/shared/trip-states": { TripError },
     "@/components/shared/options-menu": { OptionsMenu: () => null },
   },
-  { crypto },
+  { crypto, document: { activeElement: null } },
 );
 const workspaceProps = {
   trip: { id: 7, time_zone: "Asia/Manila" },
@@ -2084,6 +2911,35 @@ console.log(
   const calls = [];
   const saved = { saveTransaction: paymentApi.saveTransaction };
   paymentApi.saveTransaction = async (...args) => (calls.push(args), { id: 1 });
+  const businessOnly = withMember3({
+    business_remaining_minor: "30000",
+    remaining_minor: "30000",
+    reimbursements: [],
+  });
+  states = [];
+  refs = [];
+  memberView = memberModal({ status: businessOnly });
+  assert.equal(find(memberView(), "payment-amount").props.value, "300.00");
+  assert.equal(
+    calls.length,
+    0,
+    "Opening the sole business payment never saves it",
+  );
+  await submitInline(memberView());
+  assert.equal(calls.at(-1)[1].amount_minor, "30000");
+  for (const role of ["member", "viewer"]) {
+    states = [];
+    refs = [];
+    memberView = memberModal({
+      status: businessOnly,
+      current: { user_id: 3, role },
+    });
+    assert.equal(
+      find(memberView(), "payment-amount"),
+      undefined,
+      "Read-only business payments never auto-open",
+    );
+  }
   states = [];
   refs = [];
   memberView = memberModal({
@@ -2804,29 +3660,31 @@ viewData = {
 };
 states = [];
 refs = [];
-tree = render(view.Expenses, {
-  ...viewProps,
-  active: true,
-  current: { user_id: 1, role: "member" },
-});
-html = renderToStaticMarkup(tree);
+const savedPersonal = personalData;
+personalData = [];
+query = "mode=personal";
+html = htmlOf({ current: { user_id: 1, role: "member" } });
+assert.match(html, /Lent to Person 2/);
+assert.match(html, /₱250 left/);
 assert.match(
   html,
-  /You lent Person 2[^]*?left to repay you<\/span><span[^>]*><strong[^>]*>₱250<\/strong><\/span>/,
-  "Rows omit the original loan amount when it equals the amount still open",
-);
-assert.match(
-  html,
-  /You’re owed<\/dt><dd>₱600/,
-  "You're owed includes money lent to others",
+  /Lent, still to get back<\/dt><dd[^>]*>₱600</,
+  "Personal adds up money lent to others",
 );
 assert.match(html, /JPY 25,000/, "Currencies stay separate");
 assert.match(
   html,
-  /Your total share<\/dt><dd>₱0/,
-  "Loans aren't expenses, so they don't add to your total share",
+  /Your personal spend<\/dt><dd[^>]*>₱0</,
+  "Loans aren't expenses, so they never count as spending",
 );
-assert.doesNotMatch(html, /Mark as paid|Add expense/);
+assert.doesNotMatch(html, /Mark as paid/);
+query = "";
+assert.match(
+  htmlOf({ current: { user_id: 1, role: "member" } }),
+  /No group expenses yet/,
+  "Loans alone add nothing to Group",
+);
+personalData = savedPersonal;
 states = [];
 refs = [];
 tree = render(view.ActivityExpenses, { ...lenderProps, compact: true });
@@ -3409,31 +4267,11 @@ for (const role of ["owner", "member", "viewer"]) {
     active: true,
     current: { user_id: 3, role },
   };
-  tree = render(view.Expenses, overviewProps);
-  const entry = nodes(tree).find(
-    (n) => n.props.children === "Costs without an activity",
-  );
-  assert.ok(
-    entry,
-    "Costs outside your shares still have a management entry point",
-  );
-  const entryTarget = { isConnected: true };
-  entry.props.onClick({ currentTarget: entryTarget });
-  tree = render(view.Expenses, overviewProps);
-  const list = nodes(tree).find((n) => n.type === view.ActivityExpenses);
-  assert.equal(list.props.activityID, "unassigned");
-  assert.equal(list.props.current.role, role);
-  const drawer = nodes(tree).find(
-    (n) => n.props.title === "Costs without an activity",
-  );
-  assert.equal(drawer.props.finalFocus(), entryTarget);
-  entryTarget.isConnected = false;
-  const heading = { focus() {} };
-  nodes(tree).find(
-    (n) => n.props.id === "trip-expenses-heading",
-  ).props.ref.current = heading;
-  assert.equal(drawer.props.finalFocus(), heading);
-
+  // Costs outside your shares are ordinary Group rows for every role.
+  html = renderToStaticMarkup(render(view.Expenses, overviewProps));
+  assert.match(html, /Removed activity \(removed\)/);
+  assert.match(html, /From Prep/);
+  assert.equal((html.match(/data-expense-row="group-/g) ?? []).length, 2);
   states = [];
   refs = [];
   const unassignedProps = {
@@ -3483,4 +4321,421 @@ for (const role of ["owner", "member", "viewer"]) {
 }
 console.log(
   "Detached costs remain reachable with editor, member and viewer permissions.",
+);
+
+// Both entry points select a record; only the confirmation calls the removal API.
+const deletionProps = { ...ownerProps, view: "details" };
+const originalRemove = viewApi.remove;
+const originalExpenseQuery = viewGlobals.document.querySelector;
+const expenseFocusTargets = new Map([
+  [inn.id, { isConnected: true, kind: "expense row" }],
+  [entrance.id, { isConnected: true, kind: "next expense row" }],
+]);
+viewGlobals.document.querySelector = (selector) => {
+  const match = selector.match(/^\[data-expense-open="(\d+)"\]$/);
+  return match
+    ? expenseFocusTargets.get(Number(match[1]))
+    : { isConnected: true, kind: "hidden action" };
+};
+let deleted = [];
+viewApi.remove = async (kind, record) => {
+  deleted.push([kind, record]);
+  return true;
+};
+viewData = {
+  ...data,
+  expenses: [inn, entrance],
+  payments: [],
+  loans: [],
+  debts: [],
+  settlements: [],
+};
+states = [];
+refs = [];
+tree = render(view.ActivityExpenses, deletionProps);
+const costNode = nodes(tree).find(
+  (n) => n.props.cost?.id === inn.id && n.props.requestDelete,
+);
+costNode.props.requestDelete();
+assert.equal(
+  deleted.length,
+  0,
+  "Revealing or requesting Delete never removes a record",
+);
+tree = render(view.ActivityExpenses, deletionProps);
+let deletionDialog = nodes(tree).find(
+  (n) => n.type === DeleteExpenseConfirmation,
+);
+deletionDialog.props.onClose();
+assert.equal(
+  deletionDialog.props.finalFocus(),
+  expenseFocusTargets.get(inn.id),
+  "Cancelling must focus the expense, without revealing the hidden mobile ellipsis",
+);
+tree = render(view.ActivityExpenses, deletionProps);
+assert.equal(
+  nodes(tree).some((n) => n.type === DeleteExpenseConfirmation),
+  false,
+);
+assert.equal(deleted.length, 0, "Cancel preserves the expense");
+nodes(tree)
+  .find((n) => n.props.requestDelete)
+  .props.requestDelete();
+tree = render(view.ActivityExpenses, deletionProps);
+deletionDialog = nodes(tree).find((n) => n.type === DeleteExpenseConfirmation);
+await deletionDialog.props.onDelete();
+assert.equal(
+  deletionDialog.props.finalFocus(),
+  expenseFocusTargets.get(entrance.id),
+  "Deleting must focus the next expense, not its hidden action button",
+);
+assert.equal(deleted.length, 1);
+assert.equal(deleted[0][0], "expenses");
+assert.equal(deleted[0][1].version, inn.version);
+tree = render(view.ActivityExpenses, deletionProps);
+assert.equal(
+  nodes(tree).some((n) => n.type === DeleteExpenseConfirmation),
+  false,
+);
+
+nodes(tree)
+  .find((n) => n.props.requestDelete)
+  .props.requestDelete();
+viewData = {
+  ...viewData,
+  payments: [{ ...data.payments[0], expense_id: inn.id }],
+};
+tree = render(view.ActivityExpenses, deletionProps);
+deletionDialog = nodes(tree).find((n) => n.type === DeleteExpenseConfirmation);
+assert.equal(deletionDialog.props.hasPayments, true);
+await deletionDialog.props.onDelete();
+assert.equal(
+  deleted.length,
+  2,
+  "Recorded payments do not block confirmed expense deletion",
+);
+tree = render(view.ActivityExpenses, deletionProps);
+nodes(tree)
+  .find((n) => n.props.requestDelete)
+  .props.requestDelete();
+tree = render(view.ActivityExpenses, {
+  ...deletionProps,
+  current: { user_id: 3, role: "viewer" },
+});
+deletionDialog = nodes(tree).find((n) => n.type === DeleteExpenseConfirmation);
+assert.equal(deletionDialog.props.isEditor, false);
+await assert.rejects(deletionDialog.props.onDelete(), /permission/);
+viewData = { ...viewData, expenses: [], payments: [] };
+tree = render(view.ActivityExpenses, deletionProps);
+deletionDialog = nodes(tree).find((n) => n.type === DeleteExpenseConfirmation);
+assert.equal(deletionDialog.props.available, false);
+await assert.rejects(deletionDialog.props.onDelete(), /no longer available/);
+viewApi.remove = originalRemove;
+viewGlobals.document.querySelector = originalExpenseQuery;
+
+// Exercise the actual gesture handlers without a DOM or a gesture library.
+const swipeModule = load(
+  "src/components/features/expenses/expense-swipe-row.tsx",
+  {
+    react: formReact,
+    "@/components/ui/button": { Button: wrap("button") },
+    "@/components/shared/options-menu": { OptionsMenu: () => null },
+  },
+);
+let reveal = false,
+  requested = 0,
+  editRequested = 0;
+const swipeProps = {
+  id: 1,
+  name: "Inn",
+  enabled: true,
+  disabled: false,
+  open: false,
+  onOpenChange: (value) => {
+    reveal = value;
+  },
+  onDelete: () => requested++,
+  onEdit: () => editRequested++,
+  children: "Expense",
+};
+
+// Prep exposes the same row actions, preserving the editor and delete safeguards.
+const SwipeActions = () => null;
+const prepLib = load("src/lib/prep.ts", viewMocks);
+let prepRemoved = 0;
+const prepFinance = {
+  ...viewApi,
+  remove: async () => {
+    prepRemoved++;
+    return true;
+  },
+};
+const prepCost = { ...inn, prep_task_id: 91 };
+let prepLedger = { ...data, expenses: [prepCost] };
+const taskDetails = load(
+  "src/components/features/prep/drawers/task-details-drawer.tsx",
+  {
+    ...viewMocks,
+    "@/lib/prep": { ...prepLib, usePrepApi: () => ({ pending: false }) },
+    "@/components/shared/options-menu": { OptionsMenu: () => null },
+    "@/components/features/expenses/expense-swipe-row": {
+      ExpenseSwipeRow: SwipeActions,
+    },
+    "@/components/features/expenses/use-finance": {
+      useFinance: () => ({
+        api: prepFinance,
+        ledger: { data: prepLedger },
+        currencies: { data: currencies },
+      }),
+    },
+  },
+  viewGlobals,
+);
+const taskProps = {
+  ...ownerProps,
+  canEdit: true,
+  task: {
+    id: 91,
+    title: "Book hotel",
+    kind: "one_person",
+    ready_user_ids: [],
+    waiting_user_ids: [],
+  },
+  onAction() {},
+  onOpen() {},
+  onClose() {},
+  finalFocus: () => null,
+};
+states = [];
+refs = [];
+const prepTree = (overrides = {}) =>
+  render(taskDetails.TaskDetailsDrawer, { ...taskProps, ...overrides });
+const prepActions = () =>
+  nodes(prepTree()).find((n) => n.type === SwipeActions);
+prepActions().props.onEdit();
+assert.equal(
+  nodes(prepTree()).find((n) => n.type === CostEditor).props.initial.id,
+  prepCost.id,
+);
+nodes(prepTree())
+  .find((n) => n.type === CostEditor)
+  .props.onBack();
+prepActions().props.onDelete();
+assert.equal(prepRemoved, 0, "Prep Delete first opens confirmation");
+let prepConfirmation = () =>
+  nodes(prepTree()).find((n) => n.type === DeleteExpenseConfirmation);
+prepConfirmation().props.onClose();
+assert.equal(prepRemoved, 0, "Cancelling keeps the Prep expense");
+prepActions().props.onDelete();
+await assert.rejects(
+  nodes(prepTree({ current: { user_id: 1, role: "member" } }))
+    .find((n) => n.type === DeleteExpenseConfirmation)
+    .props.onDelete(),
+  /owners and editors/,
+);
+prepLedger = { ...prepLedger, expenses: [] };
+assert.equal(prepConfirmation().props.available, false);
+await assert.rejects(
+  prepConfirmation().props.onDelete(),
+  /no longer available/,
+);
+prepLedger = { ...prepLedger, expenses: [prepCost] };
+await prepConfirmation().props.onDelete();
+assert.equal(prepRemoved, 1);
+assert.equal(prepConfirmation(), undefined);
+for (const role of ["member", "viewer"]) {
+  states = [];
+  refs = [];
+  assert.equal(
+    nodes(prepTree({ current: { user_id: 1, role } })).find(
+      (n) => n.type === SwipeActions,
+    ).props.enabled,
+    false,
+  );
+}
+console.log(
+  "Prep expense edit, delete confirmation, cancellation and permissions passed.",
+);
+
+const pointerTarget = { style: {}, setPointerCapture() {} };
+const pointer = (x, y = 0) => ({
+  pointerId: 1,
+  isPrimary: true,
+  button: 0,
+  clientX: x,
+  clientY: y,
+  target: { closest: () => null },
+  currentTarget: pointerTarget,
+});
+function dragExpense(x, y = 0, cancel = false) {
+  states = [];
+  refs = [];
+  reveal = false;
+  pointerTarget.style = {};
+  const row = render(swipeModule.ExpenseSwipeRow, swipeProps);
+  const surface = nodes(row).find((n) => n.props.onPointerMove);
+  surface.props.onPointerDown(pointer(200));
+  surface.props.onPointerMove(pointer(200 + x, y));
+  surface.props.onLostPointerCapture({
+    target: {},
+    currentTarget: pointerTarget,
+  });
+  surface.props[cancel ? "onPointerCancel" : "onPointerUp"]();
+  return row;
+}
+dragExpense(-200);
+assert.equal(reveal, true);
+assert.equal(pointerTarget.style.transform, "translateX(-144px)");
+assert.equal(requested, 0, "A full swipe only reveals the actions");
+assert.equal(editRequested, 0, "A full swipe never opens the editor");
+dragExpense(-30);
+assert.equal(reveal, false, "A short drag snaps closed");
+dragExpense(-80, 100);
+assert.equal(reveal, false, "Vertical scrolling never reveals Delete");
+dragExpense(-80, 0, true);
+assert.equal(
+  reveal,
+  false,
+  "Cancelled pointer capture restores the previous state",
+);
+states = [];
+refs = [];
+const openSwipe = render(swipeModule.ExpenseSwipeRow, {
+  ...swipeProps,
+  open: true,
+});
+reveal = true;
+nodes(openSwipe)
+  .find((n) => n.props["aria-label"] === "Actions for Inn")
+  .props.onClick();
+assert.equal(
+  reveal,
+  false,
+  "Ellipsis closes the revealed action without a menu",
+);
+assert.equal(requested, 0, "Ellipsis never requests deletion");
+states = [];
+refs = [];
+const closedSwipe = render(swipeModule.ExpenseSwipeRow, swipeProps);
+nodes(closedSwipe)
+  .find((n) => n.props["aria-label"] === "Actions for Inn")
+  .props.onClick();
+assert.equal(
+  reveal,
+  true,
+  "Ellipsis reveals the same Edit and Delete actions as swiping",
+);
+const revealedEdit = nodes(openSwipe).find(
+  (n) => n.props["aria-label"] === "Edit Inn",
+);
+assert.equal(revealedEdit.props.tabIndex, 0);
+revealedEdit.props.onClick();
+assert.equal(editRequested, 1, "The revealed Edit action opens the editor");
+const hiddenEdit = nodes(closedSwipe).find(
+  (n) => n.props["aria-label"] === "Edit Inn",
+);
+assert.equal(hiddenEdit.props.tabIndex, -1);
+assert.equal(hiddenEdit.props["aria-hidden"], true);
+nodes(openSwipe)
+  .find((n) => n.props["aria-label"] === "Delete Inn")
+  .props.onClick();
+assert.equal(requested, 1, "The revealed action requests confirmation");
+states = [];
+refs = [];
+assert.equal(
+  render(swipeModule.ExpenseSwipeRow, { ...swipeProps, enabled: false }),
+  "Expense",
+);
+
+const alertMocks = Object.fromEntries(
+  [
+    "AlertDialog",
+    "AlertDialogCancel",
+    "AlertDialogContent",
+    "AlertDialogDescription",
+    "AlertDialogFooter",
+    "AlertDialogHeader",
+    "AlertDialogTitle",
+  ].map((name) => [name, wrap("div")]),
+);
+const deleteModule = load(
+  "src/components/features/expenses/dialogs/delete-expense-dialog.tsx",
+  {
+    react: formReact,
+    "@/components/ui/button": { Button: wrap("button") },
+    "@/components/ui/alert-dialog": alertMocks,
+    "@/components/shared/trip-states": { TripError },
+  },
+);
+let confirms = 0,
+  closes = 0,
+  releaseDelete;
+const confirmProps = {
+  cost: inn,
+  hasPayments: false,
+  isEditor: true,
+  available: true,
+  pending: false,
+  money: (amount) => amount,
+  finalFocus: () => null,
+  onClose: () => closes++,
+  onDelete: async () => {
+    confirms++;
+    await new Promise((resolve) => {
+      releaseDelete = resolve;
+    });
+  },
+};
+states = [];
+refs = [];
+tree = render(deleteModule.DeleteExpenseDialog, confirmProps);
+const confirmButton = nodes(tree).find(
+  (n) => n.props.children === "Delete expense",
+);
+const confirming = confirmButton.props.onClick();
+await confirmButton.props.onClick();
+tree.props.onOpenChange(false);
+assert.equal(confirms, 1, "Rapid confirmation clicks submit only once");
+assert.equal(closes, 0, "Confirmation cannot be dismissed during submission");
+releaseDelete();
+await confirming;
+for (const blocked of [{ isEditor: false }, { available: false }]) {
+  states = [];
+  refs = [];
+  tree = render(deleteModule.DeleteExpenseDialog, {
+    ...confirmProps,
+    ...blocked,
+  });
+  assert.equal(
+    nodes(tree).some((n) => n.props.children === "Delete expense"),
+    false,
+  );
+}
+states = [];
+refs = [];
+tree = render(deleteModule.DeleteExpenseDialog, {
+  ...confirmProps,
+  hasPayments: true,
+});
+assert.ok(
+  nodes(tree).some((n) => n.props.children === "Delete expense"),
+  "Paid expenses still offer confirmation",
+);
+states = [];
+refs = [];
+const failureProps = {
+  ...confirmProps,
+  onDelete: async () => {
+    throw new ApiError(503, "Offline");
+  },
+};
+tree = render(deleteModule.DeleteExpenseDialog, failureProps);
+await nodes(tree)
+  .find((n) => n.props.children === "Delete expense")
+  .props.onClick();
+tree = render(deleteModule.DeleteExpenseDialog, failureProps);
+assert.ok(nodes(tree).some((n) => n.props.children === "Try again"));
+assert.ok(nodes(tree).some((n) => n.props.error?.message === "Offline"));
+console.log(
+  "Expense swipe, cancellation, confirmation, duplicate-submit protection, failures, paid expense deletion and permission changes passed.",
 );

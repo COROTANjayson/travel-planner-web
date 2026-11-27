@@ -23,6 +23,7 @@ export function ExpenseEditorDialog({
   activityID,
   activityTitle,
   options,
+  pickActivities,
   people,
   participants,
   current,
@@ -46,6 +47,7 @@ export function ExpenseEditorDialog({
   activityID: string;
   activityTitle: string;
   options: FormProps["activities"];
+  pickActivities?: FormProps["pickActivities"];
   people: FormProps["people"];
   participants?: Participant[];
   current?: Participant;
@@ -90,7 +92,9 @@ export function ExpenseEditorDialog({
             ? "Edit expense"
             : "Add expense"
           : editing?.type === "loan"
-            ? "Record money lent"
+            ? pickActivities
+              ? "Add money I lent"
+              : "Record money lent"
             : editing?.type === "payment"
               ? "Record business payment"
               : editing?.receipt
@@ -99,7 +103,7 @@ export function ExpenseEditorDialog({
                   ? "Confirm money received"
                   : "Mark as paid"
       }
-      description={loanRepayment ? undefined : activityTitle}
+      description={loanRepayment ? undefined : activityTitle || undefined}
       busy={api.pending}
       disablePointerDismissal
       finalFocus={finalFocus}
@@ -119,6 +123,7 @@ export function ExpenseEditorDialog({
               simpleRepayment={loanRepayment}
               activityID={activityID}
               activities={options}
+              pickActivities={pickActivities}
               people={people}
               currencies={currencies}
               userID={current.user_id}

@@ -7,6 +7,7 @@ import {
 } from "@/components/features/expenses/card-row";
 import type { ExpenseEditor } from "@/components/features/expenses/activity-expense-form/activity-expense-form";
 import { Button } from "@/components/ui/button";
+import { ExpenseSwipeRow } from "@/components/features/expenses/expense-swipe-row";
 import type {
   ActivityLedger,
   Expense,
@@ -31,6 +32,9 @@ export function CostArticle({
   reverse,
   api,
   receiptRows,
+  requestDelete,
+  swipeOpen,
+  onSwipeOpenChange,
 }: {
   cost: Expense;
   data: ActivityLedger;
@@ -46,6 +50,9 @@ export function CostArticle({
   reverse: (kind: LedgerKind, record: FinancialRecord) => Promise<void>;
   api: Pick<ReturnType<typeof useExpensesApi>, "pending">;
   receiptRows: (receipts: Settlement[]) => ReactNode;
+  requestDelete: () => void;
+  swipeOpen: boolean;
+  onSwipeOpenChange: (open: boolean) => void;
 }) {
   const payments = data.payments.filter((p) => p.expense_id === cost.id);
   const paid = payments.reduce((n, p) => n + BigInt(p.amount_minor), 0n);
@@ -64,32 +71,47 @@ export function CostArticle({
       }
     >
       {flow && !managementOnly && (
-        <Button
-          variant="ghost"
-          className={cardRowClass}
-          aria-label={`View ${cost.description} payments`}
-          onClick={(event) => {
-            triggerRef.current = event.currentTarget;
-            setPaymentCost(cost);
+        <ExpenseSwipeRow
+          id={cost.id}
+          name={cost.description}
+          enabled={isEditor}
+          disabled={api.pending}
+          open={swipeOpen}
+          onOpenChange={onSwipeOpenChange}
+          onEdit={() => {
+            onSwipeOpenChange(false);
+            open({ type: "cost", cost });
           }}
+          onDelete={requestDelete}
         >
-          <CardRowContent
-            title={cost.description}
-            detail={`${cost.prep_task_id ? "From Prep · " : ""}${cost.shares.length} ${cost.shares.length === 1 ? "person" : "people"} · Total ${money(cost.amount_minor, cost.currency)}`}
-            value={
-              equal && cost.shares[0]
-                ? money(cost.shares[0].amount_minor, cost.currency)
-                : money(cost.amount_minor, cost.currency)
-            }
-            status={
-              paid === 0n && !!cost.planned_coverer_user_id
-                ? `${name(cost.planned_coverer_user_id)} will cover the ${money(cost.planned_cover_amount_minor ?? "0", cost.currency)} reservation`
-                : paid > 0n
-                  ? `${money(paid, cost.currency)} paid`
-                  : "Not paid yet"
-            }
-          />
-        </Button>
+          <Button
+            variant="ghost"
+            className={`${cardRowClass} px-3 sm:px-3.5`}
+            data-expense-open={cost.id}
+            aria-label={`View ${cost.description} payments`}
+            onClick={(event) => {
+              triggerRef.current = event.currentTarget;
+              setPaymentCost(cost);
+            }}
+          >
+            <CardRowContent
+              title={cost.description}
+              detail={`${cost.prep_task_id ? "From Prep · " : ""}${cost.shares.length} ${cost.shares.length === 1 ? "person" : "people"} · Total ${money(cost.amount_minor, cost.currency)}`}
+              value={
+                equal && cost.shares[0]
+                  ? money(cost.shares[0].amount_minor, cost.currency)
+                  : money(cost.amount_minor, cost.currency)
+              }
+              status={
+                paid === 0n && !!cost.planned_coverer_user_id
+                  ? `${name(cost.planned_coverer_user_id)} will cover the ${money(cost.planned_cover_amount_minor ?? "0", cost.currency)} reservation`
+                  : paid > 0n
+                    ? `${money(paid, cost.currency)} paid`
+                    : "Not paid yet"
+              }
+            />
+          </Button>
+        </ExpenseSwipeRow>
       )}
       {!flow && !managementOnly && (
         <>
@@ -200,7 +222,7 @@ export function CostArticle({
               </div>
             ))}
             {receiptRows(receipts)}
-            {isEditor && !payments.length && (
+            {isEditor && (
               <Button
                 variant="ghost"
                 disabled={api.pending}

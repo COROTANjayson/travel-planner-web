@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ArrowLeftIcon, DotsThreeIcon } from "@phosphor-icons/react";
 import { Expenses } from "@/components/features/expenses/expenses";
@@ -7,6 +7,7 @@ import { MobileBottomNav } from "@/components/features/account/mobile-bottom-nav
 import { Button } from "@/components/ui/button";
 import { allActivitiesKey, type Activity } from "@/lib/itinerary";
 import type { ActivityLedger } from "@/lib/expenses";
+import { personalExpensesKey } from "@/lib/personal-expenses";
 import type { Trip } from "@/lib/trips";
 import type { Participant } from "@/lib/memberships";
 const trip: Trip = {
@@ -147,11 +148,12 @@ export default function Preview() {
     q.setQueryData(["trip", trip.id, "ledger", "activity"], ledger);
     q.setQueryData(["expense-currencies"], [{ code: "PHP", decimals: 2 }]);
     q.setQueryData(allActivitiesKey(trip.id), activities);
+    q.setQueryData(personalExpensesKey(trip.id), []);
     return q;
   });
   return (
     <QueryClientProvider client={client}>
-      <div className="app-shell flex min-h-dvh flex-col bg-background text-foreground [&]:[--app-top:calc(56px_+_env(safe-area-inset-top,_0px))] [&]:[--app-bottom:calc(6rem_+_env(safe-area-inset-bottom,_0px))] [&:has(.trip-detail)_>_main#trips-main]:[padding-top:1rem] max-md:[&:has(.trips-overview)_>_.content-shell]:[padding-inline:max(1.25rem,_env(safe-area-inset-left,_0px))_max(1.25rem,_env(safe-area-inset-right,_0px))] max-md:[&:has(.mobile-trip-header)_>_.app-topbar]:[visibility:hidden] max-md:[&:has(.mobile-bottom-nav)_>_footer]:[padding-bottom:calc(var(--app-bottom)_+_24px)] max-md:[&_>_main#trips-main]:[padding-bottom:calc(var(--app-bottom)_+_24px)] max-md:[&:has(.mobile-add-activity)_>_main#trips-main]:[padding-bottom:calc(var(--app-bottom)_+_72px)] max-md:[&_.form-actions]:[bottom:var(--app-bottom)] max-md:[&_.form-surface]:[border:0] max-md:[&_.form-surface]:[border-radius:0] max-md:[&_.form-surface]:[background:transparent] max-md:[&_.form-surface]:[padding:0] max-md:[&_.form-surface]:[--form-surface:var(--background)] md:[&:has(.trip-detail)_>_main#trips-main]:[padding-top:0.5rem] lg:[&[data-authenticated='true']]:[padding-left:236px] lg:[&[data-authenticated='true']_>_.app-topbar]:[display:none] lg:[&[data-authenticated='true']_>_.content-shell]:[padding:2rem_2.5rem] max-[360px]:[&:has(.trips-overview)_>_.content-shell]:[padding-inline:1rem] max-md:[&:has(.trip-expenses-page)_>_main#trips-main]:[padding-inline:max(12px,_env(safe-area-inset-left,_0px))_max(12px,_env(safe-area-inset-right,_0px))] max-md:[&:has(.trip-expenses-page)_>_main#trips-main]:[padding-top:12px]">
+      <div className="app-shell flex min-h-dvh flex-col bg-background text-foreground [&]:[--app-top:calc(56px_+_env(safe-area-inset-top,_0px))] [&]:[--app-bottom:calc(6rem_+_env(safe-area-inset-bottom,_0px))] [&:has(.trip-detail)_>_main#trips-main]:[padding-top:1rem] max-md:[&:has(.trips-overview)_>_.content-shell]:[padding-inline:max(1.25rem,_env(safe-area-inset-left,_0px))_max(1.25rem,_env(safe-area-inset-right,_0px))] max-md:[&:has(.mobile-trip-header)_>_.app-topbar]:[visibility:hidden] max-md:[&:has(.mobile-bottom-nav)_>_footer]:[padding-bottom:calc(var(--app-bottom)_+_24px)] max-md:[&_>_main#trips-main]:[padding-bottom:calc(var(--app-bottom)_+_24px)] max-md:[&:has(.mobile-add-activity)_>_main#trips-main]:[padding-bottom:calc(var(--app-bottom)_+_72px)] max-md:[&_.form-actions]:[bottom:var(--app-bottom)] max-md:[&_.form-surface]:[border:0] max-md:[&_.form-surface]:[border-radius:0] max-md:[&_.form-surface]:[background:transparent] max-md:[&_.form-surface]:[padding:0] max-md:[&_.form-surface]:[--form-surface:var(--background)] md:[&:has(.trip-detail)_>_main#trips-main]:[padding-top:0.5rem] lg:[&[data-authenticated='true']]:[padding-left:236px] lg:[&[data-authenticated='true']_>_.app-topbar]:[display:none] lg:[&[data-authenticated='true']_>_.content-shell]:[padding:2rem_2.5rem] max-[360px]:[&:has(.trips-overview)_>_.content-shell]:[padding-inline:1rem]">
         <header className="app-topbar bg-background max-md:pt-[env(safe-area-inset-top,0px)]">
           <nav
             className="content-shell w-full max-w-[90rem] mx-auto px-[max(1.5rem,env(safe-area-inset-left,0px))] [padding-right:max(1.5rem,env(safe-area-inset-right,0px))] flex min-h-14 items-center md:[&]:[padding-left:max(2rem,_env(safe-area-inset-left,_0px))] md:[&]:[padding-right:max(2rem,_env(safe-area-inset-right,_0px))] xl:[&]:[padding-left:max(4rem,_env(safe-area-inset-left,_0px))] xl:[&]:[padding-right:max(4rem,_env(safe-area-inset-right,_0px))]"
@@ -191,13 +193,15 @@ export default function Preview() {
                 <p>Nov 2 ? 8, 2026</p>
               </div>
             </header>
-            <Expenses
-              active
-              trip={trip}
-              participants={people}
-              current={people[0]}
-              onFailure={() => {}}
-            />
+            <Suspense>
+              <Expenses
+                active
+                trip={trip}
+                participants={people}
+                current={people[0]}
+                onFailure={() => {}}
+              />
+            </Suspense>
           </div>
         </main>
         <MobileBottomNav

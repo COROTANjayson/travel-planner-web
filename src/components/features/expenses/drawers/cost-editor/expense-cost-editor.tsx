@@ -27,6 +27,10 @@ import {
 import { TripDialog } from "@/components/shared/trip-dialog";
 import { expenseModalProps } from "@/components/shared/trip-dialog-variants";
 import { TripError } from "@/components/shared/trip-states";
+import {
+  ActivityPicker,
+  type PickerActivity,
+} from "@/components/features/expenses/activity-picker";
 import { CostStep } from "@/components/features/expenses/drawers/cost-editor/cost-step";
 import { CovererStep } from "@/components/features/expenses/drawers/cost-editor/coverer-step";
 import { CustomSharesStep } from "@/components/features/expenses/drawers/cost-editor/custom-shares-step";
@@ -35,7 +39,8 @@ import { ReviewStep } from "@/components/features/expenses/drawers/cost-editor/r
 import { SplitStatusFooter } from "@/components/features/expenses/drawers/cost-editor/split-status-footer";
 
 export function ExpenseCostEditor({
-  activity,
+  activity: fixedActivity,
+  activities,
   prepTask,
   tripID,
   initial,
@@ -50,9 +55,12 @@ export function ExpenseCostEditor({
   onBack,
   onDirty,
   onReload,
+  onForbidden,
   finalFocus,
 }: {
   activity: { id?: number; title: string };
+  /** A new expense started outside an activity: choose one here. */
+  activities?: PickerActivity[];
   /** Pre-filled (and selected) name for a new expense, e.g. the activity's first. */
   defaultName?: string;
   /** The caller records a reservation payment when saving this new expense. */
@@ -70,10 +78,17 @@ export function ExpenseCostEditor({
   onBack: () => void;
   onDirty?: () => void;
   onReload?: () => Promise<void>;
+  /** The preview found the role changed; saving reports this itself. */
+  onForbidden?: (error: Error) => void;
   finalFocus?: () => HTMLElement | null;
 }) {
   const formID = useId();
   const read = useApi();
+  const [picked, setPicked] = useState(0);
+  const picking = !!activities && !initial;
+  const activity = picking
+    ? { id: picked || undefined, title: "" }
+    : fixedActivity;
   const [review, setReview] = useState<CostPreview | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const busy = pending || reviewing;
@@ -281,6 +296,7 @@ export function ExpenseCostEditor({
         setStep("cost");
         return;
       }
+      if (picking && !picked) throw new Error("Choose an activity first.");
       if (problem) throw new Error(problem);
       if (coverer && plannedCoverInvalid(coverAmount, total, meta.decimals))
         throw new Error("Check the planned reservation amount.");
@@ -316,7 +332,11 @@ export function ExpenseCostEditor({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(input),
           },
-        );
+        ).catch((cause: unknown) => {
+          if (cause instanceof ApiError && cause.status === 403)
+            onForbidden?.(cause);
+          throw cause;
+        });
         if (!result)
           throw new ApiError(500, "Unable to preview changes. Please retry.");
         if (result.before.payments.length) {
@@ -351,7 +371,9 @@ export function ExpenseCostEditor({
             ? "Who will pay first?"
             : initial
               ? "Edit expense"
-              : "Add expense";
+              : picking
+                ? "Add group expense"
+                : "Add expense";
   const day = Temporal.PlainDate.from(date).toLocaleString(undefined, {
     weekday: "long",
     month: "long",
@@ -430,6 +452,19 @@ export function ExpenseCostEditor({
                 )}
               </div>
             </div>
+          )}
+          {step === "cost" && picking && (
+            <ActivityPicker
+              id={`${formID}-activity`}
+              required
+              activities={activities}
+              zone={zone}
+              value={picked}
+              onChange={(value) => {
+                setPicked(value);
+                change();
+              }}
+            />
           )}
           {step === "cost" && (
             <CostStep
