@@ -42,6 +42,13 @@ export const tripDialogVariants: Record<
   },
 };
 
+// Use transform for motion so desktop centering (the translate property) stays intact.
+export const tripDialogMotion =
+  "starting:opacity-0 starting:[transform:translateY(100%)] md:starting:[transform:translateY(12px)_scale(0.98)] md:starting:[&[data-presentation=detail]]:[transform:translateX(100%)] transition-[transform,opacity] duration-[280ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-ending-style:duration-200 data-starting-style:opacity-0 data-ending-style:opacity-0 data-starting-style:[transform:translateY(100%)] data-ending-style:[transform:translateY(100%)] md:data-starting-style:[transform:translateY(12px)_scale(0.98)] md:data-ending-style:[transform:translateY(12px)_scale(0.98)] md:[&[data-presentation=detail][data-starting-style]]:[transform:translateX(100%)] md:[&[data-presentation=detail][data-ending-style]]:[transform:translateX(100%)] motion-reduce:transform-none! motion-reduce:transition-opacity motion-reduce:[&.trip-dialog]:duration-[120ms]!";
+
+export const tripDialogBackdropMotion =
+  "starting:opacity-0 transition-opacity duration-[280ms] ease-[cubic-bezier(0.23,1,0.32,1)] data-ending-style:duration-200 data-starting-style:opacity-0 data-ending-style:opacity-0 motion-reduce:[&.dialog-backdrop]:duration-[120ms]!";
+
 // Sticky fade above the pinned footer (reference and planning only).
 export const readerFooterFade =
   "after:pointer-events-none after:sticky after:bottom-0 after:-mt-6 after:block after:h-6 after:bg-[linear-gradient(to_bottom,transparent,var(--background))] after:content-['']";

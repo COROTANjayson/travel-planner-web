@@ -2494,6 +2494,7 @@ const { TripDialog } = load("src/components/shared/trip-dialog.tsx", {
   react: {
     ...React,
     useRef: (initial) => ({ current: initial }),
+    useState: (initial) => [initial, () => {}],
     useEffect() {},
   },
   "@base-ui/react/dialog": { Dialog: dialogParts },
@@ -2520,6 +2521,24 @@ busyDialog.props.onOpenChange(false, {
 });
 assert.equal(cancelled, true);
 assert.equal(changed, false);
+const dismissingDialog = TripDialog({
+  open: true,
+  title: "Dismissal",
+  onOpenChange: () => {
+    changed = true;
+  },
+});
+dismissingDialog.props.onOpenChange(false, { cancel() {} });
+assert.equal(
+  changed,
+  false,
+  "Keep conditional dialogs mounted through their exit",
+);
+dismissingDialog.props.onOpenChangeComplete(false);
+assert.equal(changed, true, "Notify the caller after the exit finishes");
+changed = false;
+dismissingDialog.props.onOpenChangeComplete(false);
+assert.equal(changed, false, "Dismissal completes only once");
 assert.equal(busyDialog.props.disablePointerDismissal, true);
 assert.equal(
   nodes(busyDialog).find((node) => node.type === dialogParts.Close).props
@@ -3254,6 +3273,7 @@ const stepDialog = TripDialog({
   description: "Activity",
   presentation: "detail",
   backLabel: "Back to activity",
+  backCloses: false,
   onBack: () => {
     backed = true;
   },

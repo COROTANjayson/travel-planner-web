@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, type ReactElement, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { ArrowLeftIcon, XIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +14,8 @@ import { cn } from "cn";
 import {
   readerFooterFade,
   tripDialogVariants,
+  tripDialogMotion,
+  tripDialogBackdropMotion,
   type TripDialogVariant,
 } from "@/components/shared/trip-dialog-variants";
 
@@ -41,6 +49,7 @@ export function TripDialog({
   headerAction,
   backLabel = "Back to itinerary",
   onBack,
+  backCloses = true,
   focusTitleOnChange = false,
 }: {
   trigger?: ReactElement;
@@ -72,10 +81,21 @@ export function TripDialog({
   headerAction?: ReactNode;
   backLabel?: string;
   onBack?: () => void;
+  /** False when Back changes the view inside this drawer instead of dismissing it. */
+  backCloses?: boolean;
   focusTitleOnChange?: boolean;
   initialFocus?: Dialog.Popup.Props["initialFocus"];
   finalFocus?: Dialog.Popup.Props["finalFocus"];
 }) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const afterClose = useRef<(() => void) | null>(null);
+  function dismiss(callback: () => void) {
+    if (busy || afterClose.current) return;
+    // A caller may unmount us, so notify it only after Base UI finishes the exit.
+    afterClose.current = callback;
+    setClosing(true);
+  }
   const styles =
     presentation === "detail"
       ? tripDialogVariants[variant ?? "reference"]
@@ -162,14 +182,31 @@ export function TripDialog({
   );
   return (
     <Dialog.Root
-      open={open}
+      open={!closing && (open ?? uncontrolledOpen)}
       disablePointerDismissal={disablePointerDismissal}
       onOpenChange={(next, details) => {
         if (!next && busy) {
           details.cancel();
           return;
         }
-        onOpenChange?.(next);
+        if (!next) {
+          dismiss(() => {
+            setUncontrolledOpen(false);
+            onOpenChange?.(false);
+          });
+        } else {
+          afterClose.current = null;
+          setClosing(false);
+          setUncontrolledOpen(true);
+          onOpenChange?.(true);
+        }
+      }}
+      onOpenChangeComplete={(next) => {
+        if (next || !afterClose.current) return;
+        const callback = afterClose.current;
+        afterClose.current = null;
+        callback();
+        setClosing(false);
       }}
     >
       {trigger && <Dialog.Trigger render={trigger} />}
@@ -177,7 +214,8 @@ export function TripDialog({
         <Dialog.Backdrop
           forceRender={!!backdropClassName}
           className={cn(
-            "dialog-backdrop fixed inset-0 z-50 transition-opacity duration-[180ms] ease-out data-starting-style:opacity-0 data-ending-style:opacity-0 [&[hidden]]:hidden",
+            "dialog-backdrop fixed inset-0 z-50 [&[hidden]]:hidden",
+            tripDialogBackdropMotion,
             backdropClassName ??
               (itineraryStyle ? "bg-black/60" : "bg-black/30"),
           )}
@@ -188,7 +226,8 @@ export function TripDialog({
           data-mobile-presentation={mobilePresentation}
           data-presentation={presentation}
           className={cn(
-            "trip-dialog fixed inset-0 z-50 flex h-dvh flex-col bg-card pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] shadow-xl outline-none transition-opacity duration-200 ease-out [--form-surface:var(--card)] data-starting-style:opacity-0 data-ending-style:opacity-0 data-[mobile-presentation=sheet]:top-auto data-[mobile-presentation=sheet]:h-auto data-[mobile-presentation=sheet]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-16px)] data-[mobile-presentation=sheet]:rounded-t-2xl data-[mobile-presentation=sheet]:rounded-b-none [&[hidden]]:hidden max-md:[&_[data-slot='calendar']]:w-full max-md:[&_[data-slot='calendar']]:max-w-full max-md:[&_[data-slot='calendar']]:p-0 max-md:[&_[data-slot='calendar']]:[--cell-size:40px] max-md:[&_[data-slot='calendar']_.rdp-day]:min-w-0 max-md:[&_[data-slot='calendar']_.rdp-day]:flex-1 max-md:[&_[data-slot='calendar']_.rdp-day]:aspect-auto max-md:[&_[data-slot='calendar']_button[data-day]]:h-12 max-md:[&_[data-slot='calendar']_button[data-day]]:w-full max-md:[&_[data-slot='calendar']_button[data-day]]:min-w-0 max-md:[&_[data-slot='calendar']_button[data-day]]:aspect-auto max-md:[&_[data-slot='calendar']_.rdp-month_caption]:h-12 max-md:[&_[data-slot='calendar']_.rdp-dropdown_root]:flex max-md:[&_[data-slot='calendar']_.rdp-dropdown_root]:min-h-11 max-md:[&_[data-slot='calendar']_.rdp-dropdown_root]:items-center md:inset-auto md:top-1/2 md:left-1/2 md:h-auto md:max-h-[calc(100dvh-48px)] md:w-[calc(100%-48px)] md:max-w-[672px] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl md:p-0 md:data-[mobile-presentation=sheet]:top-1/2 md:data-[mobile-presentation=sheet]:max-h-[calc(100dvh-48px)] md:data-[mobile-presentation=sheet]:rounded-2xl",
+            "trip-dialog fixed inset-0 z-50 flex h-dvh flex-col bg-card pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] shadow-xl outline-none [--form-surface:var(--card)] data-[mobile-presentation=sheet]:top-auto data-[mobile-presentation=sheet]:h-auto data-[mobile-presentation=sheet]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-16px)] data-[mobile-presentation=sheet]:rounded-t-2xl data-[mobile-presentation=sheet]:rounded-b-none [&[hidden]]:hidden max-md:[&_[data-slot='calendar']]:w-full max-md:[&_[data-slot='calendar']]:max-w-full max-md:[&_[data-slot='calendar']]:p-0 max-md:[&_[data-slot='calendar']]:[--cell-size:40px] max-md:[&_[data-slot='calendar']_.rdp-day]:min-w-0 max-md:[&_[data-slot='calendar']_.rdp-day]:flex-1 max-md:[&_[data-slot='calendar']_.rdp-day]:aspect-auto max-md:[&_[data-slot='calendar']_button[data-day]]:h-12 max-md:[&_[data-slot='calendar']_button[data-day]]:w-full max-md:[&_[data-slot='calendar']_button[data-day]]:min-w-0 max-md:[&_[data-slot='calendar']_button[data-day]]:aspect-auto max-md:[&_[data-slot='calendar']_.rdp-month_caption]:h-12 max-md:[&_[data-slot='calendar']_.rdp-dropdown_root]:flex max-md:[&_[data-slot='calendar']_.rdp-dropdown_root]:min-h-11 max-md:[&_[data-slot='calendar']_.rdp-dropdown_root]:items-center md:inset-auto md:top-1/2 md:left-1/2 md:h-auto md:max-h-[calc(100dvh-48px)] md:w-[calc(100%-48px)] md:max-w-[672px] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl md:p-0 md:data-[mobile-presentation=sheet]:top-1/2 md:data-[mobile-presentation=sheet]:max-h-[calc(100dvh-48px)] md:data-[mobile-presentation=sheet]:rounded-2xl",
+            tripDialogMotion,
             // Detail presentation is a right-hand drawer from md up.
             presentation === "detail" &&
               "bg-background md:inset-[0_0_0_auto] md:h-dvh md:max-h-dvh md:w-[min(680px,100%)] md:max-w-none md:translate-x-0 md:translate-y-0 md:rounded-[1.5rem_0_0_1.5rem]",
@@ -216,7 +255,11 @@ export function TripDialog({
               )}
             >
               {onBack ? (
-                <Button variant="ghost" disabled={busy} onClick={onBack}>
+                <Button
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => (backCloses ? dismiss(onBack) : onBack())}
+                >
                   <ArrowLeftIcon aria-hidden="true" className="size-3.5" />
                   {backLabel}
                 </Button>

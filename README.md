@@ -243,6 +243,10 @@ exported function in "scripts/check-css-browser.mjs" with a Playwright Page.
 It checks the preview and landing page at 320, 390 and 1440px, the repayment
 amount font size, drawer bounds, keyboard focus, reduced motion and high contrast.
 This browser check is separate from the mocked checks in npm test.
+For shared dialog motion, run the exported function in
+`scripts/check-dialog-browser.mjs` with a Playwright Page and the running app's
+base URL. It checks drawer and menu-sheet entrances, exits, focus return, and
+reduced motion at 320, 390, and 1440px using the public expense preview.
 Development/build automatically copy MapLibre workers into ignored
 `public/maplibre/`; never commit generated copies.
 

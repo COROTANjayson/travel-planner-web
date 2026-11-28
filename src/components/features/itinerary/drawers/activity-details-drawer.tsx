@@ -81,6 +81,7 @@ export function ActivityDetailsDrawer({
             : "Borrow list"
       }
       focusTitleOnChange
+      backCloses={false}
       backLabel={
         expenseView === "overview"
           ? "Back to itinerary"

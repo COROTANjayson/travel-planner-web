@@ -348,6 +348,11 @@ design.
 - Preserve visible focus, logical tab order, dialog focus trapping/return,
   Escape behavior, and reduced motion. Essential actions cannot require hover.
 - Keep control transitions specific and short (150ms); overlays use 180-220ms.
+  Shared `TripDialog` drawers and sheets enter in 280ms and exit in 200ms:
+  desktop detail drawers slide from the right, mobile panels rise from below,
+  and centered desktop dialogs use a small lift. Reduced motion replaces sliding
+  with a 120ms fade. Dismissal callbacks wait for the exit; Back navigation within
+  the activity drawer uses `backCloses={false}` to keep the current panel open.
   Press feedback should not animate keyboard focus; reduced motion applies to the landing page and
   portaled controls as well as the application shell.
 - Normal text needs 4.5:1 contrast; qualifying large text needs 3:1. Applicable
